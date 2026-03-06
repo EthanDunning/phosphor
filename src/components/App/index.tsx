@@ -168,6 +168,15 @@ class App extends Component<any, AppState> {
                         >
                             [ THEME: {activeTheme.name} → ]
                         </button>
+
+                        <a
+                            className="phosphor-header__btn"
+                            href="https://github.com/EthanDunning/phosphor"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                        >
+                            [ GITHUB ]
+                        </a>
                     </div>
                 </header>
 

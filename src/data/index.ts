@@ -9,8 +9,8 @@ export interface BundledScript {
 }
 
 export const BUNDLED_SCRIPTS: BundledScript[] = [
-    { id: "incr-ss-ark", label: "INCR-SS-ARK",  json: incrSsArkJson },
     { id: "ypsilon14",   label: "YPSILON-14",    json: ypsilon14Json },
+    { id: "incr-ss-ark", label: "INCR-SS-ARK",  json: incrSsArkJson },
     { id: "sample",      label: "SAMPLE",         json: sampleJson    },
 ];
 
