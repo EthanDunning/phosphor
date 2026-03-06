@@ -8,10 +8,10 @@
     }
     &:hover,
     &:active {
-        color: $background;
-        background: $foreground;
-        text-shadow: $background-glow;
-        box-shadow: $foreground-glow;
+        color: var(--bg);
+        background: var(--fg);
+        text-shadow: var(--bg-glow);
+        box-shadow: var(--fg-glow);
         transition:  background 50ms, foreground 150ms;
     }
 

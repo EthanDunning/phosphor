@@ -5,10 +5,10 @@ html, body {
     font-family: $font-family;
     font-size: $fontsize;
     line-height: $lineheight;
-    color: $foreground;
+    color: var(--fg);
 
     user-select: text;
-    text-shadow: $foreground-glow;
+    text-shadow: var(--fg-glow);
 
     height: 100%;
     margin: 0;
@@ -16,10 +16,9 @@ html, body {
 
 body {
     margin: 0;
-    background: $background;
-    background-image: $background-gradient;
+    background: var(--bg);
+    background-image: var(--bg-gradient);
     background-attachment: fixed;
-    //height: 100%;
     padding-top: env(safe-area-inset-top);
     padding-bottom: env(safe-area-inset-bottom);
     padding-left: env(safe-area-inset-left);
@@ -32,7 +31,7 @@ body {
 
 
 .phosphor {
-    padding-top: max(env(safe-area-inset-top),$lineheight);
+    padding-top: calc(max(env(safe-area-inset-top), #{$lineheight}) + var(--header-height, 0px));
     padding-bottom: max(env(safe-area-inset-bottom),$lineheight);
     padding-left: max(env(safe-area-inset-left),$lineheight);
     padding-right: max(env(safe-area-inset-right),$lineheight);
@@ -90,13 +89,13 @@ body {
 
 .self-destruct-countdown-header {
     position: fixed;
-    top: calc(env(safe-area-inset-top) + 0.2rem);
+    top: calc(env(safe-area-inset-top) + var(--header-height, 0px) + 0.2rem);
     left: 50%;
     transform: translateX(-50%);
     z-index: 1;
     padding: 0.15rem 0.45rem;
     border: 1px solid rgba($alert, 0.75);
-    background-color: rgba($background, 0.92);
+    background-color: var(--bg-92);
     font-size: $smallfontsize;
     letter-spacing: 0.08em;
     white-space: nowrap;

@@ -10,13 +10,13 @@
         resize: vertical;
         padding: 8px;
         box-sizing: border-box;
-        border: 1px solid $foreground;
-        background: rgba($background, 0.75);
-        color: $foreground;
+        border: 1px solid var(--fg);
+        background: var(--bg-75);
+        color: var(--fg);
         font-family: $font-family;
         font-size: $fontsize;
         line-height: $lineheight;
-        text-shadow: $foreground-glow;
+        text-shadow: var(--fg-glow);
         white-space: pre-wrap;
     }
 
@@ -27,21 +27,21 @@
 
         button {
             cursor: pointer;
-            border: 1px solid $foreground;
+            border: 1px solid var(--fg);
             background: transparent;
-            color: $foreground;
+            color: var(--fg);
             font-family: $font-family;
             font-size: $fontsize;
             line-height: $lineheight;
             padding: 4px 10px;
-            text-shadow: $foreground-glow;
+            text-shadow: var(--fg-glow);
 
             &:hover,
             &:active {
-                color: $background;
-                background: $foreground;
-                text-shadow: $background-glow;
-                box-shadow: $foreground-glow;
+                color: var(--bg);
+                background: var(--fg);
+                text-shadow: var(--bg-glow);
+                box-shadow: var(--fg-glow);
             }
         }
     }

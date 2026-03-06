@@ -3,8 +3,8 @@
 .__prompt__ {
     &.cursor::after {
         content: "|";
-        background-color: $foreground;
-        color: $foreground;
+        background-color: var(--fg);
+        color: var(--fg);
         animation: blink 1s steps(5, start) infinite;
     }
 

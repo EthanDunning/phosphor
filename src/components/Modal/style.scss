@@ -7,8 +7,8 @@
     width: 100vw;
     top: 0;
     left: 0;
-    background: rgba($background, 0.8);
-    color: $foreground;
+    background: var(--bg-80);
+    color: var(--fg);
 
     .content {
         position: fixed;
@@ -16,9 +16,9 @@
         left: 50%;
         padding: $lineheight * 0.5;
         transform: translate(-50%, -50%);
-        background: $foreground;
-        color: $background;
-        text-shadow: $background-glow;
+        background: var(--fg);
+        color: var(--bg);
+        text-shadow: var(--bg-glow);
 
         p {
             margin: 0;

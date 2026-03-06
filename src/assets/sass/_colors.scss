@@ -1,37 +1,28 @@
-// default: black bg, blue/white fg
+// Theme-sensitive colors are driven by CSS custom properties at runtime.
+// Default values below match the "blue" theme; applyTheme() in themes.ts
+// overrides them when the user switches themes.
 
-// TODO: add theme mixins
-// blue/white
-$foreground: rgb(212, 249, 250);
-$background: rgb(0, 12, 12);
-$alert: rgb(255, 60, 0);
-$emphasis : rgb(243, 149, 87);
-$notice : rgb(0, 199, 33);
-$aphelion : rgb(21, 255, 243);
+:root {
+    --fg:           rgb(212, 249, 250);
+    --bg:           rgb(0, 12, 12);
+    --fg-glow:      0 0 5px rgba(212, 249, 250, 0.5);
+    --bg-glow:      0 0 2px rgba(0, 12, 12, 0.5);
+    --bg-gradient:  radial-gradient(rgba(212, 249, 250, 0.15), rgba(0, 12, 12, 1) 100%);
+    --scanlines-fg: rgba(212, 249, 250, 0.1);
+    --scanlines-bg: rgba(0, 12, 12, 0.5);
+    --bg-20:        rgba(0, 12, 12, 0.2);
+    --bg-75:        rgba(0, 12, 12, 0.75);
+    --bg-80:        rgba(0, 12, 12, 0.8);
+    --bg-92:        rgba(0, 12, 12, 0.92);
+}
 
-// amber
-// $foreground: rgb(224, 125, 11);
-// $background: rgb(8, 4, 0);
-// $alert: rgb(255, 60, 0);
+// Static accent colors (not theme-dependent)
+$alert:    rgb(255, 60, 0);
+$emphasis: rgb(243, 149, 87);
+$notice:   rgb(0, 199, 33);
+$aphelion: rgb(21, 255, 243);
 
-// green
-// $foreground: rgb(36, 161, 20);
-// $background: rgb(0, 2, 0);
-// $alert: rgb(255, 60, 0);
-
-// white
-// $foreground: rgb(218, 218, 218);
-// $background: rgb(2, 2, 2);
-// $alert: rgb(255, 60, 0);
-
-$scanlines-foreground: rgba($foreground, 0.1);
-$scanlines-background: rgba($background, 0.5);
-
-$foreground-glow: 0 0 5px rgba($foreground, 0.5);
-$background-glow: 0 0 2px rgba($background, 0.5);
-$alert-glow: 0 0 5px rgba($alert, 0.5);
+$alert-glow:    0 0 5px rgba($alert,    0.5);
 $emphasis-glow: 0 0 5px rgba($emphasis, 0.5);
-$notice-glow: 0 0 5px rgba($notice, 0.5);
+$notice-glow:   0 0 5px rgba($notice,   0.5);
 $aphelion-glow: 0 0 5px rgba($aphelion, 0.5);
-
-$background-gradient: radial-gradient(rgba($foreground, 0.15), rgba($background, 1) 100%)

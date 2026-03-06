@@ -1,0 +1,150 @@
+@import "../../assets/sass/fonts";
+@import "../../assets/sass/colors";
+
+$header-height: 42px;
+
+:root {
+    --header-height: #{$header-height};
+}
+
+.phosphor-header {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: $header-height;
+    z-index: 100;
+
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1em;
+
+    padding: 0 1em;
+    box-sizing: border-box;
+
+    background: var(--bg);
+    border-bottom: 1px solid var(--fg);
+    color: var(--fg);
+    font-family: $font-family;
+    font-size: $smallfontsize * 0.55;
+    text-shadow: var(--fg-glow);
+    opacity: 0.95;
+
+    &__title {
+        letter-spacing: 0.15em;
+        opacity: 0.6;
+        flex-shrink: 0;
+    }
+
+    &__controls {
+        display: flex;
+        align-items: center;
+        gap: 0.75em;
+        flex-wrap: wrap;
+    }
+
+    &__btn {
+        background: none;
+        border: 1px solid var(--fg);
+        color: var(--fg);
+        font-family: $font-family;
+        font-size: inherit;
+        text-shadow: var(--fg-glow);
+        cursor: pointer;
+        padding: 0.15em 0.5em;
+        letter-spacing: 0.08em;
+        white-space: nowrap;
+
+        &:hover {
+            background: var(--fg);
+            color: var(--bg);
+            text-shadow: var(--bg-glow);
+        }
+    }
+
+    &__upload-label {
+        // styled same as btn; wraps hidden file input
+        background: none;
+        border: 1px solid var(--fg);
+        color: var(--fg);
+        font-family: $font-family;
+        font-size: inherit;
+        text-shadow: var(--fg-glow);
+        cursor: pointer;
+        padding: 0.15em 0.5em;
+        letter-spacing: 0.08em;
+        white-space: nowrap;
+
+        &:hover {
+            background: var(--fg);
+            color: var(--bg);
+            text-shadow: var(--bg-glow);
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+    }
+
+    // dropdown that appears below the script button
+    &__dropdown {
+        position: absolute;
+        top: $header-height;
+        background: var(--bg);
+        border: 1px solid var(--fg);
+        z-index: 200;
+        min-width: 14em;
+    }
+
+    &__dropdown-item {
+        display: block;
+        width: 100%;
+        background: none;
+        border: none;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        color: var(--fg);
+        font-family: $font-family;
+        font-size: inherit;
+        text-shadow: var(--fg-glow);
+        cursor: pointer;
+        padding: 0.3em 0.6em;
+        text-align: left;
+        letter-spacing: 0.06em;
+        white-space: nowrap;
+
+        &:last-child {
+            border-bottom: none;
+        }
+
+        &:hover {
+            background: var(--fg);
+            color: var(--bg);
+            text-shadow: var(--bg-glow);
+        }
+
+        &--active {
+            opacity: 0.45;
+            cursor: default;
+            &:hover {
+                background: none;
+                color: var(--fg);
+                text-shadow: var(--fg-glow);
+            }
+        }
+
+        &--separator {
+            border-top: 1px solid var(--fg);
+            cursor: default;
+            pointer-events: none;
+            padding: 0;
+            height: 1px;
+            overflow: hidden;
+        }
+    }
+
+    // wrapper for the relative-positioned script button + dropdown
+    &__script-wrapper {
+        position: relative;
+    }
+}

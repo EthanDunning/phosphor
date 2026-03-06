@@ -19,12 +19,6 @@ import ReportComposer from "../ReportComposer";
 import Modal from "../Modal";
 import Scanlines from "../Scanlines";
 
-// for different content, edit sample.json, or,
-// preferrably, create a new JSON and load it here
-// import json from "../../data/sharkfood.json";
-// import json from "../../data/ypsilon14.json";
-// import json from "../../data/sample.json";
-import json from "../../data/incr-ss-ark.json";
 import transformerSfx from "../../assets/incr-ss-ark/transformer.wav";
 import powerOnSfx from "../../assets/incr-ss-ark/sound effects/poweron.mp3";
 import powerOffSfx from "../../assets/incr-ss-ark/sound effects/poweroff.mp3";
@@ -144,12 +138,13 @@ interface UserReport {
     createdAt: string;
 }
 
-const SESSION_STORAGE_KEY = "phosphor:session:incr-ss-ark:v1";
-const SHIP_LOG_STORAGE_KEY = "phosphor:ship-logs:incr-ss-ark:v1";
-const USER_REPORT_STORAGE_KEY = "phosphor:user-reports:incr-ss-ark:v1";
 const USER_REPORT_SCREEN_PREFIX = "userReport:";
 
-class Phosphor extends Component<any, AppState> {
+interface PhosphorProps {
+    json: any;
+}
+
+class Phosphor extends Component<PhosphorProps, AppState> {
     private _containerRef: React.RefObject<HTMLElement>;
     private _lineheight: number = null;
     private _colwidth: number = null;
@@ -170,12 +165,21 @@ class Phosphor extends Component<any, AppState> {
     private _scriptState: Record<string, any> = {};
     private _shipLogs: ShipLogEntry[] = [];
     private _userReports: UserReport[] = [];
+    private _sessionStorageKey: string;
+    private _shipLogStorageKey: string;
+    private _userReportStorageKey: string;
 
-    constructor(props: any) {
+    constructor(props: PhosphorProps) {
         super(props);
 
+        const slug = ((props.json?.config?.script || props.json?.config?.name || "default") as string)
+            .toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+        this._sessionStorageKey    = `phosphor:session:${slug}:v1`;
+        this._shipLogStorageKey    = `phosphor:ship-logs:${slug}:v1`;
+        this._userReportStorageKey = `phosphor:user-reports:${slug}:v1`;
+
         this._containerRef = React.createRef<HTMLElement>();
-        this._script = getTerminalScript(json && json.config && json.config.script);
+        this._script = getTerminalScript(props.json?.config?.script);
 
         this.state = {
             screens: [],
@@ -472,7 +476,7 @@ class Phosphor extends Component<any, AppState> {
     }
 
     private _parseScreens(): void {
-        const screens = json.screens.map((element) => {
+        const screens = this.props.json.screens.map((element: any) => {
             return this._buildScreen(element);
         });
 
@@ -499,7 +503,7 @@ class Phosphor extends Component<any, AppState> {
     }
 
     private _parseDialogs(): void {
-        const dialogs = json.dialogs.map((element) => {
+        const dialogs = (this.props.json.dialogs || []).map((element: any) => {
             return this._buildDialog(element);
         });
 
@@ -597,7 +601,7 @@ class Phosphor extends Component<any, AppState> {
         }
 
         try {
-            const raw = window.localStorage.getItem(SESSION_STORAGE_KEY);
+            const raw = window.localStorage.getItem(this._sessionStorageKey);
             if (!raw) {
                 return null;
             }
@@ -630,7 +634,7 @@ class Phosphor extends Component<any, AppState> {
                 updatedAt: Date.now(),
             };
 
-            window.localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(session));
+            window.localStorage.setItem(this._sessionStorageKey, JSON.stringify(session));
         } catch (e) {
             void e;
         }
@@ -1465,7 +1469,7 @@ class Phosphor extends Component<any, AppState> {
         }
 
         try {
-            const raw = window.localStorage.getItem(SHIP_LOG_STORAGE_KEY);
+            const raw = window.localStorage.getItem(this._shipLogStorageKey);
             if (!raw) {
                 return [];
             }
@@ -1493,7 +1497,7 @@ class Phosphor extends Component<any, AppState> {
         }
 
         try {
-            window.localStorage.setItem(SHIP_LOG_STORAGE_KEY, JSON.stringify(this._shipLogs));
+            window.localStorage.setItem(this._shipLogStorageKey, JSON.stringify(this._shipLogs));
         } catch (e) {
             void e;
         }
@@ -1575,7 +1579,7 @@ class Phosphor extends Component<any, AppState> {
         }
 
         try {
-            const raw = window.localStorage.getItem(USER_REPORT_STORAGE_KEY);
+            const raw = window.localStorage.getItem(this._userReportStorageKey);
             if (!raw) {
                 return [];
             }
@@ -1604,7 +1608,7 @@ class Phosphor extends Component<any, AppState> {
         }
 
         try {
-            window.localStorage.setItem(USER_REPORT_STORAGE_KEY, JSON.stringify(this._userReports));
+            window.localStorage.setItem(this._userReportStorageKey, JSON.stringify(this._userReports));
         } catch (e) {
             void e;
         }
@@ -1618,9 +1622,9 @@ class Phosphor extends Component<any, AppState> {
 
         if (this._isStorageAvailable()) {
             try {
-                window.localStorage.removeItem(SESSION_STORAGE_KEY);
-                window.localStorage.removeItem(SHIP_LOG_STORAGE_KEY);
-                window.localStorage.removeItem(USER_REPORT_STORAGE_KEY);
+                window.localStorage.removeItem(this._sessionStorageKey);
+                window.localStorage.removeItem(this._shipLogStorageKey);
+                window.localStorage.removeItem(this._userReportStorageKey);
             } catch (e) {
                 void e;
             }

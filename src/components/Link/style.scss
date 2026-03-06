@@ -14,10 +14,10 @@
 
     &:hover,
     &:active {
-        color: $background;
-        background: $foreground;
-        text-shadow: $background-glow;
-        box-shadow: $foreground-glow;
+        color: var(--bg);
+        background: var(--fg);
+        text-shadow: var(--bg-glow);
+        box-shadow: var(--fg-glow);
         transition:  background 50ms, foreground 150ms;
     }
 
@@ -34,9 +34,9 @@
     // alert class
     &.alert:hover,
     &.alert:active {
-        color: $background;
+        color: var(--bg);
         background: $alert;
-        text-shadow: $background-glow;
+        text-shadow: var(--bg-glow);
         box-shadow: $alert-glow;
         transition:  background 50ms, foreground 150ms;
     }

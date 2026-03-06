@@ -21,8 +21,8 @@
     $scan-fps: 60;
 
     // scanline-color (rgba)
-    $scan-color: $scanlines-foreground;
-    $scan-background: $scanlines-background;
+    $scan-color: var(--scanlines-fg);
+    $scan-background: var(--scanlines-bg);
 
     // set z-index on 2147483648 or more to enable scanlines on Chrome fullscreen (doesn't work in Firefox or IE);
     $scan-z-index: 2147483648;
@@ -73,7 +73,7 @@
             width: 100%;
             height: $scan-width * 1;
             z-index: $scan-z-index + 1;
-            background: $foreground;
+            background: var(--fg);
             opacity: 0.2;
             // animation: scanline 6s linear infinite;
             @include scan-moving($scan-moving-line);

@@ -2,8 +2,8 @@
 
 .__teletype__ {
     .cursor {
-        color: rgba($background, 0.2);
-        background: $foreground;
+        color: var(--bg-20);
+        background: var(--fg);
     }
 
     .hidden {

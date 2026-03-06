@@ -1,6 +1,12 @@
 # PHOSPHOR
 ### A retro terminal simulator for tabletop role-playing games
 
+> **Note:** This is a fork of [redhg's original Phosphor project](https://github.com/redhg/phosphor), intended to implement some of the features he suggested and make the tool more accessible to modders and content creators. The goal is to move away from hardcoded content toward a more flexible, upload-friendly experience.
+>
+> Everything below the divider is the original README.
+
+---
+
 [Click here to skip the preamble and jump straight to Getting Started](#getting-started).
 
 ## Inspiration
@@ -10,22 +16,6 @@ Because of that (and because I was asked on [the Mothership Discord](https://dis
 
 Or you can skip doing it yourself and instead just check out [the Ypsilon 14 terminal in action](https://redhg.com/ypsilon14/).
 
-## An important note about this project
-
- I will not be accepting pull requests, nor will I be paying attention to the issues. I suggest you fork this repo if you want to make any public changes. It's all just for fun; noodling around without a particular goal.
-
-That being said, I'd love to see what *you* can do with my garabge project, so send me an email at **phosphor {at} redhg {dot} com** to let me know how you've expanded it!
-
-Suggested features:
-* Sound effects;
-* Autoscrolling or auto-pause/press space to continue at end of screen;
-* Asset preloader;
-* JSON uploading & parsing;
-* Routing support;
-* Dynamic themes -- I've added some colour values in `_colors.scss` but they don't work yet;
-* Links, Prompts, Images, and Teletype support *within* Dialogs.
-
----
 
 ## Getting Started
 
