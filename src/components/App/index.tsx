@@ -31,6 +31,7 @@ class App extends Component<any, AppState> {
         this._handleFileChange      = this._handleFileChange.bind(this);
         this._handleDropdownToggle  = this._handleDropdownToggle.bind(this);
         this._handleClickOutside    = this._handleClickOutside.bind(this);
+        this._handleClearData       = this._handleClearData.bind(this);
     }
 
     public componentDidMount(): void {
@@ -70,6 +71,12 @@ class App extends Component<any, AppState> {
         applyTheme(nextTheme);
         persistTheme(nextTheme);
         this.setState({ activeTheme: nextTheme });
+    }
+
+    private _handleClearData(): void {
+        localStorage.clear();
+        sessionStorage.clear();
+        window.location.reload();
     }
 
     private _handleFileChange(e: React.ChangeEvent<HTMLInputElement>): void {
@@ -167,6 +174,14 @@ class App extends Component<any, AppState> {
                             title="Cycle color theme"
                         >
                             [ THEME: {activeTheme.name} → ]
+                        </button>
+
+                        <button
+                            className="phosphor-header__btn"
+                            onClick={this._handleClearData}
+                            title="Clear all saved data and reload"
+                        >
+                            [ CLEAR DATA ]
                         </button>
 
                         <a

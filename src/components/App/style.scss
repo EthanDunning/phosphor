@@ -46,11 +46,13 @@ $header-height: 42px;
 
     &__btn {
         display: inline-block;
+        box-sizing: border-box;
         background: none;
         border: 1px solid var(--fg);
         color: var(--fg);
         font-family: $font-family;
         font-size: inherit;
+        line-height: inherit;
         text-shadow: var(--fg-glow);
         text-decoration: none;
         cursor: pointer;
