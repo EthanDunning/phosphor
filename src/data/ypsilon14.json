@@ -77,7 +77,6 @@
                 "A copy of the map is now available via data tablet.",
                 "",
                 "======",
-                "",
                 {
                     "text": "< BACK",
                     "target": "menu",
@@ -115,7 +114,6 @@
                 "All systems operating within acceptible parameters.",
                 "",
                 "======",
-                "",
                 {
                     "text": "< BACK",
                     "target": "menu",
@@ -138,7 +136,6 @@
                 "2366-02-20.1604 - Bay 2 : Arrive :: Key Largo",
                 "",
                 "======",
-                "",
                 {
                     "text": "< BACK",
                     "target": "menu",
@@ -165,7 +162,6 @@
                 "10. n/a",
                 "",
                 "======",
-                "",
                 {
                     "text": "< BACK",
                     "target": "menu",
@@ -194,7 +190,6 @@
                 },
                 "",
                 "======",
-                "",
                 {
                     "text": "< BACK",
                     "target": "menu",
@@ -242,7 +237,6 @@
                 },
                 "",
                 "======",
-                "",
                 {
                     "text": "< BACK",
                     "target": "comms",
@@ -303,7 +297,6 @@
                 },
                 "",
                 "======",
-                "",
                 {
                     "text": "< BACK",
                     "target": "menu",
@@ -345,7 +338,6 @@
                 },
                 "",
                 "======",
-                "",
                 {
                     "text": "< BACK",
                     "target": "controls",
@@ -432,7 +424,6 @@
                 },
                 "",
                 "======",
-                "",
                 {
                     "text": "< BACK",
                     "target": "controls",
@@ -462,7 +453,6 @@
                 },
                 "",
                 "======",
-                "",
                 {
                     "text": "< BACK",
                     "target": "controls",
@@ -489,7 +479,6 @@
                 },
                 "",
                 "======",
-                "",
                 {
                     "text": "< BACK",
                     "target": "controls",
@@ -525,7 +514,6 @@
                 },
                 "",
                 "======",
-                "",
                 {
                     "text": "< BACK",
                     "target": "system",
@@ -553,7 +541,6 @@
                 },
                 "",
                 "======",
-                "",
                 {
                     "text": "< BACK",
                     "target": "system",
@@ -596,7 +583,6 @@
                 },
                 "",
                 "======",
-                "",
                 {
                     "text": "< BACK",
                     "target": "selfdestruct",

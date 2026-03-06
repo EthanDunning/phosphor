@@ -1,10 +1,13 @@
-import React, { Component, RefObject, ReactElement, } from "react";
+import React, { Component, RefObject, ReactElement, CSSProperties, } from "react";
 import "./style.scss";
 
 export interface BitmapProps {
     src: string;
     className?: string;
     alt?: string;
+    animated?: boolean;
+    scale?: number;
+    fillWidth?: boolean;
     autocomplete?: boolean;
     onComplete: () => void; // event called on completion
 }
@@ -12,6 +15,7 @@ export interface BitmapProps {
 interface BitmapState {
     loading: boolean;
     image: HTMLImageElement;
+    naturalWidth: number | null;
 }
 
 const TICK = 150;
@@ -44,30 +48,85 @@ class Bitmap extends Component<BitmapProps, BitmapState> {
         this.state = {
             loading,
             image: new Image(),
+            naturalWidth: null,
         };
     }
 
+    private _getMediaStyle(): CSSProperties {
+        const { fillWidth, scale } = this.props;
+        const { naturalWidth } = this.state;
+
+        if (fillWidth) {
+            return {
+                width: "100%",
+                height: "auto",
+            };
+        }
+
+        if (typeof scale === "number" && Number.isFinite(scale) && scale > 0 && naturalWidth) {
+            return {
+                width: `${Math.max(1, Math.round(naturalWidth * scale))}px`,
+                height: "auto",
+            };
+        }
+
+        return {};
+    }
+
     public render(): ReactElement {
-        const { className } = this.props;
+        const { className, src, alt } = this.props;
         const { loading } = this.state;
         const css = ["__image__", className ? className : null].join(" ").trim();
+        const animated = this._isAnimatedSource();
+        const style = this._getMediaStyle();
+
+        if (animated) {
+            return (
+                <div className={css}>
+                    {loading && <div className="progressbar" />}
+                    {!loading && <img src={src} alt={alt || ""} style={style} />}
+                </div>
+            );
+        }
 
         return (
             <div className={css}>
                 {loading && <div className="progressbar" />}
-                <canvas ref={this._canvasRef} />
+                <canvas ref={this._canvasRef} style={style} />
             </div>
         );
     }
 
     public componentDidMount(): void {
+        if (this._isAnimatedSource()) {
+            this._loadAnimatedImage();
+            return;
+        }
+
         this._loadImage();
+    }
+
+    public componentWillUnmount(): void {
+        this._clearAnimationTimer();
+    }
+
+    private _isAnimatedSource(): boolean {
+        const { animated, src } = this.props;
+        if (animated) {
+            return true;
+        }
+
+        const normalized = (src || "").split("?")[0].toLowerCase();
+        return normalized.endsWith(".gif");
     }
 
     private _resampleImage(resolution: number): void {
         const { image, } = this.state;
         const canvas = this._canvasRef.current;
-        const ctx = canvas.getContext("2d");
+        const ctx = canvas && canvas.getContext("2d");
+        if (!canvas || !ctx) {
+            return;
+        }
 
         const w = image.width;
         const h = image.height;
@@ -109,9 +168,9 @@ class Bitmap extends Component<BitmapProps, BitmapState> {
         const { autocomplete, onComplete, src, } = this.props;
         const { image } = this.state;
         const canvas = this._canvasRef.current;
-        const ctx = canvas.getContext("2d");
+        const ctx = canvas && canvas.getContext("2d");
 
-        if (ctx && image) {
+        if (canvas && ctx && image) {
             image.onload = () => {
                 // resize the canvas element
                 const w = image.width;
@@ -125,14 +184,44 @@ class Bitmap extends Component<BitmapProps, BitmapState> {
                 if (!autocomplete) {
                     this.setState({
                         loading: false,
+                        naturalWidth: w,
                     }, () => this._animate());
                 } else {
-                    ctx.drawImage(image, 0, 0);
-                    onComplete && onComplete();
+                    this.setState({
+                        naturalWidth: w,
+                    }, () => {
+                        ctx.drawImage(image, 0, 0);
+                        onComplete && onComplete();
+                    });
                 }
             };
             image.src = src;
         }
+    }
+
+    private _loadAnimatedImage(): void {
+        const { autocomplete, onComplete, src } = this.props;
+
+        if (autocomplete) {
+            this.setState({
+                loading: false,
+            }, () => onComplete && onComplete());
+            return;
+        }
+
+        const image = new Image();
+        image.onload = () => {
+            this.setState({
+                loading: false,
+                naturalWidth: image.naturalWidth || image.width || null,
+            }, () => onComplete && onComplete());
+        };
+        image.onerror = () => {
+            this.setState({
+                loading: false,
+            }, () => onComplete && onComplete());
+        };
+        image.src = src;
     }
 }
 

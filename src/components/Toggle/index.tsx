@@ -5,17 +5,19 @@ import "./style.scss";
 export interface ToggleState {
     text: string;
     active?: boolean;
+    target?: string;
+    action?: string;
 }
 
 export interface ToggleProps {
     states: ToggleState[];
     className?: string;
     onRendered?: () => void;
-    onClick?: () => void;
+    onClick?: (state?: ToggleState) => void;
 }
 
 const Toggle: SFC<ToggleProps> = (props) => {
-    const { className, states, onRendered } = props;
+    const { className, states, onRendered, onClick } = props;
     const css = [
         "__toggle__",
         className ? className : null,
@@ -31,17 +33,21 @@ const Toggle: SFC<ToggleProps> = (props) => {
     // events
     const handleRendered = () => (onRendered && onRendered());
     const handleClick = useCallback(() => {
-        if (active) {
-            // get the active index;
-            const index = states.findIndex(element => element === active);
-            // unset everything
-            states.forEach(element => element.active = false);
-            // set the next active element
-            const next = states[index + 1 === states.length ? 0 : index + 1];
-            next.active = true;
-            setActive(next);
+        if (!states || !states.length) {
+            onClick && onClick();
+            return;
         }
-    }, [states, active, setActive]);
+
+        const current = active || states.find((element) => element.active === true) || states[0];
+        const index = states.findIndex((element) => element === current);
+        const safeIndex = index > -1 ? index : 0;
+
+        states.forEach((element) => element.active = false);
+        const next = states[(safeIndex + 1) % states.length];
+        next.active = true;
+        setActive(next);
+        onClick && onClick(next);
+    }, [states, active, setActive, onClick]);
 
     // this should fire on mount/update
     useEffect(() => handleRendered());

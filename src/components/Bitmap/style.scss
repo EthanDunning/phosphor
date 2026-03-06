@@ -1,6 +1,10 @@
 @import "../../assets/sass/progressbar";
 
 .__image__ {
+    &.aphelion-eye-footer {
+        margin-top: 1em;
+    }
+
     .progressbar {
         &::after {
             content: "";
@@ -8,8 +12,10 @@
         }
     }
 
-    canvas {
+    canvas,
+    img {
         max-width: 100%;
+        display: block;
     }
 
     &.monochrome {

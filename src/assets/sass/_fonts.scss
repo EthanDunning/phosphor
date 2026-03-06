@@ -13,5 +13,6 @@ $font-family: "Vga", Menlo, Monaco, Consolas, "Courier New", monospace;
 $scalefactor: 2.0;
 // the following values are font-dependant
 
-$fontsize: 24px * $scalefactor;
-$lineheight: 19px * $scalefactor;
+$smallfontsize: 14px * $scalefactor;
+$fontsize: 18px * $scalefactor;
+$lineheight: 14px * $scalefactor;

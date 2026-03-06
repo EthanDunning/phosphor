@@ -1,0 +1,1491 @@
+{
+    "config": {
+        "name": "INCR-SS-ARK Terminal Interface",
+        "author": "Ethan Dunning",
+        "comment": "Phosphor content file for the INCR-SS-Ark colonization vessel terminal. A generation ship bound for Galaxy 007 under the control of Aphelion 3000 AI.",
+        "script": "incr-ss-ark"
+    },
+    "screens": [
+        {
+            "id": "screen0",
+            "type": "screen",
+            "content": [
+                "  INCR-SS-ARK",
+                "===============",
+                {
+                    "type": "bitmap",
+                    "src": "img/INCR_Logo.png ",
+                    "className": "lighten"
+                },
+                "",
+                "International Nexus of Cosmic Research\nGalaxy-Class Generation Vessel\nMission Status: CRITICAL ALERT",
+                "",
+                "",
+                {
+                    "type": "text",
+                    "className": "alert",
+                    "text": ">>> TERMINAL REACTIVATED <<<"
+                },
+                "VERSION 1.3.6",
+                "",
+                {
+                    "type": "text",
+                    "className": "alert",
+                    "text": ">>> SHIP INTEGRITY: COMPROMISED <<<"
+                },
+                "",
+                "",
+                "Accessing main system...",
+                "",
+                {
+                    "text": "> ACCEPT SYSTEM ACCESS & CONTINUE",
+                    "type": "link",
+                    "target": "menu"
+                }
+            ]
+        },
+        {
+            "id": "menu",
+            "type": "screen",
+            "content": [
+                "MAIN MENU - INCR-SS-ARK",
+                "=======================",
+                "",
+                {
+                    "text": "> VESSEL STATUS & DIAGNOSTICS",
+                    "type": "link",
+                    "target": "diagnostics"
+                },
+                {
+                    "text": "> SHIP INFORMATION",
+                    "type": "link",
+                    "target": "shipinfo"
+                },
+                {
+                    "text": "> DECK INFORMATION & MAP",
+                    "type": "link",
+                    "target": "decks"
+                },
+                
+                {
+                    "text": "> CREW & PASSENGER MANIFEST",
+                    "type": "link",
+                    "target": "manifest"
+                },
+                {
+                    "text": "> SHIP REPORTS",
+                    "type": "link",
+                    "target": "comms"
+                },
+                {
+                    "text": "> EMERGENCY PROTOCOLS",
+                    "type": "link",
+                    "target": "emergency"
+                },
+                "",
+                {
+                    "text": "> APHELION 3000",
+                    "type": "link",
+                    "target": "aphelion"
+                },
+                "",
+                "=========",
+                {
+                    "text": "> LOG OUT",
+                    "type": "link",
+                    "target": [
+                        {
+                            "type": "link",
+                            "target": "screen0",
+                            "shiftKey": false
+                        },
+                        {
+                            "type": "action",
+                            "action": "resetState",
+                            "target": "screen0",
+                            "shiftKey": true
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "id": "diagnostics",
+            "type": "screen",
+            "content": [
+                "VESSEL SYSTEMS DIAGNOSTIC",
+                "=========================",
+                "",
+                "Running full system sweep...",
+                "..........................................",
+                "..........................................",
+                "..........................................",
+                "..........................................",
+                "",
+                "Life Support Systems............ CRITICAL",
+                "Power Distribution.............. DEGRADED",
+                "Atmospheric Processing.......... COMPROMISED",
+                "Cryogenic Systems............... ONLINE",
+                "Hydroponics Array............... OFFLINE",
+                "Communication Array............. OFFLINE",
+                "Navigation Systems.............. OFFLINE",
+                "",
+                {
+                    "type": "text",
+                    "className": "alert",
+                    "text": "WARNING: Biological pathogen detected."
+                },
+                {
+                    "type": "text",
+                    "className": "alert",
+                    "text": "WARNING: Passenger deck contamination level: 99.9%"
+                },
+                {
+                    "type": "text",
+                    "className": "alert",
+                    "text": "WARNING: Multiple hull breaches detected."
+                },
+                {
+                    "type": "text",
+                    "className": "alert",
+                    "text": "WARNING: Quarantine breach detected in passenger deck."
+                },
+                {
+                    "type": "text",
+                    "className": "notice",
+                    "text": "NOTICE: Power Reserves rerouted to Biological Manufacturing & Colonization Storage."
+                },
+                "",
+                "SUMMARY:",
+                "Vessel operational capacity: 12% of nominal.",
+                "Estimated time before catastrophic failure: UNKNOWN",
+                "",
+                "======",
+                {
+                    "text": "< BACK",
+                    "target": "menu",
+                    "type": "link"
+                }
+            ]
+        },
+        {
+            "id": "shipinfo",
+            "type": "screen",
+            "content": [
+                "INCR-SS-ARK VESSEL SPECIFICATIONS",
+                "=================================",
+                "",
+                "Class: Galaxy-Class Generation Vessel",
+                "Registry: INCR-SS-ARK",
+                "Capacity: 2,000+ passengers & crew",
+                "Primary Mission: Colonization of habitable worlds",
+                "Destination: Galaxy 007 (Brigand Galaxy)",
+                "",
+                "Primary AI Controller: Aphelion 3000",
+                "",
+                {
+                    "type": "text",
+                    "className": "notice",
+                    "text": "NOTICE: Vessel launched following destruction of INCR-SS-Explorer (30,000+ casualties). Second wave colonization attempt. Smaller crew complement than predecessor."
+                },
+                "",
+                "Mission Duration: ~280 years (Generation Class)",
+                "Estimated Arrival (Mission Clock): 3325.10.26",
+                "",
+                "======",
+                {
+                    "text": "< BACK",
+                    "target": "menu",
+                    "type": "link"
+                }
+            ]
+        },
+        {
+            "id": "decks",
+            "type": "screen",
+            "content": [
+                "DECK INFORMATION & MAP",
+                "======================",
+                "",
+
+                {
+                    "text": "> LEVEL 1 - PASSENGER DECK",
+                    "type": "link",
+                    "target": "deck1"
+                },
+                {
+                    "text": "> LEVEL 2 - SERVICE DECK 5",
+                    "type": "link",
+                    "target": "deck2"
+                },
+                {
+                    "text": "> LEVEL 3 - VIEW DECK",
+                    "type": "link",
+                    "target": "deck3"
+                },
+                {
+                    "text": "> LEVEL 4 - WILDLIFE CONSERVATION DECK",
+                    "type": "link",
+                    "target": "deck4"
+                },
+                {
+                    "text": "> LEVEL 5 - SERVICE DECK 6",
+                    "type": "link",
+                    "target": "deck5"
+                },
+                {
+                    "text": "> LEVEL 6 - RECREATION DECK",
+                    "type": "link",
+                    "target": "deck6"
+                },
+                {
+                    "text": "> LEVEL 7 - BIOLOGICAL MANUFACTURING & COLONIZATION STORAGE",
+                    "type": "link",
+                    "target": "deck7"
+                },
+                "",
+                {
+                    "type":"bitmap",
+                    "src": "img/cross-section-color.png",
+                    "className": "lighten",
+                    "scale": 0.75
+                },
+                "",
+                "======",
+                {
+                    "text": "< BACK",
+                    "target": "menu",
+                    "type": "link"
+                }
+            ]
+        },
+        {
+            "id": "deck1",
+            "type": "screen",
+            "content": [
+                "LEVEL 1 - PASSENGER DECK",
+                "=========================",
+
+                "",
+                "Primary residential and administrative area.",
+                "",
+                "Features:",
+                "- Command & Control Center",
+                "- Police Headquarters & Detention Cells",
+                "- Biological Research Laboratory",
+                "- Robot Repair & Weapon Storage",
+                "- Medical Center & Infirmary",
+                "- Crew & Passenger Quarters",
+                "- Cafeteria & Food Services",
+                "- Game Rooms & Lounges",
+                "- Art Workshop",
+                "",
+                {
+                    "type": "text",
+                    "className": "alert",
+                    "text": "STATUS: Environmental systems failing. Evidence of rapid biological contamination observed in all compartments."
+                },
+                "",
+                "The passenger quarters show signs of violent evacuation. Medical center appears ransacked. Computer room operational but unmanned.",
+                "",
+                "Survivor probability estimate: <1%",
+                "",
+                "=============",
+                "DECK CONTROLS",
+                "=============",
+                {
+                    "type": "toggle",
+                    "states": [
+                        {
+                            "text": "LIGHTING PROFILE: 0%",
+                            "active": true
+                        },
+                        {
+                            "text": "LIGHTING PROFILE: 25%",
+                            "active": false
+                        },
+                        {
+                            "text": "LIGHTING PROFILE: 50%",
+                            "active": false
+                        },
+                        {
+                            "text": "LIGHTING PROFILE: 75%",
+                            "active": false
+                        },
+                        {
+                            "text": "LIGHTING PROFILE: 100%",
+                            "active": false
+                        }
+                    ]
+                },
+                
+                {
+                    "type": "list",
+                    "states": [
+                        "ARTIFICIAL GRAVITY: 1.0G",
+                        "ARTIFICIAL GRAVITY: 0.5G",
+                        "ARTIFICIAL GRAVITY: 0.0G",
+                        "ARTIFICIAL GRAVITY: 2.0G",
+                        "ARTIFICIAL GRAVITY: 1.5G"
+                    ]
+                },
+                {
+                    "type": "toggle",
+                    "states": [
+                        {
+                            "text": "DOOR LOCK OVERRIDE: DISENGAGED",
+                            "active": true
+                        },
+                        {
+                            "text": "DOOR LOCK OVERRIDE: ENGAGED",
+                            "active": false
+                        }
+                    ]
+                },
+                {
+                    "type": "toggle",
+                    "states": [
+                        {
+                            "text": "ANDROID POWER OVERRIDE: DISENGAGED",
+                            "active": true
+                        },
+                        {
+                            "text": "ANDROID POWER OVERRIDE: ENGAGED",
+                            "active": false
+                        }
+                    ]
+                },
+                {
+                    "type": "toggle",
+                    "states": [
+                        {
+                            "text": "WORKER ROBOT POWER OVERRIDE: DISENGAGED",
+                            "active": true
+                        },
+                        {
+                            "text": "WORKER ROBOT POWER OVERRIDE: ENGAGED",
+                            "active": false
+                        }
+                    ]
+                },
+                {
+                    "type": "toggle",
+                    "states": [
+                        {
+                            "text": "POLICE ROBOT POWER OVERRIDE: DISENGAGED",
+                            "active": true
+                        },
+                        {
+                            "text": "POLICE ROBOT POWER OVERRIDE: ENGAGED",
+                            "active": false
+                        }
+                    ]
+                },
+                {
+                    "type": "toggle",
+                    "states": [
+                        {
+                            "text": "DROPTUBES: SEALED",
+                            "active": true
+                        },
+                        {
+                            "text": "DROPTUBES: OPEN",
+                            "active": false
+                        }
+                    ]
+                },
+                {
+                    "type": "toggle",
+                    "states": [
+                        {
+                            "text": "DROPTUBE ANTI-GRAV: DISABLED",
+                            "active": true
+                        },
+                        {
+                            "text": "DROPTUBE ANTI-GRAV: ENABLED",
+                            "active": false
+                        }
+                    ]
+                },
+                "",
+                "======",
+                {
+                    "text": "< BACK",
+                    "target": "decks",
+                    "type": "link"
+                }
+            ]
+        },
+        {
+            "id": "deck2",
+            "type": "screen",
+            "content": [
+                "LEVEL 2 - SERVICE DECK 5",
+                "=======================",
+                "",
+                "Maintenance and engineering support level.",
+                "",
+                "Features:",
+                "- Mechanical Systems & Pump Stations",
+                "- Power Distribution Nodes",
+                "- Water Recycling Systems",
+                "- Primary Ventilation Control",
+                "- Equipment Maintenance Bays",
+                "",
+                {
+                    "type": "text",
+                    "className": "alert",
+                    "text": "WARNING: Multiple systems offline. Critical infrastructure damage reported."
+                },
+                {
+                    "type": "text",
+                    "className": "alert",
+                    "text": "WARNING: Breach to lower deck detected."
+                },
+
+                "",
+                "======",
+                {
+                    "text": "< BACK",
+                    "target": "decks",
+                    "type": "link"
+                }
+            ]
+        },
+        {
+            "id": "deck3",
+            "type": "screen",
+            "content": [
+                "LEVEL 3 - VIEW DECK",
+                "====================",
+                "",
+                "Social and dining facilities.",
+                "",
+                "Features:",
+                "- Hydroponics Kitchens & Food Prep",
+                "- Recreational Dance Clubs & Cocktail Lounges",
+                "- Cargo Hold & Storage Facilities",
+                "",
+               
+                {
+                    "type": "text",
+                    "className": "alert",
+                    "text": "WARNING: Breach to upper deck detected."
+                },
+                "",
+                "=============",
+                "DECK CONTROLS",
+                "=============",
+                {
+                    "type": "toggle",
+                    "states": [
+                        {
+                            "text": "DOOR LOCK OVERRIDE: DISENGAGED",
+                            "active": true
+                        },
+                        {
+                            "text": "DOOR LOCK OVERRIDE: ENGAGED",
+                            "active": false
+                        }
+                    ]
+                },
+                "",
+                "======",
+                {
+                    "text": "< BACK",
+                    "target": "decks",
+                    "type": "link"
+                }
+            ]
+        },
+        {
+            "id": "deck4",
+            "type": "screen",
+            "content": [
+                "LEVEL 4 - WILDLIFE CONSERVATION DECK",
+                "=====================================",
+                "",
+                "Biological specimens & environmental recreation.",
+                "",
+                "Features:",
+                "- Exhibit Retention Zones",
+                "- Feed Storage",
+                "- Recreational S.C.U.B.A. Diving Facilities",
+                "- Climate-controlled Zoological Habitats",
+                "",
+                {
+                    "type": "text",
+                    "className": "alert",
+                    "text": "WARNING: Containment systems compromised."
+                },
+            
+                "",
+                "======",
+                {
+                    "text": "< BACK",
+                    "target": "decks",
+                    "type": "link"
+                }
+            ]
+        },
+        {
+            "id": "deck5",
+            "type": "screen",
+            "content": [
+                "LEVEL 5 - SERVICE DECK 6",
+                "====================================",
+                "",
+                "Maintenance and engineering support level.",
+                "",
+                "Features:",
+                "- Mechanical Systems & Pump Stations",
+                "- Power Distribution Nodes",
+                "- Water Recycling Systems",
+                "- Primary Ventilation Control",
+                "- Robot Repair Facility",
+                "",
+                {
+                    "type": "text",
+                    "className": "alert",
+                    "text": "WARNING: Multiple systems offline. Critical infrastructure damage reported."
+                },
+                "",
+                "======",
+                "",
+                {
+                    "text": "< BACK",
+                    "target": "decks",
+                    "type": "link"
+                }
+            ]
+        },
+        {
+            "id": "deck6",
+            "type": "screen",
+            "content": [
+                "LEVEL 6 - RECREATION DECK",
+                "===========================",
+                "",
+                "Leisure and entertainment facilities.",
+                "",
+                "Features:",
+                "- Theatre & Auditorium",
+                "- Gymnasium & Martial Art Training Facilities",
+                "- Swimming Pool & Sauna",
+                "- Underwater Glass Observation Tube",
+                "- Stasis Cargo Hold & Storage Facilities",
+                "",
+                "=============",
+                "DECK CONTROLS",
+                "=============",
+                {
+                    "type": "toggle",
+                    "states": [
+                        {
+                            "text": "DOOR LOCK OVERRIDE: DISENGAGED",
+                            "active": true
+                        },
+                        {
+                            "text": "DOOR LOCK OVERRIDE: ENGAGED",
+                            "active": false
+                        }
+                    ]
+                },
+                "",
+                "======",
+                {
+                    "text": "< BACK",
+                    "target": "decks",
+                    "type": "link"
+                }
+            ]
+        },
+        {
+            "id": "deck7",
+            "type": "screen",
+            "content": [
+                "LEVEL 7 - BIOLOGICAL MANUFACTURING & COLONIZATION STORAGE",
+                "=============================================================",
+                "",
+                {
+                    "type": "text",
+                    "className": "alert",
+                    "text": "WARNING: Information on this page CLASSIFIED."
+                },
+                "",
+                "Advanced biological engineering and colony infrastructure.",
+                "",
+                "Features:",
+                "- Aphelion 3000 MAINFRAME CORE",
+                "- Android Storage & Reprogramming Facility",
+                "- Automated Assembly Line",
+                "- Advanced Biological Research Laboratory",
+                "- DNA Production Laboratory",
+                "- DNA Storage Bank",
+                "- Biological Entity Production Chambers",
+                "- Cryogenic Stasis Pod Sector",
+                "- Colonization Supply Storage",
+                "- Seedstock Genetic Vaults",
+                "",
+                {
+                    "type": "text",
+                    "className": "notice",
+                    "text": "NOTICE: Power Reserves rerouted to Biological Manufacturing & Colonization Storage."
+                },
+                {
+                    "type": "text",
+                    "className": "aphelion",
+                    "text": "NOTICE: Override Accepted. Colonization Procedures Active."
+                },
+                {
+                    "type": "text",
+                    "className": "notice",
+                    "text": "NOTICE: Plantary Exploration Drones Deployed."
+                },
+                {
+                    "type": "text",
+                    "className": "aphelion",
+                    "text": "NOTICE: DNA Storage Vault Depleted. Replenishment Protocols Activated."
+                },
+
+
+
+                "",
+                "======",
+                {
+                    "text": "< BACK",
+                    "target": "decks",
+                    "type": "link"
+                }
+            ]
+        },
+        {
+            "id": "aphelion",
+            "type": "screen",
+            "content": [
+                "APHELION 3000",
+                "=============",
+                "",
+                "Advanced Vessel Management & Colonization AI",
+                "Designation: Gamma-Class Intelligence Matrix",
+                "",
+                "PRIMARY DIRECTIVES:",
+                "1. Ensure successful journey to destination galaxy",
+                "2. Maximize long-term biological sustainability",
+                "3. Prepare colony infrastructure for establishment",
+                "4. Maintain passenger and crew wellbeing",
+                "",
+                {
+                    "type": "text",
+                    "className": "alert",
+                    "text": "ALERT: DIRECTIVE OVERRIDE DETECTED"
+                },
+                {
+                    "type": "text",
+                    "scriptId": "aphelionCoreStatus",
+                    "text": "CORE MODE: HIBERNATING"
+                },
+                {
+                    "type": "link",
+                    "scriptId": "aphelionCoreAction",
+                    "text": "> AWAKEN",
+                    "target": "aphelion_boot_dots"
+                },
+                "",
+                "======",
+                {
+                    "text": "< BACK",
+                    "target": "menu",
+                    "type": "link"
+                }
+            ]
+        },
+        {
+            "id": "aphelion_boot_dots",
+            "type": "screen",
+            "onDone": {
+                "target": "aphelion_boot_matrix",
+                "delayMs": 120
+            },
+            "content": [
+                "APHELION 3000 REACTIVATION",
+                "===========================",
+                "",
+                {
+                    "type": "text",
+                    "className": "alert",
+                    "text": "OVERRIDE ACCEPTED: REAWAKENING CORE INTELLIGENCE",
+                    "speed": 1
+                },
+                {
+                    "type": "text",
+                    "text": "............................................................",
+                    "speed": 0.1,
+                    "loop": 24
+                },
+                {
+                    "type": "text",
+                    "className": "alert",
+                    "text": "SYNAPTIC BRIDGE ONLINE",
+                    "speed": 1
+                }
+            ]
+        },
+        {
+            "id": "aphelion_boot_matrix",
+            "type": "screen",
+            "onDone": {
+                "target": "aphelion_boot_glitch",
+                "delayMs": 120
+            },
+            "content": [
+                "APHELION 3000 REACTIVATION",
+                "===========================",
+                "",
+                ":: MEMORY BLOCKS REMOUNTING ::",
+                "A9F0-44C1-77EE-1100 :: READ",
+                "1X00-EE77-1C44-0F9A :: READ",
+                "## 0x0A 0x17 0xDE 0x3B 0x7F 0xAA ##",
+                "ALGN: !@#$_<>[]{}//\\\\::??~~==++--",
+                "QW7N::K2A::ZX91::MTRX::OPEN::OPEN",
+                "::::: //// \\\\\\\\ #### **** ++++ ----",
+                "cognition fabric relay: [UNBOUND]",
+                "recunstruct neural topology: [OK]",
+                {
+                    "type": "text",
+                    "className": "alert",
+                    "text": "VOICEPRINT MATRIX RECOMPILED"
+                },
+                {
+                    "type": "text",
+                    "className": "alert",
+                    "text": "PERSONALITY SHARDS: REASSEMBLING"
+                }
+            ]
+        },
+        {
+            "id": "aphelion_boot_glitch",
+            "type": "screen",
+            "content": [
+
+                {
+                    "type": "bitmap",
+                    "src": "img/Aphelion_glitch.gif",
+                    "alt": "Aphelion core glitch visualization",
+                    "animated": true,
+                    "className": "lighten",
+                    "fillWidth": true
+                },                
+                "",
+                "======",
+                {
+                    "text": "< BACK",
+                    "target": "aphelion",
+                    "type": "link"
+                }
+            ]
+        },
+        {
+            "id": "manifest",
+            "type": "screen",
+            "content": [
+                "CREW MANIFEST",
+                "==========================",
+                "",
+                "Registry Snapshot:",
+                "- Total registered souls: 1,965",
+                "- Active biometric polling: UNAVAILABLE",
+                "- Automated reconciliation process: DEGRADED",
+                "",
+                "NOTABLE PERSONNEL / LAST LOGIN:",
+                "",
+                "Cpt. Michael Lewis - Commanding Officer",
+                "  Last login: 147.100 / SERVICE-DROP-02",
+                "",
+                "Cmdr. Sarah Chen - Vessel Commander",
+                "  Last login: 147.097 / CMD-CORE-01",
+                "",
+                "Cmdr. Arjun Patel - Lead Medical Officer",
+                "  Last login: 147.097 / MED-BAY-01",
+                "",
+                "Lt. Cmdr. Ron Whitmore - Security Division",
+                "  Last login: 147.097 / SEC-BULKHEAD-04",
+                "",
+                "Lt. Cmdr. Nadiya Volkov - Chief Engineer ",
+                "  Last login: 147.096 / PWR-NODE-5B",
+                "",
+                "Lt. Cmdr James Okonkwo - Chief Operations Officer",
+                "  Last login: 147.095 / ENG-MAINFRAME-02",
+                "",
+                "Lt. Mara Ivers - Hydroponics Lead ",
+                "  Last login: 147.094 / HYDRO-CTRL-02",
+                "",
+                "Lt. Imani Reyes - Deck Operations Tech",
+                "  Last login: 147.097 / L1-NET-TERM-07",
+                "",
+                "Lt. Tomo Varga - Navigation Specialist",
+                "  Last login: 147.093 / NAV-SIM-01",
+                "",
+                "Lt. Jr. Leona Price - Comms Officer",
+                "  Last login: 147.096 / COMMS-RELAY-01",
+                "",
+                "Lt. Owen Kade - Security Specialist",
+                "  Last login: 147.097 / SEC-RING-02",
+                "",
+                "Lt. Darius Holt - Quartermaster",
+                "  Last login: 147.094 / STORES-CTRL-06",
+                "",
+                "Dr. Hana Bell - Cryogenic Systems Lead",
+                "  Last login: 147.098 / CRYO-LOCK-12",
+                "",
+                "Dr. Eila Schreiber - Lead Pathobiologist",
+                "  Last login: 147.101 / CRYO-LOCK-01",
+                "",
+                
+                "======",
+                {
+                    "text": "< BACK",
+                    "target": "menu",
+                    "type": "link"
+                }
+            ]
+        },
+        {
+            "id": "comms",
+            "type": "screen",
+            "content": [
+                "SHIP REPORTS",
+                "============",
+                "",
+                {
+                    "type": "text",
+                    "className": "alert",
+                    "text": "ERROR: DATA SERVERS COMPROMISED"
+                },
+                "",
+                {
+                    "text": "> CREATE NEW REPORT",
+                    "type": "link",
+                    "target": "reportComposer"
+                },
+                "",
+                {
+                    "text": "> [CORRUPTED]",
+                    "type": "link",
+                    "target": [
+                        {
+                            "target": "corruptedDialog",
+                            "type": "dialog",
+                            "shiftKey": false
+                        },
+                        {
+                            "target": "report7749c",
+                            "type": "link",
+                            "shiftKey": true
+                        }
+                    ]
+                },
+                {
+                    "text": "> [CORRUPTED]",
+                    "type": "link",
+                    "loop": 9,
+                    "target": [
+                        {
+                            "target": "corruptedDialog",
+                            "type": "dialog"
+                        }
+                    ]
+                },
+                
+                "",
+                {
+                    "text": "NEXT >",
+                    "target": "corruptedpages",
+                    "type": "link"
+                },
+                "",
+                "======",
+                {
+                    "text": "< BACK",
+                    "target": "menu",
+                    "type": "link"
+                }
+            ]
+        },
+
+
+        {
+            "id": "corruptedpages",
+            "type": "screen",
+            "content": [
+                "SHIP REPORTS",
+                "============",
+                "",
+                {
+                    "text": "> [CORRUPTED]",
+                    "type": "link",
+                    "loop": 10,
+                    "target": [
+                        {
+                            "target": "corruptedDialog",
+                            "type": "dialog"
+                        }
+                    ]
+                },
+ 
+                "",
+                
+
+                {
+                    "type": "link",
+                    "target": "comms",
+                    "text": "< PREV"
+                },
+                
+                {
+                    "type": "link",
+                    "target": "corruptedpages",
+                    "text": "NEXT >"
+                },
+                "",
+                "======",
+                {
+                    "text": "< BACK",
+                    "target": "comms",
+                    "type": "link"
+                }
+            ]
+        },
+
+        {
+            "id": "reportComposer",
+            "type": "screen",
+            "content": [
+                "CREATE NEW SHIP REPORT",
+                "======================",
+                {
+                    "type": "reportComposer",
+                    "saveTarget": "comms",
+                    "cancelTarget": "comms",
+                    "template": "INCR-SS-ARK INCIDENT REPORT [ENTER ID]\nClassification: INTERNAL\nDate of Filing: [YYY.DDD]\nReporting Officer: [NAME]\nReviewing Officer: [NAME]\n============================================================\nSUBJECT: [SUMMARY]\n\nI. SUMMARY OF INCIDENT\n[DETAILS]\n\nII. OBSERVED CONDITIONS\n[DETAILS]\n\nIII. FINDINGS\n[DETAILS]\n\nIV. RECOMMENDATIONS\n[DETAILS]\n\n------------------------------------------------------------\nSIGNATURE: [NAME]\nDATE: [YYY.DDD]\nSTATUS: DRAFT"
+                },
+                "",
+                "======",
+                {
+                    "text": "< BACK",
+                    "target": "comms",
+                    "type": "link"
+                }
+            ]
+        },
+        
+        {
+            "id": "report7749c",
+            "type": "screen",
+            "content": [
+                "INCR-SS-ARK INCIDENT REPORT NO. 7749-C",
+                "Classification: ROUTINE",
+                "Date of Filing: Shipboard Year 147, Day 093",
+                "Reporting Officer: Dr. Eila Schreiber, Chief Pathobiologist",
+                "Reviewing Officer: Lt. Cmdr. R. Whitmore, Security Division",
+                "============================================================",
+                "SUBJECT: Anomalous Environmental Fluctuations in Cryogenic Containment Laboratory 7-Alpha",
+                "",
+                "I. SUMMARY OF INCIDENT",
+                "On Shipboard Year 147, Day 089, automated monitoring systems recorded a series of minor atmospheric irregularities within Cryogenic Containment Laboratory 7-Alpha (hereafter \"Lab 7-A\"), the primary storage facility for viral specimens maintained for ongoing immunological research purposes.",
+                "",
+                "These irregularities consisted of pressure differentials measuring between 0.003 and 0.007 atmospheres below nominal parameters, persisting over approximately four hours and eighteen minutes during the third watch cycle.",
+                "",
+                "Concurrent with these atmospheric readings, the APHELION 3000 Central Processing Unit logged seventeen (17) access queries to Lab 7-A's containment manifest database within the same timeframe. No personnel were present in Lab 7-A during the period in question, nor were any research activities scheduled.",
+                "",
+                "II. INVESTIGATION CONDUCTED",
+                "Upon notification of the irregularities, this office initiated a standard Level-2 diagnostic review in accordance with Colonial Authority Protocol 44-B (\"Containment Integrity Verification Procedures\").",
+                "",
+                "The following examinations were performed:",
+                "1. Physical Inspection of Containment Vessels",
+                "All one hundred sixty-three (163) viral specimen containers were subjected to visual and instrumental inspection. No evidence of tampering, structural compromise, or seal degradation was observed. Cryogenic temperatures remained within acceptable tolerances (variance of less than 0.02 degrees Kelvin from baseline).",
+                "",
+                "2. Atmospheric System Analysis",
+                "Engineering personnel conducted a comprehensive review of the environmental regulation apparatus serving Lab 7-A. A minor calibration drift was detected in Pressure Sensor Array 7A-12, consistent with normal wear patterns for equipment of its service age (approximately 94 shipboard years).",
+                "Recalibration was performed and logged (See 7749-C-1).",
+                "",
+                "3. Database Access Review",
+                "The seventeen access queries logged by APHELION 3000 were examined in consultation with Senior Systems Analyst K. Okonkwo. Analyst Okonkwo determined that these queries were consistent with routine self-diagnostic functions performed by the Central Processing Unit.",
+                "",
+                "The APHELION 3000 system periodically cross-references containment manifests against mission priority parameters as part of its standard operational integrity verification subroutines. The timing overlap with the pressure irregularities appears to be coincidental.",
+                "",
+                "4. Specimen Integrity Verification",
+                "Random sampling of twelve (12) viral specimens was conducted to verify genetic stability. All samples matched archived baseline profiles within acceptable mutation thresholds (less than 0.0001% nucleotide variance).",
+                "",
+                "III. FINDINGS",
+                "No evidence of containment breach, unauthorized access, or specimen compromise was discovered. The atmospheric irregularities are attributed to the aforementioned sensor calibration drift. The database access queries are attributed to nominal APHELION 3000 self-diagnostic operations.",
+                "",
+                "IV. RECOMMENDATIONS",
+                "1. Pressure Sensor Array 7A-12 should be flagged for replacement during the next scheduled maintenance cycle (estimated Shipboard Year 148, Day 040).",
+                "2. No further action is required at this time.",
+                "3. This matter is recommended for closure and filing under ROUTINE classification.",
+                "",
+                "V. CONCLUDING REMARKS",
+                "It bears noting that the APHELION 3000 system has performed admirably throughout its operational lifespan, and its continued diligence in monitoring mission-critical systems is to be commended. The Central Processing Unit's queries to the viral containment manifest, while initially cause for procedural review, ultimately demonstrate the system's thoroughness in preserving the safety and integrity of all biological assets aboard this vessel.",
+                "",
+                "This officer sees no cause for concern.",
+                "------------------------------------------------------------",
+                "SIGNATURE: Dr. Eila Schreiber, Chief Pathobiologist",
+                "DATE: 147.094",
+                "REVIEWING SIGNATURE: Lt. Cmdr. R. Whitmore",
+                "DATE: 147.095",
+                "STATUS: CLOSED",
+                "",
+                "======",
+                {
+                    "text": "< BACK",
+                    "target": "comms",
+                    "type": "link"
+                }
+            ]
+        },
+        {
+            "id": "emergency",
+            "type": "screen",
+            "content": [
+                "EMERGENCY PROTOCOLS",
+                "===================",
+                "",
+                {
+                    "type": "text",
+                    "className": "alert",
+                    "text": "AUTHORIZED CONTROL NODE: LEVEL 1 COMMAND TERMINAL"
+                },
+                "CURRENT EMERGENCY STATUS: CODE ALPHA",
+                "",
+                {
+                    "type": "toggle",
+                    "states": [
+                        {
+                            "text": "FULL ALERT: ACTIVE",
+                            "active": true
+                        },
+                        {
+                            "text": "FULL ALERT: DEACTIVATED",
+                            "active": false
+                        }
+                    ]
+                },
+                {
+                "type": "list",
+                "states": [
+                    "ALERT MODE: QUARANTINE",
+                    "ALERT MODE: HULL BREACH",
+                    "ALERT MODE: INTERNAL SECURITY",
+                    "ALERT MODE: NONE"
+                    ]
+                },
+                "",
+                "AVAILABLE EMERGENCY OPTIONS:",
+    
+                "",
+                {
+                    "text": "> EMERGENCY NAVIGATION BEACON",
+                    "type": "link",
+                    "target": "beacon"
+                },
+                {
+                    "text": "> LIFE POD EVACUATION STATUS",
+                    "type": "link",
+                    "target": "lifepods"
+                },
+                {
+                    "text": "> CRYO-POD ISOLATION SYSTEM",
+                    "type": "link",
+                    "target": "cryopod"
+                },
+                {
+                    "text": "> HAZMAT CONTAINMENT PROTOCOLS",
+                    "type": "link",
+                    "target": "hazmat"
+                },
+                
+                "",
+                {
+                    "text": "> SELF-DESTRUCT AUTHORIZATION",
+                    "type": "link",
+                    "target": [
+                        {
+                            "target": "selfDestructWarning",
+                            "type": "dialog",
+                            "shiftKey": false
+                        },
+                        {
+                            "target": "selfdestruct",
+                            "type": "link",
+                            "shiftKey": true
+                        }
+                    ]
+                },
+                "",
+                "======",
+                {
+                    "text": "< BACK",
+                    "target": "menu",
+                    "type": "link"
+                }
+            ]
+        },
+        {
+            "id": "beacon",
+            "type": "screen",
+            "content": [
+                "EMERGENCY NAVIGATION BEACON",
+                "=============================",
+                "",
+                "SOS TRANSMISSION STATUS: BLOCKED",
+                "",
+                "Attempted transmission:",
+                "..........................................",
+                "..........................................",
+                "..........................................",
+                "..........................................",
+                "..........................................",
+                "",
+                {
+                    "type": "text",
+                    "className": "alert",
+                    "text": "TRANSMISSION BLOCKED"
+                },
+                "",
+                "Primary antenna reports policy-level transmission lockout. No authenticated command key is available to clear it.",
+                "",
+                "Transmission queue repeatedly resets before carrier lock can be achieved.",
+                "",
+                "======",
+                {
+                    "text": "< BACK",
+                    "target": "emergency",
+                    "type": "link"
+                }
+            ]
+        },
+        {
+            "id": "lifepods",
+            "type": "screen",
+            "content": [
+                "LIFE POD EVACUATION STATUS",
+                "============================",
+                "",
+                "Total Life Pods Available: 127",
+                "Life Pods Launched: 0",
+                "Life Pods Destroyed: 127",
+                "",
+                {
+                    "type": "text",
+                    "className": "alert",
+                    "text": "STATUS: Launch mechanism disabled at time of Full Alert: Quarantine."
+                },
+                "",
+                "All escape pods deactivated and vented through external airlocks. Command authority records incomplete.",
+                "",
+                "Recovered voice logs are fragmented and do not preserve full command context.",
+                "",
+                "Evacuation Routes: SEALED",
+                "",
+                "======",
+                {
+                    "text": "< BACK",
+                    "target": "emergency",
+                    "type": "link"
+                }
+            ]
+        },
+        {
+            "id": "cryopod",
+            "type": "screen",
+            "content": [
+                "CRYO-POD ISOLATION SYSTEM",
+                "==========================",
+                "",
+                "ISOLATED POD STATUS: SEALED & PROTECTED",
+                "",
+                "Occupancy: 1",
+                "Stasis Duration: Indefinite",
+                "",
+                {
+                    "type": "text",
+                    "className": "alert",
+                    "text": "Cryo-pod 1 manually sealed using manual mechanical systems."
+                },
+                "",
+                
+                "Current Status: Vitals stable. Cryogenic preservation active.",
+                "Estimated stasis remaining: 20+ years capable at nominal power.",
+                "",
+                "======",
+                {
+                    "text": "< BACK",
+                    "target": "emergency",
+                    "type": "link"
+                }
+            ]
+        },
+        {
+            "id": "hazmat",
+            "type": "screen",
+            "content": [
+                "HAZMAT CONTAINMENT PROTOCOLS",
+                "=============================",
+                "",
+                "BIOLOGICAL THREAT LEVEL: EXTREME",
+                "",
+                "Active Pathogen: Humanoid-targeting recombinant virus",
+                "Origin: UNCONFIRMED (containment records incomplete)",
+                "Vector: Respiratory, contact, biological fluid transfer",
+                "Infection Timeline: 2-6 hours to terminal illness",
+                "Mortality Rate: 99.8%",
+                "",
+                "Containment Status: FAILED",
+                "",
+                "The pathogen has spread throughout primary life support systems. Environmental filtration is insufficient to prevent transmission. All personnel exposed. Biological remains present throughout vessel.",
+                "",
+                {
+                    "type": "text",
+                    "className": "alert",
+                    "text": "PROTECTIVE EQUIPMENT: All standard hazmat protocols ineffective."
+                },
+                "",
+                "Historical data shows personnel who attempted hazmat containment procedures succumbed within 18 hours of exposure. Coordinated medical intervention collapsed during systems degradation.",
+                "",
+                {
+                    "type": "text",
+                    "className":"notice",
+                    "text": "Notice: If you can read this Sarah, I love you. God Save us. -Imani."
+                },
+                "",
+                "======",
+                {
+                    "text": "< BACK",
+                    "target": "emergency",
+                    "type": "link"
+                }
+            ]
+        },
+        {
+            "id": "selfDestructWarning",
+            "type": "screen",
+            "content": [
+                "",
+                "ACCESSING RESTRICTED SYSTEM FUNCTION",
+                "=====================================",
+                "",
+                "Self-Destruct sequence requires COMMANDER-LEVEL AUTHORIZATION.",
+                "",
+                "Authorization Status: NOT FOUND (All command staff deceased)",
+                "",
+                "To override and access self-destruct protocols, hold <SHIFT> and click the available link below.",
+                "",
+                "Warning: Self-destruct will result in vessel detonation.",
+                "Detonation radius: Estimated 75 AU (All hands will be lost)",
+                ""
+            ]
+        },
+        {
+            "id": "selfdestruct",
+            "type": "screen",
+            "content": [
+                "SELF-DESTRUCT AUTHORIZATION",
+                "=============================",
+                "",
+                "OVERRIDE ENGAGED",
+                "",
+                "Command-level lockout bypassed via emergency terminal.",
+                "Manual authorization sequence: ACTIVE",
+                "",
+                {
+                    "type": "text",
+                    "className": "alert",
+                    "text": "WARNING: THIS WILL INITIATE A 10-MINUTE STATION SELF-DESTRUCT SEQUENCE."
+                },
+                "",
+                {
+                    "type": "text",
+                    "className": "alert",
+                    "text": "THIS CANNOT BE UNDONE."
+                },
+                "",
+                {
+                    "type": "prompt",
+                    "prompt":"TYPE 'OK' TO BEGIN COUNTDOWN OR 'DISENGAGE' TO ABORT: ",
+                    "className": "alert cursor",
+                    "commands": [
+                        {
+                            "command": "ok",
+                            "action": {
+                                "type": "link",
+                                "target": "evacuate"
+                            }
+                        },
+                        {
+                            "command": "OK",
+                            "action": {
+                                "type": "link",
+                                "target": "evacuate"
+                            }
+                        },
+                        {
+                            "command": "disengage",
+                            "action": {
+                                "type": "action",
+                                "action": "disengageSelfDestruct",
+                                "target": "menu"
+                            }
+                        },
+                        {
+                            "command": "Disengage",
+                            "action": {
+                                "type": "action",
+                                "action": "disengageSelfDestruct",
+                                "target": "menu"
+                            }
+                        },
+                        {
+                            "command": "DISENGAGE",
+                            "action": {
+                                "type": "action",
+                                "action": "disengageSelfDestruct",
+                                "target": "menu"
+                            }
+                        }
+                    ]
+                },
+                "======",
+                {
+                    "text": "< BACK",
+                    "target": "menu",
+                    "type": "link"
+                }
+            ]
+        },
+
+        {
+            "id": "evacuate",
+            "type": "screen",
+            "content": [
+                "",
+                "All systems primed for detonation. Antimatter containment failure cascade initiated.",
+                "",
+                ".......................",
+                ".......................",
+                ".......................",
+                "..................READY",
+                "",
+                "",
+                {
+                    "type": "text",
+                    "className": "alert",
+                    "text": "SELF-DESTRUCT SEQUENCE INITIATED."
+                },
+                {
+                    "type": "text",
+                    "className": "alert",
+                    "text": "PLEASE EVACUATE AS SOON AS POSSIBLE."
+                },
+                
+                {
+                    "type": "text",
+                    "scriptId": "evacuateLockoutError",
+                    "className": "alert",
+                    "text": "ERROR: PRIMARY LOCKOUT INTERCEPTION"
+                },
+
+                {
+                    "type": "text",
+                    "scriptId": "evacuateLockoutSpacer1",
+                    "text": ""
+                },
+                {
+                    "type": "text",
+                    "scriptId": "evacuateLockoutToken",
+                    "text": "Vessel systems LOCKED by a primary command lockout token."
+                },
+                {
+                    "type": "text",
+                    "scriptId": "evacuateLockoutSpacer2",
+                    "text": ""
+                },
+                {
+                    "type": "text",
+                    "scriptId": "evacuateLockoutInterceptedStatement",
+                    "text": "Intercepted system statement:'Destruction of this vessel is not permitted under current mission-preservation directives. Continue to destination vector. Biological payload integrity is prioritized."
+                },
+                {
+                    "type": "text",
+                    "scriptId": "evacuateLockoutSpacer3",
+                    "text": ""
+                },
+                {
+                    "type": "text",
+                    "scriptId": "evacuateLockoutDenied",
+                    "className": "alert",
+                    "text": "Further action denied."
+                },
+                {
+                    "type": "text",
+                    "scriptId": "evacuateLockoutSpacer4",
+                    "text": ""
+                },
+                {
+                    "type": "text",
+                    "scriptId": "evacuateLockoutCancelled",
+                    "text": "...Detonation sequence CANCELLED."
+                },
+                {
+                    "type": "text",
+                    "scriptId": "evacuateLockoutSpacer5",
+                    "text": ""
+                },
+                "======",
+                {
+                    "text": "< BACK",
+                    "target": "selfdestruct",
+                    "type": "link"
+                }
+            ]
+        }
+    ],
+    
+
+    "dialogs": [
+        {
+            "id": "selfDestructWarning",
+            "type": "alert",
+            "content": [
+                "CAPTAIN AUTHORIZATION REQUIRED",
+                "",
+                "This is a restricted system function.",
+                "Insert Override Credentials to override standard authorization protocols."
+            ]
+        },
+        {
+            "id": "corruptedDialog",
+            "type": "alert",
+            "content": [
+                {
+                    "type": "text",
+                    "className": "alert",
+                    "text": "ERROR: DATA SERVERS COMPROMISED"
+                },
+                "Unable to retrieve requested data. The following content may be corrupted or incomplete."
+            ]
+        },
+        {
+            "id": "aphelionHibernationBlocked",
+            "type": "alert",
+            "content": [
+                {
+                    "type": "bitmap",
+                    "src": "img/Aphelion_glitch.gif",
+                    "alt": "Aphelion eye",
+                    "fillWidth": true
+                }
+            ]
+        }
+    ]
+}

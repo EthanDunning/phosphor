@@ -12,6 +12,7 @@ interface TeletypeProps {
 
     onComplete: () => void; // event called on completion
     onNewLine?: () => void; // event called when the cursor is moved to a new line
+    onCharDrawn?: (char: string, index: number) => void; // event called when a new char is drawn
 }
 
 interface TeletypeState {
@@ -24,7 +25,10 @@ interface TeletypeState {
 
 class Teletype extends Component<TeletypeProps, TeletypeState> {
     private _cursorInterval = 5;
+    private _charsPerTick = 1;
     private _animateTimerId: number = null;
+    private _completeTimerId: number = null;
+    private _completionScheduled = false;
     private _cursorRef: React.RefObject<HTMLElement> = null;
     private _cursorY: number = null;
 
@@ -37,7 +41,19 @@ class Teletype extends Component<TeletypeProps, TeletypeState> {
         const done = !!props.autocomplete;
         const paused = props.autostart === false;
 
-        this._cursorInterval = props.speed || this._cursorInterval;
+        const configuredSpeed = typeof props.speed === "number" && Number.isFinite(props.speed)
+            ? props.speed
+            : null;
+
+        if (configuredSpeed && configuredSpeed > 0) {
+            if (configuredSpeed < 1) {
+                // Browsers clamp very small timers; draw multiple chars per tick for true fast-forward.
+                this._cursorInterval = 1;
+                this._charsPerTick = Math.max(1, Math.ceil(1 / configuredSpeed));
+            } else {
+                this._cursorInterval = configuredSpeed;
+            }
+        }
 
         this.state = {
             index: 0,
@@ -79,7 +95,7 @@ class Teletype extends Component<TeletypeProps, TeletypeState> {
 
         // if autocomplete is on, we can skip to the end
         if (done) {
-            this._onComplete();
+            this._scheduleComplete();
             return;
         }
 
@@ -93,7 +109,18 @@ class Teletype extends Component<TeletypeProps, TeletypeState> {
 
     public componentDidUpdate(prevProps: TeletypeProps, prevState: TeletypeState): void {
         if (!prevState.done && this.state.done) {
-            this._onComplete();
+            this._scheduleComplete();
+        }
+
+        if (!prevProps.autocomplete && this.props.autocomplete && !this.state.done) {
+            this._clearAnimateTimer();
+            this.setState({
+                char: this.props.text.length,
+                active: false,
+                done: true,
+                paused: false,
+            });
+            return;
         }
 
 
@@ -105,10 +132,8 @@ class Teletype extends Component<TeletypeProps, TeletypeState> {
     }
 
     public componentWillUnmount(): void {
-        if (this._animateTimerId !== null) {
-            clearTimeout(this._animateTimerId);
-            this._animateTimerId = null;
-        }
+        this._clearAnimateTimer();
+        this._clearCompleteTimer();
     }
 
     private _animate(): void {
@@ -151,8 +176,30 @@ class Teletype extends Component<TeletypeProps, TeletypeState> {
         }
     }
 
+    private _scheduleComplete(): void {
+        if (this._completionScheduled) {
+            return;
+        }
+
+        this._completionScheduled = true;
+        this._completeTimerId = window.setTimeout(() => {
+            this._completionScheduled = false;
+            this._completeTimerId = null;
+            this._onComplete();
+        }, 0);
+    }
+
+    private _clearCompleteTimer(): void {
+        if (this._completeTimerId !== null) {
+            window.clearTimeout(this._completeTimerId);
+            this._completeTimerId = null;
+        }
+
+        this._completionScheduled = false;
+    }
+
     private _updateState(): void {
-        const { text, } = this.props;
+        const { text, onCharDrawn, } = this.props;
         const {
             char,
             active,
@@ -177,7 +224,19 @@ class Teletype extends Component<TeletypeProps, TeletypeState> {
 
         // if char is less that the current string, increment it
         if (char < text.length) {
-            nextChar = char + 1;
+            const count = Math.max(1, this._charsPerTick);
+            let drawn = 0;
+
+            while (nextChar < text.length && drawn < count) {
+                onCharDrawn && onCharDrawn(text.charAt(nextChar), nextChar);
+                nextChar++;
+                drawn++;
+            }
+
+            if (nextChar >= text.length) {
+                nextActive = false;
+                nextDone = true;
+            }
         } else {
             nextActive = false;
             nextDone = true;

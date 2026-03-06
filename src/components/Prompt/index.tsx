@@ -8,8 +8,11 @@ export interface PromptProps {
     commands?: any[];
     className?: string;
     disabled?: boolean;
+    allowFreeInput?: boolean;
+    inputAction?: any;
 
-    onCommand?: (command: string, action: string) => void;
+    onCommand?: (command: string, action: any) => void;
+    onEnter?: () => void;
     onEscape?: () => void;
     onRendered?: () => void;
 }
@@ -17,7 +20,17 @@ export interface PromptProps {
 export const PROMPT_DEFAULT = "$> ";
 
 const Prompt: SFC<PromptProps> = (props) => {
-    const { disabled, prompt, className, commands, onCommand, onRendered, } = props;
+    const {
+        disabled,
+        prompt,
+        className,
+        commands,
+        allowFreeInput,
+        inputAction,
+        onCommand,
+        onEnter,
+        onRendered,
+    } = props;
     const ref: RefObject<HTMLSpanElement> = useRef();
     const css = [
         "__prompt__",
@@ -35,11 +48,22 @@ const Prompt: SFC<PromptProps> = (props) => {
             return;
         }
 
-        const command = commands.find(element => element.command === value);
+        const submitted = value.trim();
+        if (!submitted.length) {
+            setValue("");
+            return;
+        }
+
+        const command = commands && commands.find(element => element.command === submitted);
         setValue("");
 
         if (command) {
-            onCommand(value, command.action);
+            onCommand(submitted, command.action);
+            return;
+        }
+
+        if (allowFreeInput) {
+            onCommand(submitted, inputAction || { type: "input" });
         }
     };
 
@@ -51,21 +75,22 @@ const Prompt: SFC<PromptProps> = (props) => {
 
         e.preventDefault();
 
-        const key = e.key.toLowerCase();
-        switch (key) {
+        const normalized = e.key.toLowerCase();
+        switch (normalized) {
             case "backspace":
                 value.length && setValue(value.slice(0, -1));
                 break;
 
             case "enter":
+                onEnter && onEnter();
                 handleCommand();
                 break;
 
             default:
-                // support alphanumeric, space, and limited puntuation only
-                const re = /[a-z0-9,.<>/?[\]{}'";:*&^%$#@!~]/
-                if (key.length === 1 && key.match(re)) {
-                    setValue(value + key);
+                // support alphanumeric, space, and limited punctuation only
+                const re = /[a-zA-Z0-9 ,.<>/?[\]{}'"`;:*&^%$#@!~_|\\\-+=()]/;
+                if (e.key.length === 1 && e.key.match(re)) {
+                    setValue(value + e.key);
                 }
                 break;
         }

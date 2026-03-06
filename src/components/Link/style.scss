@@ -6,6 +6,12 @@
         cursor: pointer;
         display: block;
     }
+
+    &.inline {
+        display: inline-block;
+        margin-right: $lineheight * 0.75;
+    }
+
     &:hover,
     &:active {
         color: $background;
