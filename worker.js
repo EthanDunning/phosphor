@@ -1,4 +1,4 @@
-const PREFIX = "/incr-ss-ark";
+const PREFIX = "/phosphor";
 
 export default {
   async fetch(request, env) {
@@ -8,7 +8,7 @@ export default {
       return new Response("Not found", { status: 404 });
     }
 
-    // Ensure relative asset paths in index.html resolve under /incr-ss-ark/
+    // Ensure relative asset paths in index.html resolve under /phosphor/
     if (url.pathname === PREFIX) {
       url.pathname = `${PREFIX}/`;
       return Response.redirect(url.toString(), 301);
