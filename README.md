@@ -75,22 +75,7 @@ To bundle your script into the app permanently (so it appears in the dropdown al
 
 The inspiration for this project was [Quadra's post](https://www.traaa.sh/the-ypsilon-14-terminal) about building a terminal prop for [The Haunting of Ypsilon 14](https://www.mothershiprpg.com/pamphlet-adventures/#The_Haunting_Of_Ypsilon_14), a module written by D G Chapman for [the Mothership tabletop roleplaying game](https://www.mothershiprpg.com/). The original author made the Ypsilon-14 JSON available, and you can still [see that terminal in action](https://redhg.com/ypsilon14/) on their site.
 
-## An important note about this project (from the original author)
 
-~~I will not be accepting pull requests, nor will I be paying attention to the issues. I suggest you fork this repo if you want to make any public changes. It's all just for fun; noodling around without a particular goal.~~
-
-~~That being said, I'd love to see what *you* can do with my garabge project, so send me an email at **phosphor {at} redhg {dot} com** to let me know how you've expanded it!~~
-
-Suggested features (from the original author):
-* ~~Sound effects~~
-* Autoscrolling, or auto-pause/press space to continue at end of screen
-* Asset preloader
-* ~~JSON uploading & parsing~~
-* Routing support
-* ~~Dynamic themes~~
-* Links, Prompts, Images, and Teletype support *within* Dialogs
-
----
 
 ## Getting Started
 
