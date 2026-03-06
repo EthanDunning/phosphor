@@ -1,0 +1,282 @@
+{
+    "config": {
+        "name": "Phosphor Feature Demo",
+        "script": null
+    },
+    "screens": [
+        {
+            "id": "welcome",
+            "type": "screen",
+            "content": [
+                { "type": "text", "className": "alert", "text": "=== PHOSPHOR FEATURE DEMO ===" },
+                "",
+                "This file demonstrates the features added in this fork.",
+                "Upload it using [ SCRIPT > UPLOAD JSON ] in the toolbar above.",
+                "",
+                { "type": "text", "className": "notice", "text": "TIPS:" },
+                "  - Press SHIFT+SPACE at any time to skip the typing animation",
+                "  - Click [ THEME -> ] in the toolbar to cycle through four CRT color themes",
+                "  - Click [ RESET ] to clear all saved data and start fresh",
+                "  - Click [ SCRIPT ] to switch between bundled scenarios or upload your own",
+                "",
+                {
+                    "type": "link",
+                    "text": "> BEGIN TOUR",
+                    "target": "speed-demo"
+                }
+            ]
+        },
+        {
+            "id": "speed-demo",
+            "type": "screen",
+            "content": [
+                { "type": "text", "className": "alert", "text": "FEATURE: speed" },
+                "",
+                "The 'speed' property controls how fast each element types out.",
+                "Lower values are slower, higher values are faster. Default is 1.",
+                "",
+                "This line types at speed 0.2 (slow):",
+                { "type": "text", "text": "INITIALIZING... PLEASE STAND BY...", "speed": 0.2 },
+                "",
+                "This line types at speed 4 (fast):",
+                { "type": "text", "text": "RAPID DATA TRANSFER COMPLETE.", "speed": 4 },
+                "",
+                {
+                    "type": "link",
+                    "text": "> NEXT: loop",
+                    "target": "loop-demo"
+                }
+            ]
+        },
+        {
+            "id": "loop-demo",
+            "type": "screen",
+            "content": [
+                { "type": "text", "className": "alert", "text": "FEATURE: loop" },
+                "",
+                "The 'loop' property on any object element repeats it N times.",
+                "Useful for drawing dividers or repeated elements without JSON bloat.",
+                "",
+                "The following separator is a single text object with loop: 40:",
+                { "type": "text", "text": "-", "loop": 40 },
+                "",
+                "And these are three copies of the same corrupted link entry with loop: 3:",
+                {
+                    "type": "link",
+                    "text": "> [CORRUPTED RECORD]",
+                    "loop": 3,
+                    "target": [
+                        { "type": "dialog", "target": "corrupted-dialog" }
+                    ]
+                },
+                "",
+                {
+                    "type": "link",
+                    "text": "> NEXT: onDone (auto-advance)",
+                    "target": "ondone-intro"
+                }
+            ]
+        },
+        {
+            "id": "ondone-intro",
+            "type": "screen",
+            "content": [
+                { "type": "text", "className": "alert", "text": "FEATURE: onDone" },
+                "",
+                "Screens can automatically advance to another screen once they finish rendering.",
+                "Set 'onDone' on a screen with a 'target' screen ID and an optional 'delayMs'.",
+                "",
+                "The next screen will auto-advance to the one after it after 3 seconds.",
+                "",
+                {
+                    "type": "link",
+                    "text": "> WATCH IT HAPPEN",
+                    "target": "ondone-active"
+                }
+            ]
+        },
+        {
+            "id": "ondone-active",
+            "type": "screen",
+            "onDone": {
+                "target": "ondone-landed",
+                "delayMs": 3000
+            },
+            "content": [
+                { "type": "text", "className": "notice", "text": "AUTO-ADVANCING IN 3 SECONDS..." },
+                "",
+                { "type": "text", "text": ".", "loop": 60, "speed": 0.15 }
+            ]
+        },
+        {
+            "id": "ondone-landed",
+            "type": "screen",
+            "content": [
+                { "type": "text", "className": "alert", "text": "AUTO-ADVANCE SUCCESSFUL." },
+                "",
+                "This screen was reached automatically via onDone.",
+                "",
+                {
+                    "type": "link",
+                    "text": "> NEXT: toggle and list",
+                    "target": "elements-demo"
+                }
+            ]
+        },
+        {
+            "id": "elements-demo",
+            "type": "screen",
+            "content": [
+                { "type": "text", "className": "alert", "text": "FEATURES: toggle and list" },
+                "",
+                "TOGGLE cycles through states defined as objects with 'active' and 'text'.",
+                "The first state with 'active: true' is shown first. Click to cycle.",
+                "",
+                {
+                    "type": "toggle",
+                    "states": [
+                        { "active": true,  "text": "> REACTOR STATUS: NOMINAL" },
+                        { "active": false, "text": "> REACTOR STATUS: WARNING" },
+                        { "active": false, "text": "> REACTOR STATUS: CRITICAL" }
+                    ]
+                },
+                "",
+                "LIST is similar but states are plain strings. Useful for selecting options.",
+                "Click to cycle through the choices:",
+                "",
+                {
+                    "type": "list",
+                    "states": [
+                        "LIFE SUPPORT: ZONE A + B + C",
+                        "LIFE SUPPORT: ZONE A + B ONLY",
+                        "LIFE SUPPORT: ZONE A ONLY",
+                        "LIFE SUPPORT: EMERGENCY MODE"
+                    ]
+                },
+                "",
+                {
+                    "type": "link",
+                    "text": "> NEXT: prompt with allowFreeInput",
+                    "target": "prompt-demo"
+                }
+            ]
+        },
+        {
+            "id": "prompt-demo",
+            "type": "screen",
+            "content": [
+                { "type": "text", "className": "alert", "text": "FEATURE: allowFreeInput + inputAction" },
+                "",
+                "Prompts normally only accept commands from a fixed list.",
+                "With 'allowFreeInput: true', any text is accepted.",
+                "'inputAction' defines what happens when the user submits.",
+                "",
+                "Type anything and press ENTER:",
+                "",
+                {
+                    "type": "prompt",
+                    "prompt": "CREW MANIFEST ENTRY: ",
+                    "allowFreeInput": true,
+                    "inputAction": {
+                        "type": "link",
+                        "target": "href-demo"
+                    }
+                }
+            ]
+        },
+        {
+            "id": "href-demo",
+            "type": "screen",
+            "content": [
+                { "type": "text", "className": "alert", "text": "FEATURE: href links" },
+                "",
+                "The 'href' type inside a link target array opens a URL in a new tab",
+                "instead of navigating within the terminal.",
+                "",
+                "Useful for linking to external resources, hosted images, or documents.",
+                "",
+                {
+                    "type": "link",
+                    "text": "> OPEN PHOSPHOR GITHUB (external)",
+                    "target": [
+                        { "type": "href", "target": "https://github.com/EthanDunning/phosphor" }
+                    ]
+                },
+                "",
+                {
+                    "type": "link",
+                    "text": "> NEXT: bitmap options",
+                    "target": "bitmap-demo"
+                }
+            ]
+        },
+        {
+            "id": "bitmap-demo",
+            "type": "screen",
+            "content": [
+                { "type": "text", "className": "alert", "text": "FEATURES: fillWidth + animated" },
+                "",
+                "Bitmaps support two extra display options in this fork:",
+                "  - 'fillWidth: true'  stretches the image to fill the terminal width",
+                "  - 'animated: true'   allows GIFs to animate (static by default)",
+                "",
+                "Standard bitmap (default):",
+                {
+                    "type": "bitmap",
+                    "src": "https://i.imgur.com/rDjphNY.jpg",
+                    "className": "luminosity"
+                },
+                "",
+                "Same image with fillWidth: true:",
+                {
+                    "type": "bitmap",
+                    "src": "https://i.imgur.com/rDjphNY.jpg",
+                    "className": "luminosity",
+                    "fillWidth": true
+                },
+                "",
+                {
+                    "type": "link",
+                    "text": "> FINISH TOUR",
+                    "target": "end"
+                }
+            ]
+        },
+        {
+            "id": "end",
+            "type": "screen",
+            "content": [
+                { "type": "text", "className": "alert", "text": "=== END OF DEMO ===" },
+                "",
+                "You've seen all the features added in this fork:",
+                "  speed       per-element typing speed",
+                "  loop        repeat any element N times",
+                "  onDone      auto-advance screens",
+                "  toggle      multi-state cycling button (object states)",
+                "  list        multi-state cycling selector (string states)",
+                "  allowFreeInput + inputAction   open prompts",
+                "  href        external URL links",
+                "  fillWidth + animated   bitmap display options",
+                "",
+                "To write your own script, model it after this file or see the README.",
+                "",
+                {
+                    "type": "link",
+                    "text": "> RESTART DEMO",
+                    "target": "welcome"
+                }
+            ]
+        }
+    ],
+    "dialogs": [
+        {
+            "id": "corrupted-dialog",
+            "type": "alert",
+            "content": [
+                "ERROR: RECORD UNREADABLE.",
+                "Data integrity failure on this sector.",
+                "Press <enter>, <esc>, or click to dismiss."
+            ]
+        }
+    ]
+}
