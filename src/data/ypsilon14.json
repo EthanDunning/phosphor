@@ -58,6 +58,25 @@
                     "text": "> CONTROLS",
                     "type": "link",
                     "target": "controls"
+                },
+                "",
+                "=========",
+                {
+                    "text": "> LOG OUT",
+                    "type": "link",
+                    "target": [
+                        {
+                            "type": "link",
+                            "target": "screen0",
+                            "shiftKey": false
+                        },
+                        {
+                            "type": "action",
+                            "action": "resetState",
+                            "target": "screen0",
+                            "shiftKey": true
+                        }
+                    ]
                 }
             ]
         },
