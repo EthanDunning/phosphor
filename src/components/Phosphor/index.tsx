@@ -491,6 +491,15 @@ class Phosphor extends Component<PhosphorProps, AppState> {
         this.setState({
             screens,
         }, () => {
+            const previewStartScreenId = this.props.json?.config?.previewStartScreen;
+            if (typeof previewStartScreenId === "string" && previewStartScreenId.length) {
+                const previewIndex = screens.findIndex((screen) => screen.id === previewStartScreenId);
+                if (previewIndex >= 0) {
+                    this._setActiveScreen(previewIndex);
+                    return;
+                }
+            }
+
             const persisted = this._readPersistedSession();
             if (persisted && persisted.activeScreenId) {
                 this._restoreSessionScreen(persisted);

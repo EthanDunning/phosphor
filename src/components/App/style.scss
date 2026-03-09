@@ -1,7 +1,8 @@
 @use "../../assets/sass/fonts" as *;
 @use "../../assets/sass/colors" as *;
 
-$header-height: 42px;
+$header-height: 50px;
+$font-bump: 4pt;
 
 :root {
     --header-height: #{$header-height};
@@ -27,12 +28,12 @@ $header-height: 42px;
     border-bottom: 1px solid var(--fg);
     color: var(--fg);
     font-family: $font-family;
-    font-size: $smallfontsize * 0.55;
+    font-size: calc(#{$smallfontsize * 0.55} + #{$font-bump});
     text-shadow: var(--fg-glow);
     opacity: 0.95;
 
     &__title {
-        font-size: $smallfontsize * 0.7;
+        font-size: calc(#{$smallfontsize * 0.7} + #{$font-bump});
         letter-spacing: 0.15em;
         opacity: 0.6;
         flex-shrink: 0;

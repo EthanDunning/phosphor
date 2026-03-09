@@ -1,0 +1,422 @@
+@use "../../assets/sass/fonts" as *;
+
+$creator-font-size: 14pt;
+$creator-list-font-size: 16pt;
+$creator-label-font-size: 14pt;
+
+.script-creator {
+    position: fixed;
+    inset: 0;
+    z-index: 600;
+    background: rgba(0, 0, 0, 0.75);
+    color: var(--fg);
+    font-family: $font-family;
+    font-size: $creator-font-size;
+
+    &__panel {
+        position: absolute;
+        top: 56px;
+        left: 16px;
+        right: 16px;
+        bottom: 16px;
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+        overflow: hidden;
+        border: 1px solid var(--fg);
+        background: var(--bg);
+    }
+
+    &__header,
+    &__footer {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0.65rem 0.75rem;
+        border-bottom: 1px solid var(--fg);
+    }
+
+    &__footer {
+        border-bottom: none;
+        border-top: 1px solid var(--fg);
+        justify-content: flex-start;
+        gap: 0.5rem;
+    }
+
+    &__header-actions {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    &__body {
+        flex: 1;
+        display: grid;
+        grid-template-columns: 280px 1fr;
+        min-height: 0;
+        overflow: hidden;
+
+        &--single {
+            display: flex;
+            flex-direction: column;
+        }
+    }
+
+    &__sidebar,
+    &__editor {
+        min-height: 0;
+        overflow: hidden;
+        padding: 0.75rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.6rem;
+    }
+
+    &__sidebar {
+        border-right: 1px solid var(--fg);
+    }
+
+    &__row {
+        display: grid;
+        grid-template-columns: 1fr 160px;
+        gap: 0.6rem;
+    }
+
+    &__field {
+        display: flex;
+        flex-direction: column;
+        gap: 0.3rem;
+
+        span {
+            opacity: 0.8;
+            letter-spacing: 0.08em;
+            font-size: $creator-label-font-size;
+            text-transform: uppercase;
+        }
+
+        input,
+        textarea,
+        select {
+            border: 1px solid var(--fg);
+            background: transparent;
+            color: var(--fg);
+            font-family: $font-family;
+            padding: 0.35rem;
+            font-size: inherit;
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+    }
+
+    &__list-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 0.5rem;
+        margin-top: 0.2rem;
+
+        span {
+            font-size: $creator-list-font-size;
+        }
+    }
+
+    &__list {
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+        flex: 1;
+        min-height: 0;
+        overflow: auto;
+    }
+
+    &__list-item {
+        border: 1px solid var(--fg);
+        background: transparent;
+        color: var(--fg);
+        font-family: $font-family;
+        font-size: $creator-list-font-size;
+        line-height: 1.25;
+        text-align: left;
+        padding: 0.35rem;
+        cursor: pointer;
+
+        &--active {
+            background: var(--fg);
+            color: var(--bg);
+        }
+    }
+
+    &__element-layout {
+        display: grid;
+        grid-template-columns: minmax(220px, 320px) 1fr;
+        gap: 0.75rem;
+        flex: 1;
+        min-height: 0;
+    }
+
+    &__editor-content {
+        display: flex;
+        flex-direction: column;
+        gap: 0.6rem;
+        flex: 1;
+        min-height: 0;
+    }
+
+    &__element-editor {
+        display: flex;
+        flex-direction: column;
+        gap: 0.6rem;
+        flex: 1;
+        min-height: 0;
+        overflow: hidden;
+    }
+
+    &__field--fill {
+        flex: 1;
+        min-height: 0;
+    }
+
+    &__textarea-fill {
+        flex: 1;
+        min-height: 0;
+        height: 100%;
+        resize: none;
+    }
+
+    &__actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.45rem;
+
+        select {
+            border: 1px solid var(--fg);
+            background: transparent;
+            color: var(--fg);
+            font-family: $font-family;
+            font-size: 16pt;
+            padding: 0.28rem 0.5rem;
+        }
+    }
+
+    &__actions--footer {
+        margin-top: auto;
+    }
+
+    &__schema-view {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+        flex: 1;
+        min-height: 0;
+        min-width: 0;
+        overflow: hidden;
+        padding: 0.75rem;
+    }
+
+    &__schema-toolbar {
+        display: flex;
+        align-items: flex-end;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+    }
+
+    &__preview-view {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+        flex: 1;
+        min-height: 0;
+        min-width: 0;
+        overflow: hidden;
+        padding: 0.75rem;
+    }
+
+    &__preview-toolbar {
+        display: flex;
+        align-items: flex-end;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+    }
+
+    &__preview-canvas {
+        flex: 1;
+        min-height: 0;
+        min-width: 0;
+        overflow: hidden;
+        border: 1px solid var(--fg);
+        display: flex;
+        flex-direction: column;
+    }
+
+    &__preview-title {
+        border-bottom: 1px solid var(--fg);
+        padding: 0.45rem 0.65rem;
+        font-size: 14pt;
+        opacity: 0.9;
+    }
+
+    &__preview-content {
+        flex: 1;
+        min-height: 0;
+        overflow: auto;
+        padding: 0.65rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.45rem;
+    }
+
+    &__preview-line,
+    &__preview-block,
+    &__preview-meta {
+        border: 1px solid rgba(255, 255, 255, 0.35);
+        padding: 0.35rem 0.5rem;
+        white-space: pre-wrap;
+    }
+
+    &__preview-block {
+        display: flex;
+        flex-direction: column;
+        gap: 0.3rem;
+    }
+
+    &__preview-subline {
+        opacity: 0.85;
+        padding-left: 0.75rem;
+    }
+
+    &__preview-meta {
+        margin: 0;
+        font-family: $font-family;
+        font-size: 13pt;
+        line-height: 1.2;
+    }
+
+    &__preview-media {
+        border: 1px solid rgba(255, 255, 255, 0.35);
+        padding: 0.4rem;
+
+        img {
+            max-width: 100%;
+            height: auto;
+            display: block;
+            margin-top: 0.4rem;
+            border: 1px solid rgba(255, 255, 255, 0.35);
+        }
+    }
+
+    &__preview-media-label {
+        font-size: 12pt;
+        opacity: 0.8;
+    }
+
+    &__preview-link {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.2rem;
+        border: 1px solid var(--fg);
+        background: transparent;
+        color: var(--fg);
+        font-family: $font-family;
+        font-size: 14pt;
+        text-align: left;
+        padding: 0.35rem 0.5rem;
+        cursor: pointer;
+
+        small {
+            font-size: 12pt;
+            opacity: 0.8;
+        }
+
+        &:hover:not(:disabled) {
+            background: var(--fg);
+            color: var(--bg);
+        }
+
+        &--disabled {
+            opacity: 0.75;
+        }
+    }
+
+    &__schema-hint {
+        opacity: 0.75;
+        font-size: 12pt;
+    }
+
+    &__schema-tree {
+        flex: 1;
+        min-height: 0;
+        min-width: 0;
+        width: 100%;
+        box-sizing: border-box;
+        overflow: auto;
+        border: 1px solid var(--fg);
+        padding: 0.65rem 0.75rem;
+
+        pre {
+            margin: 0;
+            white-space: pre;
+            font-family: $font-family;
+            font-size: 14pt;
+            line-height: 1.3;
+        }
+    }
+
+    &__btn {
+        background: transparent;
+        border: 1px solid var(--fg);
+        color: var(--fg);
+        font-family: $font-family;
+        font-size: 16pt;
+        padding: 0.28rem 0.5rem;
+        cursor: pointer;
+
+        &:hover:not(:disabled) {
+            background: var(--fg);
+            color: var(--bg);
+        }
+
+        &--active {
+            background: var(--fg);
+            color: var(--bg);
+        }
+
+        &:disabled {
+            opacity: 0.4;
+            cursor: default;
+        }
+    }
+
+    &__error {
+        color: rgb(255, 70, 50);
+        font-size: inherit;
+    }
+}
+
+@media (max-width: 1020px) {
+    .script-creator {
+        &__panel {
+            top: 52px;
+            left: 8px;
+            right: 8px;
+            bottom: 8px;
+        }
+
+        &__body {
+            grid-template-columns: 1fr;
+        }
+
+        &__sidebar {
+            border-right: none;
+            border-bottom: 1px solid var(--fg);
+        }
+
+        &__row,
+        &__element-layout {
+            grid-template-columns: 1fr;
+        }
+    }
+}
