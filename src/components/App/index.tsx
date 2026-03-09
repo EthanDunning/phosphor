@@ -390,6 +390,17 @@ class App extends Component<any, AppState> {
                         {!previewMode && (
                             <a
                                 className="phosphor-header__btn"
+                                href="https://ko-fi.com/ethandunning"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                            >
+                                [DONATE]
+                            </a>
+                        )}
+
+                        {!previewMode && (
+                            <a
+                                className="phosphor-header__btn"
                                 href="https://github.com/EthanDunning/phosphor"
                                 target="_blank"
                                 rel="noopener noreferrer"
