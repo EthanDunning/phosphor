@@ -1,4 +1,4 @@
-import React, { FC, useMemo, useState } from "react";
+import React, { FC, useEffect, useId, useMemo, useRef, useState } from "react";
 import "./style.scss";
 
 interface ScriptCreatorProps {
@@ -25,6 +25,147 @@ interface AddableElementOption {
     value: AddableElementType;
     label: string;
 }
+
+interface CreatorSelectOption {
+    value: string;
+    label: string;
+    disabled?: boolean;
+}
+
+interface CreatorSelectProps {
+    value: string;
+    options: CreatorSelectOption[];
+    onChange: (nextValue: string) => void;
+    className?: string;
+    disabled?: boolean;
+    fallbackLabel?: string;
+}
+
+type CreatorColorMode = "theme" | "dark" | "light";
+
+const CREATOR_COLOR_MODE_LABELS: Record<CreatorColorMode, string> = {
+    theme: "THEME",
+    dark: "DARK",
+    light: "LIGHT",
+};
+
+const getNextCreatorColorMode = (mode: CreatorColorMode): CreatorColorMode => {
+    if (mode === "theme") {
+        return "dark";
+    }
+    if (mode === "dark") {
+        return "light";
+    }
+    return "theme";
+};
+
+const CreatorSelect: FC<CreatorSelectProps> = ({
+    value,
+    options,
+    onChange,
+    className,
+    disabled = false,
+    fallbackLabel,
+}) => {
+    const [open, setOpen] = useState<boolean>(false);
+    const rootRef = useRef<HTMLDivElement | null>(null);
+    const listboxId = useId();
+    const selectedOption = options.find((option) => option.value === value) || null;
+
+    useEffect(() => {
+        const onDocumentMouseDown = (event: MouseEvent) => {
+            const target = event.target as Node | null;
+            if (!target || !rootRef.current || rootRef.current.contains(target)) {
+                return;
+            }
+            setOpen(false);
+        };
+        document.addEventListener("mousedown", onDocumentMouseDown);
+        return () => {
+            document.removeEventListener("mousedown", onDocumentMouseDown);
+        };
+    }, []);
+
+    useEffect(() => {
+        if (disabled) {
+            setOpen(false);
+        }
+    }, [disabled]);
+
+    const triggerLabel = selectedOption?.label || fallbackLabel || value || "(none)";
+    const showCaret = !disabled && options.length > 0;
+
+    return (
+        <div
+            ref={rootRef}
+            className={
+                "script-creator-select"
+                + (open ? " script-creator-select--open" : "")
+                + (disabled ? " script-creator-select--disabled" : "")
+                + (className ? ` ${className}` : "")
+            }
+        >
+            <button
+                type="button"
+                className="script-creator-select__trigger"
+                aria-haspopup="listbox"
+                aria-controls={listboxId}
+                aria-expanded={open}
+                disabled={disabled}
+                onClick={() => {
+                    if (!options.length) {
+                        return;
+                    }
+                    setOpen((prev) => !prev);
+                }}
+                onKeyDown={(event) => {
+                    if (event.key === "Escape") {
+                        setOpen(false);
+                        return;
+                    }
+
+                    if ((event.key === "Enter" || event.key === " " || event.key === "ArrowDown") && options.length) {
+                        event.preventDefault();
+                        setOpen((prev) => !prev);
+                    }
+                }}
+            >
+                <span>{triggerLabel}</span>
+                {showCaret && <span className="script-creator-select__caret">▼</span>}
+            </button>
+
+            {open && (
+                <div id={listboxId} role="listbox" className="script-creator-select__menu">
+                    {options.map((option) => {
+                        const isActive = option.value === value;
+                        return (
+                            <button
+                                key={option.value}
+                                type="button"
+                                role="option"
+                                aria-selected={isActive}
+                                disabled={option.disabled}
+                                className={
+                                    "script-creator-select__option"
+                                    + (isActive ? " script-creator-select__option--active" : "")
+                                }
+                                onClick={() => {
+                                    if (option.disabled) {
+                                        return;
+                                    }
+                                    onChange(option.value);
+                                    setOpen(false);
+                                }}
+                            >
+                                {option.label}
+                            </button>
+                        );
+                    })}
+                </div>
+            )}
+        </div>
+    );
+};
 
 const ADDABLE_ELEMENT_OPTIONS: AddableElementOption[] = [
     { value: "plainText", label: "Text Line" },
@@ -102,6 +243,23 @@ const BITMAP_CLASSNAME_OPTIONS = [
     "hue",
     "saturation",
     "color",
+];
+
+const SCREEN_TYPE_OPTIONS: CreatorSelectOption[] = [
+    { value: "screen", label: "screen" },
+    { value: "static", label: "static" },
+];
+
+const BOOLEAN_OPTIONS: CreatorSelectOption[] = [
+    { value: "false", label: "false" },
+    { value: "true", label: "true" },
+];
+
+const TEXT_LINE_STYLE_OPTIONS: CreatorSelectOption[] = [
+    { value: "", label: "(unstyled text line)" },
+    ...TEXT_CLASSNAME_OPTIONS
+        .filter((option) => option.length > 0)
+        .map((option) => ({ value: option, label: option })),
 ];
 
 const createDefaultScript = () => ({
@@ -393,6 +551,13 @@ const getClassNameOptionsForElementType = (elementType: string): string[] => {
     }
 };
 
+const toCreatorSelectOptions = (options: string[], emptyLabel: string): CreatorSelectOption[] => {
+    return options.map((option) => ({
+        value: option,
+        label: option || emptyLabel,
+    }));
+};
+
 const getElementListLabel = (entry: any): string => {
     if (typeof entry === "string") {
         return `text line: ${entry.slice(0, 24) || "(empty)"}`;
@@ -430,6 +595,7 @@ const ScriptCreator: FC<ScriptCreatorProps> = ({ initialScript, onApply, onPrevi
     const [rawElementError, setRawElementError] = useState<string | null>(null);
     const [elementEditorMode, setElementEditorMode] = useState<"fields" | "raw">("fields");
     const [activeView, setActiveView] = useState<"editor" | "schema">("editor");
+    const [creatorColorMode, setCreatorColorMode] = useState<CreatorColorMode>("theme");
 
     const selectedScreen = useMemo(() => {
         return script.screens.find((screen: any) => screen.id === selectedScreenId) || null;
@@ -460,6 +626,12 @@ const ScriptCreator: FC<ScriptCreatorProps> = ({ initialScript, onApply, onPrevi
     const schemaLines = useMemo(() => {
         return buildSchemaTreeLines(effectiveSchemaRootId, schemaData.screenIds, schemaData.connectionMap);
     }, [effectiveSchemaRootId, schemaData]);
+    const classNameSelectOptions = useMemo(() => {
+        return toCreatorSelectOptions(classNameOptions, "(none)");
+    }, [classNameOptions]);
+    const schemaRootSelectOptions = useMemo(() => {
+        return schemaData.screenIds.map((id) => ({ value: id, label: id }));
+    }, [schemaData.screenIds]);
 
     const updateScript = (updater: (prev: any) => any) => {
         setScript((prev: any) => ensureScriptShape(updater(prev)));
@@ -814,7 +986,7 @@ const ScriptCreator: FC<ScriptCreatorProps> = ({ initialScript, onApply, onPrevi
     };
 
     return (
-        <section className="script-creator" onClick={onClose}>
+        <section className={`script-creator script-creator--${creatorColorMode}`} onClick={onClose}>
             <div className="script-creator__panel" onClick={(e) => e.stopPropagation()}>
                 <div className="script-creator__header">
                     <strong>Script Creator</strong>
@@ -824,6 +996,12 @@ const ScriptCreator: FC<ScriptCreatorProps> = ({ initialScript, onApply, onPrevi
                             onClick={startNewScript}
                         >
                             [NEW SCRIPT]
+                        </button>
+                        <button
+                            className="script-creator__btn"
+                            onClick={() => setCreatorColorMode((prev) => getNextCreatorColorMode(prev))}
+                        >
+                            [MODE: {CREATOR_COLOR_MODE_LABELS[creatorColorMode]}]
                         </button>
                         <button
                             className={"script-creator__btn" + (activeView === "editor" ? " script-creator__btn--active" : "")}
@@ -909,29 +1087,24 @@ const ScriptCreator: FC<ScriptCreatorProps> = ({ initialScript, onApply, onPrevi
 
                                     <label className="script-creator__field">
                                         <span>Type</span>
-                                        <select
+                                        <CreatorSelect
                                             value={selectedScreen.type}
-                                            onChange={(e) => updateScreen({ type: e.target.value })}
-                                        >
-                                            <option value="screen">screen</option>
-                                            <option value="static">static</option>
-                                        </select>
+                                            options={SCREEN_TYPE_OPTIONS}
+                                            fallbackLabel={selectedScreen.type}
+                                            onChange={(nextType) => updateScreen({ type: nextType })}
+                                        />
                                     </label>
                                 </div>
 
                                 <div className="script-creator__list-header">
                                     <span>Elements</span>
                                     <div className="script-creator__actions">
-                                        <select
+                                        <CreatorSelect
+                                            className="script-creator-select--actions"
                                             value={newElementType}
-                                            onChange={(e) => setNewElementType(e.target.value as AddableElementType)}
-                                        >
-                                            {ADDABLE_ELEMENT_OPTIONS.map((option) => (
-                                                <option key={option.value} value={option.value}>
-                                                    {option.label}
-                                                </option>
-                                            ))}
-                                        </select>
+                                            options={ADDABLE_ELEMENT_OPTIONS}
+                                            onChange={(nextType) => setNewElementType(nextType as AddableElementType)}
+                                        />
                                         <button className="script-creator__btn" onClick={addElement}>[ADD ELEMENT]</button>
                                         <button
                                             className="script-creator__btn"
@@ -977,10 +1150,10 @@ const ScriptCreator: FC<ScriptCreatorProps> = ({ initialScript, onApply, onPrevi
 
                                                         <label className="script-creator__field">
                                                             <span>Class Name (Apply Style)</span>
-                                                            <select
+                                                            <CreatorSelect
                                                                 value=""
-                                                                onChange={(e) => {
-                                                                    const nextClassName = e.target.value;
+                                                                options={TEXT_LINE_STYLE_OPTIONS}
+                                                                onChange={(nextClassName) => {
                                                                     if (!nextClassName.length) {
                                                                         return;
                                                                     }
@@ -990,14 +1163,7 @@ const ScriptCreator: FC<ScriptCreatorProps> = ({ initialScript, onApply, onPrevi
                                                                         className: nextClassName,
                                                                     });
                                                                 }}
-                                                            >
-                                                                <option value="">(unstyled text line)</option>
-                                                                {TEXT_CLASSNAME_OPTIONS.filter((option) => option.length > 0).map((option) => (
-                                                                    <option key={option} value={option}>
-                                                                        {option}
-                                                                    </option>
-                                                                ))}
-                                                            </select>
+                                                            />
                                                         </label>
                                                     </>
                                                 )}
@@ -1053,16 +1219,14 @@ const ScriptCreator: FC<ScriptCreatorProps> = ({ initialScript, onApply, onPrevi
 
                                                         <label className="script-creator__field">
                                                             <span>Fill Width</span>
-                                                            <select
+                                                            <CreatorSelect
                                                                 value={selectedElement.fillWidth ? "true" : "false"}
-                                                                onChange={(e) => updateElement({
+                                                                options={BOOLEAN_OPTIONS}
+                                                                onChange={(nextValue) => updateElement({
                                                                     ...selectedElement,
-                                                                    fillWidth: e.target.value === "true",
+                                                                    fillWidth: nextValue === "true",
                                                                 })}
-                                                            >
-                                                                <option value="false">false</option>
-                                                                <option value="true">true</option>
-                                                            </select>
+                                                            />
                                                         </label>
 
                                                         <label className="script-creator__field">
@@ -1098,10 +1262,10 @@ const ScriptCreator: FC<ScriptCreatorProps> = ({ initialScript, onApply, onPrevi
                                                 {selectedElement && typeof selectedElement === "object" && classNameOptions.length > 0 && (
                                                     <label className="script-creator__field">
                                                         <span>Class Name</span>
-                                                        <select
+                                                        <CreatorSelect
                                                             value={selectedElement.className || ""}
-                                                            onChange={(e) => {
-                                                                const nextValue = e.target.value;
+                                                            options={classNameSelectOptions}
+                                                            onChange={(nextValue) => {
                                                                 if (!nextValue.length) {
                                                                     const nextElement = { ...selectedElement };
                                                                     delete nextElement.className;
@@ -1113,13 +1277,7 @@ const ScriptCreator: FC<ScriptCreatorProps> = ({ initialScript, onApply, onPrevi
                                                                     className: nextValue,
                                                                 });
                                                             }}
-                                                        >
-                                                            {classNameOptions.map((option) => (
-                                                                <option key={option || "__none__"} value={option}>
-                                                                    {option || "(none)"}
-                                                                </option>
-                                                            ))}
-                                                        </select>
+                                                        />
                                                     </label>
                                                 )}
                                             </>
@@ -1163,14 +1321,13 @@ const ScriptCreator: FC<ScriptCreatorProps> = ({ initialScript, onApply, onPrevi
                             <div className="script-creator__schema-toolbar">
                                 <label className="script-creator__field">
                                     <span>Root Screen</span>
-                                    <select
+                                    <CreatorSelect
                                         value={effectiveSchemaRootId}
-                                        onChange={(e) => setSchemaRootId(e.target.value)}
-                                    >
-                                        {schemaData.screenIds.map((id) => (
-                                            <option key={id} value={id}>{id}</option>
-                                        ))}
-                                    </select>
+                                        options={schemaRootSelectOptions}
+                                        disabled={!schemaRootSelectOptions.length}
+                                        fallbackLabel={effectiveSchemaRootId || "(none)"}
+                                        onChange={(nextValue) => setSchemaRootId(nextValue)}
+                                    />
                                 </label>
                                 <span className="script-creator__schema-hint">
                                     Tree is built from screen links, prompts, toggles/lists, and screen onDone targets.

@@ -3,15 +3,105 @@
 $creator-font-size: 14pt;
 $creator-list-font-size: 16pt;
 $creator-label-font-size: 14pt;
+$creator-dark-bg: #000;
+$creator-dark-fg: #fff;
+$creator-dark-control-bg: rgba($creator-dark-bg, 0.92);
+
+@mixin creator-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: var(--creator-scroll-thumb) var(--creator-scroll-track);
+
+    &::-webkit-scrollbar {
+        width: 12px;
+        height: 12px;
+    }
+
+    &::-webkit-scrollbar-track {
+        background: var(--creator-scroll-track);
+    }
+
+    &::-webkit-scrollbar-thumb {
+        background: var(--creator-scroll-thumb);
+        border: 2px solid var(--creator-scroll-track);
+        min-height: 24px;
+    }
+
+    &::-webkit-scrollbar-thumb:hover {
+        background: var(--creator-scroll-thumb-hover);
+    }
+
+    &::-webkit-scrollbar-corner {
+        background: var(--creator-scroll-track);
+    }
+}
 
 .script-creator {
+    --creator-bg: var(--theme-bg, #{$creator-dark-bg});
+    --creator-fg: var(--theme-fg, #{$creator-dark-fg});
+    --creator-overlay: rgba(0, 0, 0, 0.75);
+    --creator-control-bg: var(--creator-bg);
+    --creator-fg-glow: var(--theme-fg-glow, none);
+    --creator-selected-bg: var(--creator-fg);
+    --creator-selected-fg: var(--creator-bg);
+    --creator-scroll-track: var(--creator-bg);
+    --creator-scroll-thumb: var(--creator-fg);
+    --creator-scroll-thumb-hover: var(--creator-selected-bg);
+    --bg: var(--creator-bg);
+    --fg: var(--creator-fg);
+    --fg-glow: var(--creator-fg-glow);
+    --bg-glow: none;
+
     position: fixed;
     inset: 0;
     z-index: 600;
-    background: rgba(0, 0, 0, 0.75);
+    background: var(--creator-overlay);
     color: var(--fg);
     font-family: $font-family;
     font-size: $creator-font-size;
+    text-shadow: var(--fg-glow);
+    color-scheme: dark;
+
+    &--theme {
+        --creator-bg: var(--theme-bg, #{$creator-dark-bg});
+        --creator-fg: var(--theme-fg, #{$creator-dark-fg});
+        --creator-overlay: rgba(0, 0, 0, 0.75);
+        --creator-control-bg: var(--creator-bg);
+        --creator-fg-glow: var(--theme-fg-glow, none);
+        --creator-selected-bg: var(--creator-fg);
+        --creator-selected-fg: var(--creator-bg);
+        --creator-scroll-track: var(--creator-bg);
+        --creator-scroll-thumb: var(--creator-fg);
+        --creator-scroll-thumb-hover: var(--creator-selected-bg);
+        color-scheme: dark;
+    }
+
+    &--dark {
+        --creator-bg: #{$creator-dark-bg};
+        --creator-fg: #{$creator-dark-fg};
+        --creator-overlay: rgba(0, 0, 0, 0.75);
+        --creator-control-bg: #{$creator-dark-control-bg};
+        --creator-fg-glow: none;
+        --creator-selected-bg: var(--creator-fg);
+        --creator-selected-fg: var(--creator-bg);
+        --creator-scroll-track: var(--creator-bg);
+        --creator-scroll-thumb: var(--creator-fg);
+        --creator-scroll-thumb-hover: var(--creator-selected-bg);
+        color-scheme: dark;
+    }
+
+    &--light {
+        --creator-bg: #fff;
+        --creator-fg: #000;
+        --creator-overlay: rgba(255, 255, 255, 0.8);
+        --creator-control-bg: rgba(255, 255, 255, 0.96);
+        --creator-fg-glow: none;
+        --creator-selected-bg: #333;
+        --creator-selected-fg: #fff;
+        --creator-scroll-track: #fff;
+        --creator-scroll-thumb: #444;
+        --creator-scroll-thumb-hover: #222;
+        color-scheme: light;
+    }
 
     &__panel {
         position: absolute;
@@ -95,14 +185,15 @@ $creator-label-font-size: 14pt;
         }
 
         input,
-        textarea,
-        select {
+        textarea {
             border: 1px solid var(--fg);
-            background: transparent;
-            color: var(--fg);
+            background: var(--creator-control-bg);
+            color: var(--creator-fg);
+            -webkit-text-fill-color: var(--creator-fg);
             font-family: $font-family;
             padding: 0.35rem;
             font-size: inherit;
+            text-shadow: none;
         }
 
         textarea {
@@ -130,6 +221,7 @@ $creator-label-font-size: 14pt;
         flex: 1;
         min-height: 0;
         overflow: auto;
+        @include creator-scrollbar;
     }
 
     &__list-item {
@@ -144,8 +236,8 @@ $creator-label-font-size: 14pt;
         cursor: pointer;
 
         &--active {
-            background: var(--fg);
-            color: var(--bg);
+            background: var(--creator-selected-bg);
+            color: var(--creator-selected-fg);
         }
     }
 
@@ -172,6 +264,7 @@ $creator-label-font-size: 14pt;
         flex: 1;
         min-height: 0;
         overflow: auto;
+        @include creator-scrollbar;
     }
 
     &__field--fill {
@@ -190,15 +283,6 @@ $creator-label-font-size: 14pt;
         display: flex;
         flex-wrap: wrap;
         gap: 0.45rem;
-
-        select {
-            border: 1px solid var(--fg);
-            background: transparent;
-            color: var(--fg);
-            font-family: $font-family;
-            font-size: 16pt;
-            padding: 0.28rem 0.5rem;
-        }
     }
 
     &__actions--footer {
@@ -266,6 +350,7 @@ $creator-label-font-size: 14pt;
         display: flex;
         flex-direction: column;
         gap: 0.45rem;
+        @include creator-scrollbar;
     }
 
     &__preview-line,
@@ -355,6 +440,7 @@ $creator-label-font-size: 14pt;
         overflow: auto;
         border: 1px solid var(--fg);
         padding: 0.65rem 0.75rem;
+        @include creator-scrollbar;
 
         pre {
             margin: 0;
@@ -375,13 +461,13 @@ $creator-label-font-size: 14pt;
         cursor: pointer;
 
         &:hover:not(:disabled) {
-            background: var(--fg);
-            color: var(--bg);
+            background: var(--creator-selected-bg);
+            color: var(--creator-selected-fg);
         }
 
         &--active {
-            background: var(--fg);
-            color: var(--bg);
+            background: var(--creator-selected-bg);
+            color: var(--creator-selected-fg);
         }
 
         &:disabled {
@@ -393,6 +479,105 @@ $creator-label-font-size: 14pt;
     &__error {
         color: rgb(255, 70, 50);
         font-size: inherit;
+    }
+
+    .script-creator-select {
+        position: relative;
+        min-width: 0;
+        width: 100%;
+
+        &__trigger {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.65rem;
+            border: 1px solid var(--fg);
+            background: var(--creator-control-bg);
+            color: var(--creator-fg);
+            -webkit-text-fill-color: var(--creator-fg);
+            font-family: $font-family;
+            font-size: inherit;
+            line-height: 1.2;
+            text-align: left;
+            padding: 0.35rem;
+            text-shadow: none;
+            cursor: pointer;
+        }
+
+        &__caret {
+            opacity: 0.9;
+            font-size: 12pt;
+            line-height: 1;
+            flex-shrink: 0;
+        }
+
+        &__menu {
+            position: absolute;
+            top: calc(100% + 1px);
+            left: 0;
+            right: 0;
+            border: 1px solid var(--fg);
+            background: var(--creator-bg);
+            z-index: 40;
+            max-height: 280px;
+            overflow: auto;
+            @include creator-scrollbar;
+        }
+
+        &__option {
+            width: 100%;
+            border: none;
+            border-bottom: 1px solid rgba(127, 127, 127, 0.35);
+            background: transparent;
+            color: var(--creator-fg);
+            -webkit-text-fill-color: var(--creator-fg);
+            font-family: $font-family;
+            font-size: inherit;
+            line-height: 1.2;
+            text-align: left;
+            padding: 0.32rem 0.4rem;
+            cursor: pointer;
+            text-shadow: none;
+
+            &:last-child {
+                border-bottom: none;
+            }
+
+            &:hover:not(:disabled),
+            &--active {
+                background: var(--creator-selected-bg);
+                color: var(--creator-selected-fg);
+                -webkit-text-fill-color: var(--creator-selected-fg);
+            }
+
+            &:disabled {
+                opacity: 0.45;
+                cursor: default;
+            }
+        }
+
+        &--open .script-creator-select__trigger {
+            background: var(--creator-selected-bg);
+            color: var(--creator-selected-fg);
+            -webkit-text-fill-color: var(--creator-selected-fg);
+        }
+
+        &--disabled .script-creator-select__trigger {
+            opacity: 0.55;
+            cursor: default;
+        }
+
+        &--actions {
+            width: auto;
+            min-width: 170px;
+
+            .script-creator-select__trigger,
+            .script-creator-select__option {
+                font-size: 16pt;
+                padding: 0.28rem 0.5rem;
+            }
+        }
     }
 }
 

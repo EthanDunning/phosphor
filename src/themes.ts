@@ -13,6 +13,10 @@ const makeTheme = (
     id,
     name,
     vars: {
+        "--theme-fg":     `rgb(${fg[0]}, ${fg[1]}, ${fg[2]})`,
+        "--theme-bg":     `rgb(${bg[0]}, ${bg[1]}, ${bg[2]})`,
+        "--theme-fg-glow": `0 0 5px rgba(${fg[0]}, ${fg[1]}, ${fg[2]}, 0.5)`,
+        "--theme-bg-glow": `0 0 2px rgba(${bg[0]}, ${bg[1]}, ${bg[2]}, 0.5)`,
         "--fg":           `rgb(${fg[0]}, ${fg[1]}, ${fg[2]})`,
         "--bg":           `rgb(${bg[0]}, ${bg[1]}, ${bg[2]})`,
         "--fg-glow":      `0 0 5px rgba(${fg[0]}, ${fg[1]}, ${fg[2]}, 0.5)`,
