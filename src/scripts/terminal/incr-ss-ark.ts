@@ -1,6 +1,6 @@
 import { TerminalScript, TerminalScriptApi } from "./types";
 
-const APHELION_SCREEN = "ai";
+const APHELION_SCREEN = "system";
 const COMMS_SCREEN = "comms";
 const EVACUATE_SCREEN = "evacuate";
 const APHELION_STATUS_SCRIPT_ID = "aphelionCoreStatus";

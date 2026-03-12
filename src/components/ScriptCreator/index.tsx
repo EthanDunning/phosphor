@@ -191,7 +191,7 @@ const TEXT_CLASSNAME_OPTIONS = [
     "alert",
     "notice",
     "emphasis",
-    "ai",
+    "system",
     "center",
     "title",
     "small",
@@ -213,7 +213,7 @@ const PROMPT_CLASSNAME_OPTIONS = [
     "alert",
     "notice",
     "emphasis",
-    "ai",
+    "system",
     "small",
     "script-hidden",
 ];
@@ -223,7 +223,7 @@ const TOGGLE_LIST_CLASSNAME_OPTIONS = [
     "alert",
     "notice",
     "emphasis",
-    "ai",
+    "system",
     "small",
     "script-hidden",
 ];

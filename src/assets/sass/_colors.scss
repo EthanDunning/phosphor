@@ -14,15 +14,32 @@
     --bg-75:        rgba(0, 12, 12, 0.75);
     --bg-80:        rgba(0, 12, 12, 0.8);
     --bg-92:        rgba(0, 12, 12, 0.92);
+    --alert-rgb:    255, 60, 0;
+    --emphasis-rgb: 243, 149, 87;
+    --notice-rgb:   0, 199, 33;
+    --system-rgb:   21, 255, 243;
+    --ai-rgb:       var(--system-rgb);
+    --alert:        rgb(var(--alert-rgb));
+    --emphasis:     rgb(var(--emphasis-rgb));
+    --notice:       rgb(var(--notice-rgb));
+    --system:       rgb(var(--system-rgb));
+    --ai:           var(--system);
+    --alert-glow:   0 0 5px rgba(var(--alert-rgb), 0.5);
+    --emphasis-glow: 0 0 5px rgba(var(--emphasis-rgb), 0.5);
+    --notice-glow:  0 0 5px rgba(var(--notice-rgb), 0.5);
+    --system-glow:  0 0 5px rgba(var(--system-rgb), 0.5);
+    --ai-glow:      var(--system-glow);
 }
 
-// Static accent colors (not theme-dependent)
+// SCSS fallbacks used in places that still rely on compile-time color tokens.
 $alert:    rgb(255, 60, 0);
 $emphasis: rgb(243, 149, 87);
 $notice:   rgb(0, 199, 33);
-$ai: rgb(21, 255, 243);
+$system: rgb(21, 255, 243);
+$ai: $system;
 
 $alert-glow:    0 0 5px rgba($alert,    0.5);
 $emphasis-glow: 0 0 5px rgba($emphasis, 0.5);
 $notice-glow:   0 0 5px rgba($notice,   0.5);
-$ai-glow: 0 0 5px rgba($ai, 0.5);
+$system-glow: 0 0 5px rgba($system, 0.5);
+$ai-glow: $system-glow;

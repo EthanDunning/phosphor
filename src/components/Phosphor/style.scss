@@ -60,12 +60,12 @@ body {
 
 
 .emphasis {
-    color: $emphasis;
-    text-shadow: $emphasis-glow;
+    color: var(--emphasis);
+    text-shadow: var(--emphasis-glow);
 
     & > span.cursor {
-        color: $emphasis;
-        background-color: rgba($emphasis, 0.75);
+        color: var(--emphasis);
+        background-color: rgba(var(--emphasis-rgb), 0.75);
     }
 }
 
@@ -74,12 +74,12 @@ body {
 }
 
 .alert {
-    color: $alert;
-    text-shadow: $alert-glow;
+    color: var(--alert);
+    text-shadow: var(--alert-glow);
 
     & > span.cursor {
-        color: $alert;
-        background-color: rgba($alert, 0.75);
+        color: var(--alert);
+        background-color: rgba(var(--alert-rgb), 0.75);
     }
 }
 
@@ -94,7 +94,7 @@ body {
     transform: translateX(-50%);
     z-index: 1;
     padding: 0.15rem 0.45rem;
-    border: 1px solid rgba($alert, 0.75);
+    border: 1px solid rgba(var(--alert-rgb), 0.75);
     background-color: var(--bg-92);
     font-size: $smallfontsize;
     letter-spacing: 0.08em;
@@ -105,21 +105,22 @@ body {
 }
 
 .notice {
-    color: $notice;
-    text-shadow: $notice-glow;
+    color: var(--notice);
+    text-shadow: var(--notice-glow);
 
     & > span.cursor {
-        color: $notice;
-        background-color: rgba($notice, 0.75);
+        color: var(--notice);
+        background-color: rgba(var(--notice-rgb), 0.75);
     }
 }
 
+.system,
 .ai {
-    color: $ai;
-    text-shadow: $ai-glow;
+    color: var(--system);
+    text-shadow: var(--system-glow);
 
     & > span.cursor {
-        color: $ai;
-        background-color: rgba($ai, 0.75);
+        color: var(--system);
+        background-color: rgba(var(--system-rgb), 0.75);
     }
 }

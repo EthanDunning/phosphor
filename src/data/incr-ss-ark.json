@@ -86,7 +86,7 @@
                 {
                     "text": "> APHELION 3000",
                     "type": "link",
-                    "target": "ai"
+                    "target": "system"
                 },
                 "",
                 "=========",
@@ -634,7 +634,7 @@
                 },
                 {
                     "type": "text",
-                    "className": "ai",
+                    "className": "system",
                     "text": "NOTICE: Override Accepted. Colonization Procedures Active."
                 },
                 {
@@ -644,7 +644,7 @@
                 },
                 {
                     "type": "text",
-                    "className": "ai",
+                    "className": "system",
                     "text": "NOTICE: DNA Storage Vault Depleted. Replenishment Protocols Activated."
                 },
 
@@ -660,7 +660,7 @@
             ]
         },
         {
-            "id": "ai",
+            "id": "system",
             "type": "screen",
             "content": [
                 "APHELION 3000",
@@ -780,7 +780,7 @@
                 "======",
                 {
                     "text": "< BACK",
-                    "target": "ai",
+                    "target": "system",
                     "type": "link"
                 }
             ]

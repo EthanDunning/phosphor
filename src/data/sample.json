@@ -496,8 +496,8 @@
                 },
                 {
                     "type": "text",
-                    "className": "aphelion",
-                    "text": "APHELION SAMPLE"
+                    "className": "system",
+                    "text": "SYSTEM SAMPLE"
                 },
                 {
                     "type": "text",

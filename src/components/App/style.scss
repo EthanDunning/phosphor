@@ -42,8 +42,20 @@ $font-bump: 4pt;
     &__controls {
         display: flex;
         align-items: center;
+        justify-content: flex-end;
         gap: 0.75em;
-        flex-wrap: wrap;
+        flex-wrap: nowrap;
+        flex: 1 1 auto;
+        min-width: 0;
+        margin-left: auto;
+    }
+
+    &__controls > * {
+        flex-shrink: 0;
+    }
+
+    &__controls--open {
+        display: flex;
     }
 
     &__btn {
@@ -96,12 +108,27 @@ $font-bump: 4pt;
     // dropdown that appears below the script button
     &__dropdown {
         position: absolute;
-        top: $header-height;
+        top: calc(100% + 2px);
+        left: 0;
         background: var(--bg);
         border: 1px solid var(--fg);
         z-index: 200;
         min-width: 14em;
         overflow: hidden;
+    }
+
+    &__dropdown--options {
+        right: 0;
+        left: auto;
+        min-width: 16.5em;
+    }
+
+    &__dropdown-label {
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        padding: 0.3em 0.6em;
+        letter-spacing: 0.06em;
+        opacity: 0.65;
+        pointer-events: none;
     }
 
     &__dropdown-item {
@@ -151,8 +178,96 @@ $font-bump: 4pt;
         }
     }
 
+    &__theme-custom {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.3em;
+        padding: 0.45em 0.6em 0.5em;
+        border-top: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    &__theme-color-field {
+        display: inline-flex;
+        align-items: center;
+        justify-content: flex-start;
+        gap: 0.28em;
+        letter-spacing: 0.06em;
+
+        span {
+            opacity: 0.75;
+        }
+
+        input[type="color"] {
+            width: 1.6em;
+            height: 1.4em;
+            padding: 0;
+            border: 1px solid var(--fg);
+            background: transparent;
+            cursor: pointer;
+        }
+    }
+
     // wrapper for the relative-positioned script button + dropdown
-    &__script-wrapper {
+    &__script-wrapper,
+    &__options-wrapper {
         position: relative;
+    }
+
+    &__menu-btn {
+        display: none;
+        margin-left: auto;
+    }
+
+    &--compact {
+        padding: 0 0.55em;
+
+        .phosphor-header__title {
+            letter-spacing: 0.08em;
+            opacity: 0.75;
+        }
+
+        .phosphor-header__menu-btn {
+            display: inline-block;
+        }
+
+        .phosphor-header__controls {
+            display: none;
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            z-index: 220;
+            background: var(--bg);
+            border-top: 1px solid var(--fg);
+            border-bottom: 1px solid var(--fg);
+            box-sizing: border-box;
+            flex-direction: column;
+            align-items: stretch;
+            gap: 0.35em;
+            padding: 0.45em;
+            max-height: calc(100vh - #{$header-height} - env(safe-area-inset-top));
+            overflow-y: auto;
+        }
+
+        .phosphor-header__controls--open {
+            display: flex;
+        }
+
+        .phosphor-header__btn {
+            width: 100%;
+            text-align: left;
+        }
+
+        .phosphor-header__script-wrapper,
+        .phosphor-header__options-wrapper {
+            width: 100%;
+        }
+
+        .phosphor-header__dropdown {
+            left: 0;
+            right: 0;
+            min-width: 100%;
+        }
     }
 }

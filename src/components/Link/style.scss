@@ -35,9 +35,9 @@
     &.alert:hover,
     &.alert:active {
         color: var(--bg);
-        background: $alert;
+        background: var(--alert);
         text-shadow: var(--bg-glow);
-        box-shadow: $alert-glow;
+        box-shadow: var(--alert-glow);
         transition:  background 50ms, foreground 150ms;
     }
 }
