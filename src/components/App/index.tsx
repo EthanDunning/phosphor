@@ -584,7 +584,7 @@ class App extends Component<any, AppState> {
                     ref={this._headerRef}
                     className={"phosphor-header" + (headerCompact ? " phosphor-header--compact" : "")}
                 >
-                    <span ref={this._titleRef} className="phosphor-header__title">PHOSPHOR v5.5</span>
+                    <span ref={this._titleRef} className="phosphor-header__title">PHOSPHOR v5.6</span>
 
                     <button
                         className="phosphor-header__btn phosphor-header__menu-btn"
