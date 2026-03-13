@@ -148,7 +148,7 @@ const makeTheme = (
 export const THEMES: Theme[] = [
     makeTheme("blue",  "BLUE",  [212, 250, 250], [0,  12,  12]),
     makeTheme("amber", "AMBER", [254, 145,  11], [8,   4,   0]),
-    makeTheme("green", "GREEN", [ 30, 250,  30], [0,   12,   0]),
+    makeTheme("green", "GREEN", [ 0, 220,  0], [0,   0,   0]),
     makeTheme("white", "WHITE", [218, 218, 218], [2,   2,   2]),
 ];
 

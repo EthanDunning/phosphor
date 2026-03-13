@@ -1051,7 +1051,8 @@ const ScriptCreator: FC<ScriptCreatorProps> = ({ initialScript, onApply, onPrevi
     const resizeStartWidthRef = useRef<number>(DEFAULT_SIDEBAR_WIDTH);
 
     const handleEditorMarkdownShortcut = (event: React.KeyboardEvent<HTMLElement>): void => {
-        if (event.defaultPrevented || event.isComposing) {
+        const nativeEvent = event.nativeEvent as KeyboardEvent & { isComposing?: boolean };
+        if (event.defaultPrevented || !!nativeEvent.isComposing) {
             return;
         }
 
