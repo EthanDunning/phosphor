@@ -51,12 +51,24 @@ interface CreatorSelectProps {
 type CreatorColorMode = "theme" | "dark" | "light";
 type CyclerStateBehavior = "none" | "link" | "action";
 type LinkTargetType = "link" | "dialog" | "action" | "href";
+type PromptActionType = "link" | "dialog" | "action" | "console" | "logEntry" | "input";
 
 interface LinkTargetEntry {
     type: LinkTargetType;
     target: string;
     shiftKey: boolean;
     action?: string;
+}
+
+interface PromptActionEntry {
+    type: PromptActionType;
+    target?: string;
+    action?: string;
+}
+
+interface PromptCommandEntry {
+    command: string;
+    action: PromptActionEntry;
 }
 
 const CREATOR_COLOR_MODE_LABELS: Record<CreatorColorMode, string> = {
@@ -76,6 +88,15 @@ const LINK_TARGET_TYPE_OPTIONS: CreatorSelectOption[] = [
     { value: "dialog", label: "dialog" },
     { value: "action", label: "action" },
     { value: "href", label: "href" },
+];
+
+const PROMPT_ACTION_TYPE_OPTIONS: CreatorSelectOption[] = [
+    { value: "link", label: "link" },
+    { value: "dialog", label: "dialog" },
+    { value: "action", label: "action" },
+    { value: "console", label: "console" },
+    { value: "logEntry", label: "logEntry" },
+    { value: "input", label: "input" },
 ];
 
 const DEFAULT_SIDEBAR_WIDTH = 340;
@@ -280,6 +301,69 @@ const serializeLinkTargets = (
     }
 
     return cleaned;
+};
+
+const asPromptActionType = (value: any, fallbackType: PromptActionType = "link"): PromptActionType => {
+    if (typeof value !== "string") {
+        return fallbackType;
+    }
+
+    const normalized = value.trim();
+    if (
+        normalized === "link"
+        || normalized === "dialog"
+        || normalized === "action"
+        || normalized === "console"
+        || normalized === "logEntry"
+        || normalized === "input"
+    ) {
+        return normalized;
+    }
+
+    return fallbackType;
+};
+
+const normalizePromptAction = (rawAction: any, fallbackTarget: string): PromptActionEntry => {
+    const action = rawAction && typeof rawAction === "object" ? rawAction : {};
+    const type = asPromptActionType(action.type, "link");
+    const nextAction: PromptActionEntry = { type };
+
+    if (typeof action.target === "string") {
+        nextAction.target = action.target;
+    } else if ((type === "link" || type === "dialog") && fallbackTarget.length) {
+        nextAction.target = fallbackTarget;
+    }
+
+    if (typeof action.action === "string") {
+        nextAction.action = action.action;
+    } else if (type === "action") {
+        nextAction.action = "resetState";
+    }
+
+    return nextAction;
+};
+
+const normalizePromptCommands = (rawCommands: any, fallbackTarget: string): PromptCommandEntry[] => {
+    if (!Array.isArray(rawCommands)) {
+        return [];
+    }
+
+    return rawCommands
+        .map((entry: any, index: number): PromptCommandEntry | null => {
+            if (!entry || typeof entry !== "object") {
+                return null;
+            }
+
+            const command = typeof entry.command === "string"
+                ? entry.command
+                : `command${index + 1}`;
+
+            return {
+                command,
+                action: normalizePromptAction(entry.action, fallbackTarget),
+            };
+        })
+        .filter((entry: PromptCommandEntry | null): entry is PromptCommandEntry => !!entry);
 };
 
 const removeDialogTargetsFromElement = (entry: any, dialogId: string): any => {
@@ -1133,6 +1217,14 @@ const ScriptCreator: FC<ScriptCreatorProps> = ({ initialScript, onApply, onPrevi
         const fallbackType: LinkTargetType = selectedElementType === "href" ? "href" : "link";
         return normalizeLinkTargets((selectedElement as any).target, fallbackType, selectedScreen?.id || "");
     }, [selectedElement, selectedElementIsLinkLike, selectedElementType, selectedScreen?.id]);
+    const selectedElementIsPrompt = selectedElementType === "prompt";
+    const selectedPromptCommands = useMemo(() => {
+        if (!selectedElementIsPrompt || !selectedElement || typeof selectedElement !== "object") {
+            return [];
+        }
+
+        return normalizePromptCommands((selectedElement as any).commands, selectedScreen?.id || "");
+    }, [selectedElement, selectedElementIsPrompt, selectedScreen?.id]);
     const selectedElementIsCycler = selectedElementType === "toggle" || selectedElementType === "list";
     const selectedCyclerStates = useMemo(() => {
         if (!selectedElementIsCycler) {
@@ -1792,6 +1884,54 @@ const ScriptCreator: FC<ScriptCreatorProps> = ({ initialScript, onApply, onPrevi
         });
     };
 
+    const updatePromptCommands = (updater: (prevCommands: PromptCommandEntry[]) => PromptCommandEntry[]) => {
+        if (!selectedElementIsPrompt || !selectedElement || typeof selectedElement !== "object") {
+            return;
+        }
+
+        const fallbackTarget = selectedScreen?.id || "";
+        const currentCommands = normalizePromptCommands((selectedElement as any).commands, fallbackTarget);
+        const nextCommands = normalizePromptCommands(updater(currentCommands), fallbackTarget);
+
+        updateElement({
+            ...selectedElement,
+            commands: nextCommands,
+        });
+    };
+
+    const addPromptCommand = () => {
+        const fallbackTarget = selectedScreen?.id || "";
+        updatePromptCommands((prevCommands) => ([
+            ...prevCommands,
+            {
+                command: `command${prevCommands.length + 1}`,
+                action: {
+                    type: "link",
+                    target: fallbackTarget,
+                },
+            },
+        ]));
+    };
+
+    const removePromptCommand = (index: number) => {
+        updatePromptCommands((prevCommands) => {
+            return prevCommands.filter((_, commandIndex) => commandIndex !== index);
+        });
+    };
+
+    const movePromptCommand = (index: number, direction: -1 | 1) => {
+        updatePromptCommands((prevCommands) => {
+            const toIndex = index + direction;
+            if (index < 0 || toIndex < 0 || index >= prevCommands.length || toIndex >= prevCommands.length) {
+                return prevCommands;
+            }
+
+            const nextCommands = [...prevCommands];
+            [nextCommands[index], nextCommands[toIndex]] = [nextCommands[toIndex], nextCommands[index]];
+            return nextCommands;
+        });
+    };
+
     const updateCyclerStates = (updater: (prevStates: any[]) => any[]) => {
         if (!selectedElement || typeof selectedElement !== "object" || !selectedElementIsCycler) {
             return;
@@ -2423,6 +2563,202 @@ const ScriptCreator: FC<ScriptCreatorProps> = ({ initialScript, onApply, onPrevi
                                                                                 className="script-creator__btn"
                                                                                 onClick={() => removeLinkTarget(targetIndex)}
                                                                                 disabled={selectedLinkTargets.length <= 1}
+                                                                            >
+                                                                                [DELETE]
+                                                                            </button>
+                                                                        </div>
+                                                                    </div>
+                                                                );
+                                                            })}
+                                                        </div>
+                                                    </>
+                                                )}
+
+                                                {selectedElement && typeof selectedElement === "object" && selectedElementIsPrompt && (
+                                                    <>
+                                                        <label className="script-creator__field">
+                                                            <span>Prompt Text</span>
+                                                            <input
+                                                                value={selectedElement.prompt || ""}
+                                                                onChange={(e) => updateElement({ ...selectedElement, prompt: e.target.value })}
+                                                            />
+                                                        </label>
+
+                                                        <div className="script-creator__link-targets">
+                                                            <div className="script-creator__list-header">
+                                                                <span>Commands</span>
+                                                                <button className="script-creator__btn" onClick={addPromptCommand}>[+ COMMAND]</button>
+                                                            </div>
+
+                                                            {!selectedPromptCommands.length && (
+                                                                <span className="script-creator__hint">No commands configured.</span>
+                                                            )}
+
+                                                            {selectedPromptCommands.map((promptCommand: PromptCommandEntry, commandIndex: number) => {
+                                                                const actionType = asPromptActionType(promptCommand.action?.type, "link");
+                                                                const needsTarget = actionType === "link" || actionType === "dialog";
+                                                                const canMoveUp = commandIndex > 0;
+                                                                const canMoveDown = commandIndex < selectedPromptCommands.length - 1;
+
+                                                                return (
+                                                                    <div key={`prompt-command-${commandIndex}`} className="script-creator__link-target-row">
+                                                                        <div className="script-creator__link-target-grid">
+                                                                            <label className="script-creator__field">
+                                                                                <span>Command</span>
+                                                                                <input
+                                                                                    value={promptCommand.command}
+                                                                                    onChange={(e) => {
+                                                                                        const nextCommand = e.target.value;
+                                                                                        updatePromptCommands((prevCommands) => {
+                                                                                            return prevCommands.map((entry, index) => {
+                                                                                                return index === commandIndex
+                                                                                                    ? { ...entry, command: nextCommand }
+                                                                                                    : entry;
+                                                                                            });
+                                                                                        });
+                                                                                    }}
+                                                                                />
+                                                                            </label>
+
+                                                                            <label className="script-creator__field">
+                                                                                <span>Type</span>
+                                                                                <CreatorSelect
+                                                                                    value={actionType}
+                                                                                    options={PROMPT_ACTION_TYPE_OPTIONS}
+                                                                                    onChange={(nextTypeRaw) => {
+                                                                                        const nextType = asPromptActionType(nextTypeRaw, "link");
+                                                                                        updatePromptCommands((prevCommands) => {
+                                                                                            return prevCommands.map((entry, index) => {
+                                                                                                if (index !== commandIndex) {
+                                                                                                    return entry;
+                                                                                                }
+
+                                                                                                const nextAction: PromptActionEntry = {
+                                                                                                    ...entry.action,
+                                                                                                    type: nextType,
+                                                                                                };
+
+                                                                                                if (nextType === "action" && !nextAction.action) {
+                                                                                                    nextAction.action = "resetState";
+                                                                                                }
+
+                                                                                                if (
+                                                                                                    (nextType === "link" || nextType === "dialog")
+                                                                                                    && (!nextAction.target || !nextAction.target.length)
+                                                                                                ) {
+                                                                                                    nextAction.target = selectedScreen?.id || "";
+                                                                                                }
+
+                                                                                                if (nextType !== "action") {
+                                                                                                    delete nextAction.action;
+                                                                                                }
+
+                                                                                                if (nextType !== "link" && nextType !== "dialog") {
+                                                                                                    delete nextAction.target;
+                                                                                                }
+
+                                                                                                return {
+                                                                                                    ...entry,
+                                                                                                    action: nextAction,
+                                                                                                };
+                                                                                            });
+                                                                                        });
+                                                                                    }}
+                                                                                />
+                                                                            </label>
+                                                                        </div>
+
+                                                                        {needsTarget && (
+                                                                            <label className="script-creator__field">
+                                                                                <span>{actionType === "dialog" ? "Dialog ID" : "Target Screen"}</span>
+                                                                                {actionType === "dialog" && dialogIdSelectOptions.length > 0 ? (
+                                                                                    <CreatorSelect
+                                                                                        value={promptCommand.action?.target || ""}
+                                                                                        options={dialogIdSelectOptions}
+                                                                                        fallbackLabel={promptCommand.action?.target || "(dialog id)"}
+                                                                                        onChange={(nextTarget) => {
+                                                                                            updatePromptCommands((prevCommands) => {
+                                                                                                return prevCommands.map((entry, index) => {
+                                                                                                    return index === commandIndex
+                                                                                                        ? {
+                                                                                                            ...entry,
+                                                                                                            action: {
+                                                                                                                ...entry.action,
+                                                                                                                target: nextTarget,
+                                                                                                            },
+                                                                                                        }
+                                                                                                        : entry;
+                                                                                                });
+                                                                                            });
+                                                                                        }}
+                                                                                    />
+                                                                                ) : (
+                                                                                    <input
+                                                                                        value={promptCommand.action?.target || ""}
+                                                                                        onChange={(e) => {
+                                                                                            const nextTarget = e.target.value;
+                                                                                            updatePromptCommands((prevCommands) => {
+                                                                                                return prevCommands.map((entry, index) => {
+                                                                                                    return index === commandIndex
+                                                                                                        ? {
+                                                                                                            ...entry,
+                                                                                                            action: {
+                                                                                                                ...entry.action,
+                                                                                                                target: nextTarget,
+                                                                                                            },
+                                                                                                        }
+                                                                                                        : entry;
+                                                                                                });
+                                                                                            });
+                                                                                        }}
+                                                                                    />
+                                                                                )}
+                                                                            </label>
+                                                                        )}
+
+                                                                        {actionType === "action" && (
+                                                                            <label className="script-creator__field">
+                                                                                <span>Action</span>
+                                                                                <input
+                                                                                    value={promptCommand.action?.action || ""}
+                                                                                    onChange={(e) => {
+                                                                                        const nextAction = e.target.value;
+                                                                                        updatePromptCommands((prevCommands) => {
+                                                                                            return prevCommands.map((entry, index) => {
+                                                                                                return index === commandIndex
+                                                                                                    ? {
+                                                                                                        ...entry,
+                                                                                                        action: {
+                                                                                                            ...entry.action,
+                                                                                                            action: nextAction,
+                                                                                                        },
+                                                                                                    }
+                                                                                                    : entry;
+                                                                                            });
+                                                                                        });
+                                                                                    }}
+                                                                                />
+                                                                            </label>
+                                                                        )}
+
+                                                                        <div className="script-creator__actions script-creator__actions--link-target">
+                                                                            <button
+                                                                                className="script-creator__btn"
+                                                                                onClick={() => movePromptCommand(commandIndex, -1)}
+                                                                                disabled={!canMoveUp}
+                                                                            >
+                                                                                [UP]
+                                                                            </button>
+                                                                            <button
+                                                                                className="script-creator__btn"
+                                                                                onClick={() => movePromptCommand(commandIndex, 1)}
+                                                                                disabled={!canMoveDown}
+                                                                            >
+                                                                                [DOWN]
+                                                                            </button>
+                                                                            <button
+                                                                                className="script-creator__btn"
+                                                                                onClick={() => removePromptCommand(commandIndex)}
                                                                             >
                                                                                 [DELETE]
                                                                             </button>
