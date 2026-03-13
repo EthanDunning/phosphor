@@ -155,14 +155,11 @@
                 "- CREATOR: open Script Creator",
                 "- THEME: cycle theme",
                 "- RESET: clear local/session data",
-                "- DONATE/GITHUB: external links",
-                "",
+                "- DONATE/GITHUB: external links\n",
                 "Preview mode:",
                 "- Header shows [PREVIEW MODE] + [RETURN TO CREATOR]",
-                "- Script selector, creator, reset, and github buttons are hidden",
-                "",
-                "Tip: SHIFT+SPACE skips active typing animation.",
-                "",
+                "- Script selector, creator, reset, and github buttons are hidden\n",
+                "Tip: SHIFT+SPACE skips active typing animation.\n",
                 {
                     "type": "link",
                     "text": "> NEXT: SCRIPT CREATOR WORKFLOW",
@@ -196,14 +193,7 @@
                     "text": "SECTION: SCRIPT CREATOR WORKFLOW"
                 },
                 "",
-                "1) Open [CREATOR].",
-                "2) Use [NEW SCRIPT] to start fresh, or edit current script.",
-                "3) Add screens from the left side.",
-                "4) Add elements using element dropdown + [ADD ELEMENT].",
-                "5) Use [VIEW FIELDS] / [VIEW RAW JSON] as needed.",
-                "6) Use [PREVIEW] to test in the actual terminal runtime.",
-                "7) Use [APPLY TO APP] to save + activate.",
-                "",
+                "1) Open [CREATOR].\n2) Use [NEW SCRIPT] to start fresh, or edit current script.\n3) Add screens from the left side.\n4) Add elements using element dropdown + [ADD ELEMENT].\n5) Use [VIEW FIELDS] / [VIEW RAW JSON] as needed.\n6) Use [PREVIEW] to test in the actual terminal runtime.\n7) Use [APPLY TO APP] to save + activate.\n",
                 {
                     "type": "text",
                     "className": "notice",
@@ -250,22 +240,13 @@
                 "",
                 "Top-level shape:",
                 "{",
-                "  \"config\": { \"name\": \"My Script\" },",
-                "  \"screens\": [ ... ],",
-                "  \"dialogs\": [ ... ]",
-                "}",
-                "",
+                "  \"config\": { \"name\": \"My Script\" },\n  \"screens\": [ ... ],\n  \"dialogs\": [ ... ]",
+                "}\n",
                 "Screen shape:",
                 "{",
-                "  \"id\": \"unique-id\",",
-                "  \"type\": \"screen\" | \"static\",",
-                "  \"content\": [ ... ],",
-                "  \"onDone\": { \"target\": \"next-id\", \"delayMs\": 1000 } // optional",
-                "}",
-                "",
-                "screen = progressive render flow",
-                "static = immediate render",
-                "",
+                "  \"id\": \"unique-id\",\n  \"type\": \"screen\" | \"static\",\n  \"content\": [ ... ],\n  \"onDone\": { \"target\": \"next-id\", \"delayMs\": 1000 } // optional",
+                "}\n",
+                "screen = progressive render flow\nstatic = immediate render\n",
                 {
                     "type": "link",
                     "text": "> VIEW STATIC EXAMPLE",
@@ -308,8 +289,7 @@
                     "className": "notice",
                     "text": "This is a static screen."
                 },
-                "Everything here appears all at once.",
-                "",
+                "Everything here appears all at once.\n",
                 {
                     "type": "link",
                     "text": "> BACK TO SCRIPT STRUCTURE",
@@ -346,10 +326,8 @@
                 "- prompt object",
                 "- toggle object",
                 "- list object",
-                "- reportComposer object",
-                "",
-                "Dialogs are in top-level dialogs[] and opened through link targets.",
-                "",
+                "- reportComposer object\n",
+                "Dialogs are in top-level dialogs[] and opened through link targets.\n",
                 {
                     "type": "link",
                     "text": "> LIVE ELEMENT EXAMPLES",
@@ -476,9 +454,7 @@
                     "text": "SECTION: CLASSNAMES (TEXT / LINK / PROMPT)"
                 },
                 "",
-                "Text-like classnames:",
-                "alert, notice, emphasis, aphelion, small, center, title, underline, script-hidden",
-                "",
+                "Text-like classnames:\nalert, notice, emphasis, aphelion, small, center, title, underline, script-hidden\n",
                 {
                     "type": "text",
                     "className": "alert",
@@ -578,9 +554,7 @@
                     "text": "SECTION: CLASSNAMES (BITMAP)"
                 },
                 "",
-                "Bitmap classnames:",
-                "monochrome, luminosity, lighten, multiply, screen, overlay, darken, color-dodge, color-burn, hard-light, soft-light, difference, exclusion, hue, saturation, color",
-                "",
+                "Bitmap classnames:\nmonochrome, luminosity, lighten, multiply, screen, overlay, darken, color-dodge, color-burn, hard-light, soft-light, difference, exclusion, hue, saturation, color\n",
                 "original",
                 {
                     "type": "bitmap",
@@ -642,14 +616,12 @@
                 "",
                 "Link target forms:",
                 "- \"target\": \"screenId\"",
-                "- \"target\": [ ... ] with typed entries + optional shiftKey",
-                "",
+                "- \"target\": [ ... ] with typed entries + optional shiftKey\n",
                 "Typed entries:",
                 "- { type: \"link\", target: \"screenId\" }",
                 "- { type: \"dialog\", target: \"dialogId\" }",
                 "- { type: \"href\", target: \"https://...\" }",
-                "- { type: \"action\", action: \"back\"|\"reload\"|..., target? }",
-                "",
+                "- { type: \"action\", action: \"back\"|\"reload\"|..., target? }\n",
                 {
                     "type": "link",
                     "text": "> OPEN DIALOG (SHIFT+CLICK TO GO HOME)",
@@ -720,8 +692,7 @@
                 "- loop (repeat an object element N times)",
                 "- onDone (auto-advance + optional delayMs)",
                 "- allowFreeInput + inputAction (prompt behavior)",
-                "- fillWidth / scale / animated for bitmaps",
-                "",
+                "- fillWidth / scale / animated for bitmaps\n",
                 "Slow line:",
                 {
                     "type": "text",
@@ -839,8 +810,7 @@
                 "- Verify all link targets resolve to existing screens/dialogs",
                 "- Use preview to test flow",
                 "- Use APPLY TO APP to save locally and activate",
-                "- Export JSON once satisfied",
-                "",
+                "- Export JSON once satisfied\n",
                 {
                     "type": "text",
                     "className": "emphasis",
@@ -871,9 +841,7 @@
             "id": "quickHelpDialog",
             "type": "alert",
             "content": [
-                "This is an alert dialog from dialogs[].",
-                "Open it using a link target with type='dialog'.",
-                "Press ENTER, ESC, or click to close."
+                "This is an alert dialog from dialogs[].\nOpen it using a link target with type='dialog'.\nPress ENTER, ESC, or click to close."
             ]
         }
     ]

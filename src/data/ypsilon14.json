@@ -10,11 +10,9 @@
             "type": "screen",
             "content": [
                 "YPSILON-14",
-                "==========",
-                "",
+                "==========\n",
                 "Welcome to the Ypsilon-14 Mining Station, a property of ISHIYAMA DYNAMICS (c), where innovation is our top priority (tm).",
-                "==========",
-                "",
+                "==========\n",
                 {
                     "text": "> ACCEPT EULA & LOG IN",
                     "type": "link",
@@ -27,8 +25,7 @@
             "type": "screen",
             "content": [
                 "Main Menu",
-                "=========",
-                "",
+                "=========\n",
                 {
                     "text": "> STATION MAP",
                     "type": "link",
@@ -85,16 +82,14 @@
             "type": "screen",
             "content": [
                 "Station Map",
-                "===========",
-                "",
+                "===========\n",
                 {
                     "type": "bitmap",
                     "src": "img/ypsilon-map.png",
                     "className": "lighten"
                 },
                 "",
-                "A copy of the map is now available via data tablet.",
-                "",
+                "A copy of the map is now available via data tablet.\n",
                 "======",
                 {
                     "text": "< BACK",
@@ -108,11 +103,8 @@
             "type": "screen",
             "content": [
                 "Diagnostics",
-                "===========",
-                "",
-                "Checking life support.............. Done.",
-                "Checking main systems.............. Done.",
-                "",
+                "===========\n",
+                "Checking life support.............. Done.\nChecking main systems.............. Done.\n",
                 {
                     "text": "WARNING: Airflow 82.4%. Check crew quarters vents for blockage.",
                     "className": "alert",
@@ -124,14 +116,10 @@
                     "type": "text"
                 },
                 "",
-                "NOTICE: Air filters replaced 455 day(s) ago.",
-                "NOTICE: Mineshaft lift maintained 455 day(s) ago.",
-                "",
-                "===========",
-                "",
+                "NOTICE: Air filters replaced 455 day(s) ago.\nNOTICE: Mineshaft lift maintained 455 day(s) ago.\n",
+                "===========\n",
                 "SUMMARY:",
-                "All systems operating within acceptible parameters.",
-                "",
+                "All systems operating within acceptible parameters.\n",
                 "======",
                 {
                     "text": "< BACK",
@@ -145,15 +133,9 @@
             "type": "screen",
             "content": [
                 "Schedule",
-                "========",
-                "",
-                "Docking bay activity (past 6 months):",
-                "",
-                "2366-06-12.0633 - Bay 2 : Arrive :: Tempest",
-                "2366-04-29.0834 - Bay 1 : Arrive :: Heracles",
-                "2366-03-02.1223 - Bay 2 : Depart :: Key Largo",
-                "2366-02-20.1604 - Bay 2 : Arrive :: Key Largo",
-                "",
+                "========\n",
+                "Docking bay activity (past 6 months):\n",
+                "2366-06-12.0633 - Bay 2 : Arrive :: Tempest\n2366-04-29.0834 - Bay 1 : Arrive :: Heracles\n2366-03-02.1223 - Bay 2 : Depart :: Key Largo\n2366-02-20.1604 - Bay 2 : Arrive :: Key Largo\n",
                 "======",
                 {
                     "text": "< BACK",
@@ -167,8 +149,7 @@
             "type": "screen",
             "content": [
                 "Roster",
-                "======",
-                "",
+                "======\n",
                 "01. VERHOEVEN, Sonya     :: Admin",
                 "02. SINGH, Ashraf        :: Breaker",
                 "03. DE BEERS, Dana       :: Lead drill",
@@ -178,8 +159,7 @@
                 "07. KANTARO, Kenji       :: Loader",
                 "08. BOWE, Morgan         :: Loader",
                 "09. NEKTARIOS, Ri        :: Loader",
-                "10. n/a",
-                "",
+                "10. n/a\n",
                 "======",
                 {
                     "text": "< BACK",
@@ -193,10 +173,8 @@
             "type": "screen",
             "content": [
                 "COMMS",
-                "=====",
-                "",
-                "2 vessels detected in proximity.",
-                "",
+                "=====\n",
+                "2 vessels detected in proximity.\n",
                 {
                     "text": "> HAIL TEMPEST",
                     "target": "hailtempest",
@@ -221,15 +199,11 @@
             "type": "screen",
             "content": [
                 "Transmitting",
-                "============",
-                "",
+                "============\n",
                 "..........................................",
-                "..........................................",
-                "",
-                "COMMUNICATION CHANNEL OPENED",
-                "",
-                "======",
-                "",
+                "..........................................\n",
+                "COMMUNICATION CHANNEL OPENED\n",
+                "======\n",
                 {
                     "text": "< CLOSE CHANNEL",
                     "target": "comms",
@@ -242,13 +216,11 @@
             "type": "screen",
             "content": [
                 "Transmitting",
-                "============",
-                "",
+                "============\n",
                 "..........................................",
                 "..........................................",
                 "..........................................",
-                "..........................................",
-                "",
+                "..........................................\n",
                 {
                     "type": "text",
                     "className": "alert",
@@ -268,10 +240,8 @@
             "type": "screen",
             "content": [
                 "Controls",
-                "========",
-                "",
-                "[A] :: Administrator access only",
-                "",
+                "========\n",
+                "[A] :: Administrator access only\n",
                 {
                     "text": "> SHOWERS",
                     "target": "showers",
@@ -328,8 +298,7 @@
             "type": "screen",
             "content": [
                 "Airlocks",
-                "========",
-                "",
+                "========\n",
                 {
                     "type": "link",
                     "text": "> DOCKING BAY 1 :: LOCKED — ERROR",
@@ -369,8 +338,7 @@
             "type": "screen",
             "content": [
                 "Showers",
-                "=======",
-                "",
+                "=======\n",
                 {
                     "type": "toggle",
                     "states": [
@@ -455,8 +423,7 @@
             "type": "screen",
             "content": [
                 "Hydroponics Lab",
-                "===============",
-                "",
+                "===============\n",
                 {
                     "type": "toggle",
                     "states": [
@@ -484,8 +451,7 @@
             "type": "screen",
             "content": [
                 "System",
-                "======",
-                "",
+                "======\n",
                 {
                     "text": "> LIFE SUPPORT",
                     "target": "lifesupport",
@@ -510,8 +476,7 @@
             "type": "screen",
             "content": [
                 "Life Support",
-                "============",
-                "",
+                "============\n",
                 {
                     "type": "text",
                     "className": "alert",
@@ -545,8 +510,7 @@
             "type": "screen",
             "content": [
                 "Self-Destruct",
-                "=============",
-                "",
+                "=============\n",
                 {
                     "type": "text",
                     "className": "alert",
@@ -572,8 +536,7 @@
             "type": "screen",
             "content": [
                 "Activate Self-Destruct",
-                "======================",
-                "",
+                "======================\n",
                 {
                     "type": "text",
                     "className": "alert",
@@ -588,7 +551,7 @@
                 "",
                 {
                     "type": "prompt",
-                    "prompt":"TYPE 'OK' TO BEGIN COUNTDOWN: ",
+                    "prompt": "TYPE 'OK' TO BEGIN COUNTDOWN: ",
                     "className": "alert cursor",
                     "commands": [
                         {
@@ -638,8 +601,7 @@
             "id": "airlockError",
             "type": "alert",
             "content": [
-                "ERROR! Lock override in effect.",
-                "",
+                "ERROR! Lock override in effect.\n",
                 "Cannot unlock remotely. Manual intervention required."
             ]
         }

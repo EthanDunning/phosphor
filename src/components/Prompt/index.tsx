@@ -40,6 +40,22 @@ const Prompt: FC<PromptProps> = (props) => {
 
     const [value, setValue] = useState("");
 
+    const isEditableTarget = (target: EventTarget | null): boolean => {
+        if (!(target instanceof HTMLElement)) {
+            return false;
+        }
+
+        if (
+            target instanceof HTMLInputElement
+            || target instanceof HTMLTextAreaElement
+            || target instanceof HTMLSelectElement
+        ) {
+            return true;
+        }
+
+        return target.isContentEditable;
+    };
+
     // events
     const handleFocus = () => ref.current.focus();
 
@@ -68,20 +84,27 @@ const Prompt: FC<PromptProps> = (props) => {
     };
 
     const handleKeyDown = (e: KeyboardEvent) => {
-        if (disabled) {
-            setValue("");
+        if (isEditableTarget(e.target)) {
             return;
         }
 
-        e.preventDefault();
+        if (e.ctrlKey || e.metaKey || e.altKey) {
+            return;
+        }
+
+        if (disabled) {
+            return;
+        }
 
         const normalized = e.key.toLowerCase();
         switch (normalized) {
             case "backspace":
-                value.length && setValue(value.slice(0, -1));
+                e.preventDefault();
+                setValue((prevValue) => prevValue.slice(0, -1));
                 break;
 
             case "enter":
+                e.preventDefault();
                 onEnter && onEnter();
                 handleCommand();
                 break;
@@ -90,7 +113,8 @@ const Prompt: FC<PromptProps> = (props) => {
                 // support alphanumeric, space, and limited punctuation only
                 const re = /[a-zA-Z0-9 ,.<>/?[\]{}'"`;:*&^%$#@!~_|\\\-+=()]/;
                 if (e.key.length === 1 && e.key.match(re)) {
-                    setValue(value + e.key);
+                    e.preventDefault();
+                    setValue((prevValue) => prevValue + e.key);
                 }
                 break;
         }
