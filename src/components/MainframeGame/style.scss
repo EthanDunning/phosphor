@@ -115,6 +115,20 @@ body.mainframe-game--performance .__scanlines__ {
     min-height: 15.6rem;
     flex: 1;
     background:
+        repeating-linear-gradient(
+            90deg,
+            rgba(127, 149, 209, 0.07) 0,
+            rgba(127, 149, 209, 0.07) 1px,
+            transparent 1px,
+            transparent calc(6.25% - 0.5px)
+        ),
+        repeating-linear-gradient(
+            180deg,
+            rgba(127, 149, 209, 0.07) 0,
+            rgba(127, 149, 209, 0.07) 1px,
+            transparent 1px,
+            transparent calc(8.333% - 0.5px)
+        ),
         radial-gradient(circle at 50% 10%, rgba(127, 149, 209, 0.08), transparent 38%),
         linear-gradient(180deg, rgba(9, 20, 51, 0.95), rgba(4, 9, 24, 0.98));
 }

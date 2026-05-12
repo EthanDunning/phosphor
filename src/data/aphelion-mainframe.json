@@ -57,17 +57,17 @@
             "content": [
                 "BREACH DIRECTIVE",
                 "================\n",
-                "PILOT FRAME: ALL-DIRECTION VECTOR THRUST\nWEAPON: UPWARD HEX SHREDDER\nTARGET: 8 ACTIVE CODE SHARDS\nFAILSAFE: SHARDS THAT REACH LOWER BOUND RESEED AT TOP\n",
+                "PILOT FRAME: ALL-DIRECTION VECTOR THRUST\nWEAPON: UPWARD HEX SHREDDER\nTARGET: 8 ACTIVE CODE SHARDS\nFAILSAFE: SHARDS THAT REACH LOWER BOUND RESEED AT TOP\nTHREAT INDEX: FAST SHARDS / BLOCK CLUSTERS / GUNNER SHARDS / FINAL BOSS SHELL\n",
                 "",
                 {
                     "type": "text",
                     "className": "notice",
-                    "text": "Each hit deletes the final two characters from a hostile string and corrupts three bytes of the AI memory core."
+                    "text": "Each hit deletes the final two characters from a hostile string and corrupts three bytes of the AI memory core. Purged shards may drop combat powerups."
                 },
                 {
                     "type": "text",
                     "className": "alert",
-                    "text": "Corrupt all 1024 bytes to collapse the boss process."
+                    "text": "Corrupt all 1024 bytes to expose the final shell, then destroy the APHELION PRIME boss body."
                 },
                 "",
                 {
