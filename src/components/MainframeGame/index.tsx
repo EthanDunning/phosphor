@@ -1,123 +1,23 @@
-import React, { startTransition, useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef } from "react";
+import type { InputDirection, RenderSnapshot, UiSnapshot, WorkerFrameMessage } from "./shared";
+import {
+    BOSS_HEIGHT,
+    BOSS_WIDTH,
+    CORE_BYTE_COUNT,
+    CORE_BYTES_PER_ROW,
+    CORE_COLUMN_COUNT,
+    HEX_BYTE_PATTERN,
+    PLAYFIELD_HEIGHT,
+    PLAYFIELD_WIDTH,
+    PLAYER_START_LIVES,
+    PLAYER_WING_OFFSET,
+    POWER_UP_LABELS,
+} from "./shared";
 import "./style.scss";
 
 interface MainframeGameProps {
     className?: string;
     onRendered?: () => void;
-}
-
-interface PlayerState {
-    x: number;
-    y: number;
-    invulnerableMs: number;
-}
-
-interface WingmanState {
-    side: "left" | "right";
-    hp: number;
-    active: boolean;
-    invulnerableMs: number;
-}
-
-interface BulletState {
-    id: number;
-    x: number;
-    y: number;
-    kind: "normal" | "explosive";
-}
-
-interface EnemyProjectileState {
-    id: number;
-    x: number;
-    y: number;
-    vx: number;
-    vy: number;
-}
-
-interface PowerUpState {
-    id: number;
-    x: number;
-    y: number;
-    kind: PowerUpKind;
-}
-
-interface EnemyState {
-    id: number;
-    lane: EnemyLane;
-    kind: EnemyKind;
-    x: number;
-    y: number;
-    vx: number;
-    vy: number;
-    body: string;
-    label: string;
-    lines: string[];
-    width: number;
-    height: number;
-    fireCooldownMs: number;
-}
-
-interface BossState {
-    x: number;
-    y: number;
-    vx: number;
-    health: number;
-    maxHealth: number;
-    fireCooldownMs: number;
-}
-
-interface EffectState {
-    dualMs: number;
-    laserMs: number;
-    slowMs: number;
-    explosiveMs: number;
-}
-
-interface RuntimeSnapshot {
-    player: PlayerState;
-    wingmen: WingmanState[];
-    bullets: BulletState[];
-    enemyShots: EnemyProjectileState[];
-    powerUps: PowerUpState[];
-    enemies: EnemyState[];
-    boss: BossState | null;
-    effects: EffectState;
-    phase: "core" | "boss";
-    coreBytes: string[];
-    uncorruptedByteIndices: number[];
-    corruptedBytes: number;
-    shots: number;
-    hits: number;
-    purged: number;
-    lives: number;
-    hostileCount: number;
-    status: "running" | "victory" | "defeat";
-}
-
-interface UiSnapshot {
-    coreBytes: string[];
-    corruptedBytes: number;
-    shots: number;
-    hits: number;
-    purged: number;
-    lives: number;
-    enemyShotCount: number;
-    powerUpCount: number;
-    hostileCount: number;
-    effects: EffectState;
-    phase: "core" | "boss";
-    bossHealth: number;
-    bossMaxHealth: number;
-    wingmanHealths: number[];
-    status: "running" | "victory" | "defeat";
-}
-
-interface InputState {
-    up: boolean;
-    down: boolean;
-    left: boolean;
-    right: boolean;
-    fire: boolean;
 }
 
 interface PlayfieldMetrics {
@@ -127,1149 +27,454 @@ interface PlayfieldMetrics {
     xScale: number;
     yScale: number;
     fontScale: number;
-    enemyCharWorldWidth: number;
 }
 
-type InputDirection = "up" | "down" | "left" | "right";
-type EnemyKind = "standard" | "fast" | "block" | "gunner";
-type EnemyLane = "standard" | "special";
-type PowerUpKind = "dual" | "laser" | "slow" | "explosive";
+interface CoreGlyphPosition {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+}
 
-const PLAYFIELD_WIDTH = 100;
-const PLAYFIELD_HEIGHT = 100;
-const PLAYER_SPEED = 34;
-const BULLET_SPEED = 74;
-const STANDARD_ENEMY_COUNT = 8;
-const MAX_SPECIAL_ENEMY_COUNT = 8;
-const SHOOT_COOLDOWN_MS = 140;
-const CORE_BYTE_COUNT = 1024;
-const CORE_BYTES_PER_ROW = 16;
-const CORE_COLUMN_COUNT = 2;
-const CORRUPTION_BYTES_PER_HIT = 3;
-const ENEMY_Y_LIMIT = 94;
-const FIXED_DT_MS = 1000 / 60;
-const MIN_RENDER_INTERVAL_MS = 1000 / 60;
-const UI_SYNC_INTERVAL_MS = 90;
-const MAX_FRAME_MS = 48;
-const PLAYER_COLLISION_RADIUS_X = 1.42;
-const PLAYER_COLLISION_RADIUS_Y = 1.08;
-const PLAYER_PROJECTILE_COLLISION_RADIUS_X = 1.18;
-const PLAYER_PROJECTILE_COLLISION_RADIUS_Y = 0.96;
-const PLAYER_BOSS_COLLISION_RADIUS_X = 1.72;
-const PLAYER_BOSS_COLLISION_RADIUS_Y = 1.24;
-const ENEMY_PLAYER_COLLISION_INSET_X = 2.15;
-const ENEMY_PLAYER_COLLISION_INSET_Y = 1.05;
-const BOSS_PLAYER_COLLISION_INSET_X = 3.5;
-const BOSS_PLAYER_COLLISION_INSET_Y = 1.35;
-const PLAYER_START_LIVES = 3;
-const PLAYER_RESPITE_MS = 1200;
-const PLAYER_WING_OFFSET = 7;
-const PLAYER_BULLET_EMIT_OFFSET_X = 0.05;
-const WINGMAN_START_HP = 3;
-const WINGMAN_RESPITE_MS = 700;
-const ENEMY_PROJECTILE_SPEED = 28;
-const POWER_UP_FALL_SPEED = 12;
-const POWER_UP_DROP_CHANCE = 0.22;
-const LASER_TICK_MS = 90;
-const DUAL_DURATION_MS = 12000;
-const LASER_DURATION_MS = 9500;
-const SLOW_DURATION_MS = 10500;
-const EXPLOSIVE_DURATION_MS = 10500;
-const SLOW_FACTOR = 0.55;
-const CORE_PHASE_ONE_END = 32;
-const CORE_PHASE_TWO_END = 64;
-const CORE_SPEEDUP_THRESHOLD = CORE_BYTE_COUNT / 2;
-const HOSTILE_OVERDRIVE_MULTIPLIER = 1.22;
-const BOSS_WIDTH = 33;
-const BOSS_HEIGHT = 8.4;
-const BOSS_HEALTH = 40;
-const BOSS_FIRE_COOLDOWN_MS = 1150;
-const CORRUPTION_SYMBOLS = [
-    "~", "!", "@", "#", "$", "%", "^", "&", "*", "(", ")", "_", "+", "-", "=",
-    "{", "}", "|", ":", "\"", "<", ">", "?", ",", ".", "/", ";", "'", "[", "]", "\\",
-];
+type WorkerControlMessage =
+    | { type: "init"; canvas?: OffscreenCanvas; width?: number; height?: number; dpr?: number; renderInWorker?: boolean }
+    | { type: "resize"; width: number; height: number; dpr: number }
+    | { type: "reset" }
+    | { type: "dispose" }
+    | { type: "pulseFire" }
+    | { type: "setFire"; active: boolean }
+    | { type: "setDirection"; direction: InputDirection; active: boolean };
+
+const PLAYER_COLOR = "#d8e4ff";
+const PLAYER_DAMAGED_COLOR = "#ffb9c2";
+const WINGMAN_COLOR = "#d9d4ff";
+const BULLET_COLOR = "#ff9aa8";
+const EXPLOSIVE_BULLET_COLOR = "#ffd27d";
+const ENEMY_SHOT_COLOR = "#ffad77";
+const STANDARD_ENEMY_COLOR = "#ff7d89";
+const FAST_ENEMY_COLOR = "#7edcff";
+const BLOCK_ENEMY_COLOR = "#ffbe7d";
+const GUNNER_ENEMY_COLOR = "#ff8f9d";
+const BOSS_OUTLINE_COLOR = "#ff8aa0";
+const BOSS_FILL_COLOR = "rgba(255, 90, 116, 0.12)";
+const BOSS_TEXT_COLOR = "#ffd6de";
+const LASER_COLOR = "rgba(180, 220, 255, 0.72)";
+const CORE_OFFSET_COLOR = "rgba(127, 149, 209, 0.82)";
+const CORE_BYTE_COLOR = "#c2d2ff";
+const CORE_CORRUPTED_BYTE_COLOR = "#ff7485";
+const POWER_UP_COLORS: Record<keyof typeof POWER_UP_LABELS, string> = {
+    dual: "#f6c5ff",
+    laser: "#9fd4ff",
+    slow: "#9ff3c1",
+    explosive: "#ffd27d",
+};
 const HEX_DIGITS = "0123456789abcdef";
-const POWER_UP_LABELS: Record<PowerUpKind, string> = {
-    dual: "[D]",
-    laser: "[L]",
-    slow: "[S]",
-    explosive: "[X]",
-};
-
-const clamp = (value: number, min: number, max: number): number => {
-    return Math.min(max, Math.max(min, value));
-};
-
-const randomInt = (min: number, max: number): number => {
-    return Math.floor(Math.random() * (max - min + 1)) + min;
-};
-
-const randomFloat = (min: number, max: number): number => {
-    return (Math.random() * (max - min)) + min;
-};
 
 const randomHexByte = (): string => {
-    return `${HEX_DIGITS[randomInt(0, 15)]}${HEX_DIGITS[randomInt(0, 15)]}`;
-};
-
-const randomCorruptionByte = (): string => {
-    const left = CORRUPTION_SYMBOLS[randomInt(0, CORRUPTION_SYMBOLS.length - 1)];
-    const right = CORRUPTION_SYMBOLS[randomInt(0, CORRUPTION_SYMBOLS.length - 1)];
+    const left = HEX_DIGITS[Math.floor(Math.random() * HEX_DIGITS.length)];
+    const right = HEX_DIGITS[Math.floor(Math.random() * HEX_DIGITS.length)];
     return `${left}${right}`;
 };
 
-const buildUncorruptedByteIndices = (): number[] => {
-    return Array.from({ length: CORE_BYTE_COUNT }, (_, index) => index);
-};
-
-const getAllowedSpecialEnemyCount = (corruptedBytes: number): number => {
-    if (corruptedBytes < CORE_PHASE_ONE_END) {
-        return 0;
-    }
-    if (corruptedBytes < CORE_PHASE_TWO_END) {
-        return 4;
-    }
-    return MAX_SPECIAL_ENEMY_COUNT;
-};
-
-const chooseEnemyKind = (corruptedBytes: number, lane: EnemyLane): EnemyKind => {
-    if (lane === "standard") {
-        return "standard";
-    }
-
-    const roll = Math.random();
-    if (corruptedBytes < CORE_PHASE_TWO_END) {
-        return roll < 0.58 ? "fast" : "block";
-    }
-
-    if (roll < 0.36) {
-        return "fast";
-    }
-    if (roll < 0.72) {
-        return "block";
-    }
-    return "gunner";
-};
-
-const generateEnemyBody = (kind: EnemyKind): string => {
-    const byteCount = kind === "block"
-        ? randomInt(8, 12)
-        : kind === "gunner"
-            ? randomInt(4, 7)
-            : kind === "fast"
-                ? randomInt(3, 5)
-                : randomInt(3, 6);
-    return Array.from({ length: byteCount }, () => randomHexByte()).join("");
-};
-
-const getEnemyLabel = (enemy: EnemyState): string => {
-    return `0x${enemy.body}`;
-};
-
-const getEnemyLinesFor = (kind: EnemyKind, label: string): string[] => {
-    if (kind !== "block") {
-        return [label];
-    }
-
-    const lines: string[] = [];
-    for (let index = 0; index < label.length; index += 8) {
-        lines.push(label.slice(index, index + 8));
-    }
-    return lines;
-};
-
-const getFallbackEnemyWidth = (enemy: EnemyState, metrics?: PlayfieldMetrics | null): number => {
-    const characterWidth = metrics ? metrics.enemyCharWorldWidth : 0.72;
-    const lineCount = enemy.lines.length;
-    const effectiveLength = enemy.kind === "block" ? Math.min(8, enemy.label.length) : enemy.label.length;
-    return Math.max(4.2, (effectiveLength * characterWidth) + (lineCount > 1 ? 1.1 : 0));
-};
-
-const getFallbackEnemyHeight = (enemy: EnemyState, metrics?: PlayfieldMetrics | null): number => {
-    if (!metrics) {
-        return enemy.kind === "block" ? 8.5 : enemy.kind === "fast" ? 2.8 : 3.3;
-    }
-
-    const lineHeightWorld = (metrics.fontScale * 0.92) / metrics.yScale;
-    return Math.max(3.2, enemy.lines.length * lineHeightWorld);
-};
-
-const hydrateEnemyGeometry = (
-    enemy: EnemyState,
-    metrics?: PlayfieldMetrics | null,
-    context?: CanvasRenderingContext2D | null
-): EnemyState => {
-    enemy.label = getEnemyLabel(enemy);
-    enemy.lines = getEnemyLinesFor(enemy.kind, enemy.label);
-
-    if (!metrics || !context) {
-        enemy.width = getFallbackEnemyWidth(enemy, metrics);
-        enemy.height = getFallbackEnemyHeight(enemy, metrics);
-        return enemy;
-    }
-
-    context.save();
-    context.font = `${metrics.fontScale}px Vga, Menlo, Monaco, Consolas, monospace`;
-    let measuredWidth = 0;
-    for (let index = 0; index < enemy.lines.length; index += 1) {
-        measuredWidth = Math.max(measuredWidth, context.measureText(enemy.lines[index]).width);
-    }
-    context.restore();
-
-    enemy.width = Math.max(3.8, (measuredWidth / metrics.xScale) - 0.55);
-    enemy.height = getFallbackEnemyHeight(enemy, metrics);
-    return enemy;
+const buildInitialCoreBytes = (): string[] => {
+    return Array.from({ length: CORE_BYTE_COUNT }, () => randomHexByte());
 };
 
 const buildPlayfieldMetrics = (playfield: HTMLDivElement): PlayfieldMetrics => {
     const width = Math.max(1, Math.floor(playfield.clientWidth));
     const height = Math.max(1, Math.floor(playfield.clientHeight));
     const dpr = window.devicePixelRatio || 1;
-    const xScale = width / PLAYFIELD_WIDTH;
-    const yScale = height / PLAYFIELD_HEIGHT;
-    const fontScale = Math.max(11, Math.min(width * 0.019, height * 0.045));
     return {
         width,
         height,
         dpr,
-        xScale,
-        yScale,
-        fontScale,
-        enemyCharWorldWidth: Math.max(0.5, (fontScale * 0.58) / xScale),
+        xScale: width / PLAYFIELD_WIDTH,
+        yScale: height / PLAYFIELD_HEIGHT,
+        fontScale: Math.max(11, Math.min(width * 0.019, height * 0.045)),
     };
 };
 
-const buildEnemy = (
-    id: number,
-    spawnFromTop = false,
-    lane: EnemyLane = "standard",
-    forcedKind?: EnemyKind,
-    corruptedBytes = 0
-): EnemyState => {
-    const kind = forcedKind || chooseEnemyKind(corruptedBytes, lane);
-    const body = generateEnemyBody(kind);
-    const prototypeEnemy: EnemyState = {
-        id,
-        lane,
-        kind,
-        x: 0,
-        y: 0,
-        vx: 0,
-        vy: 0,
-        body,
-        label: "",
-        lines: [],
-        width: 0,
-        height: 0,
-        fireCooldownMs: 0,
-    };
-    hydrateEnemyGeometry(prototypeEnemy);
-    const spawnWidth = Math.max(0, PLAYFIELD_WIDTH - prototypeEnemy.width);
-    const speedProfile = kind === "fast"
-        ? { vx: randomFloat(-8.5, 8.5), vy: randomFloat(17, 23.5) }
-        : kind === "block"
-            ? { vx: randomFloat(-2.8, 2.8), vy: randomFloat(5.7, 8.8) }
-            : kind === "gunner"
-                ? { vx: randomFloat(-4.4, 4.4), vy: randomFloat(8.8, 12.8) }
-                : { vx: randomFloat(-5.5, 5.5), vy: randomFloat(9, 15.5) };
-    return {
-        id,
-        lane,
-        kind,
-        x: randomFloat(3, Math.max(3, spawnWidth - 3)),
-        y: spawnFromTop ? randomFloat(-12, 4) : randomFloat(10, 64),
-        vx: speedProfile.vx,
-        vy: speedProfile.vy,
-        body,
-        label: prototypeEnemy.label,
-        lines: prototypeEnemy.lines,
-        width: prototypeEnemy.width,
-        height: prototypeEnemy.height,
-        fireCooldownMs: kind === "gunner" ? randomInt(700, 1500) : 0,
-    };
+const clamp = (value: number, min: number, max: number): number => {
+    return Math.min(max, Math.max(min, value));
 };
 
-const createInitialRuntime = (): RuntimeSnapshot => {
-    return {
-        player: {
-            x: 48.5,
-            y: 88,
-            invulnerableMs: 0,
-        },
-        wingmen: [
-            { side: "left", hp: WINGMAN_START_HP, active: false, invulnerableMs: 0 },
-            { side: "right", hp: WINGMAN_START_HP, active: false, invulnerableMs: 0 },
-        ],
-        bullets: [],
-        enemyShots: [],
-        powerUps: [],
-        enemies: Array.from({ length: STANDARD_ENEMY_COUNT }, (_, index) => buildEnemy(index, false, "standard", "standard", 0)),
-        boss: null,
-        effects: {
-            dualMs: 0,
-            laserMs: 0,
-            slowMs: 0,
-            explosiveMs: 0,
-        },
-        phase: "core",
-        coreBytes: Array.from({ length: CORE_BYTE_COUNT }, () => randomHexByte()),
-        uncorruptedByteIndices: buildUncorruptedByteIndices(),
-        corruptedBytes: 0,
-        shots: 0,
-        hits: 0,
-        purged: 0,
-        lives: PLAYER_START_LIVES,
-        hostileCount: STANDARD_ENEMY_COUNT,
-        status: "running",
-    };
+const getWingmanX = (playerX: number, side: "left" | "right"): number => {
+    return clamp(playerX + (side === "left" ? -PLAYER_WING_OFFSET : PLAYER_WING_OFFSET), 2, PLAYFIELD_WIDTH - 6);
 };
 
-const toUiSnapshot = (runtime: RuntimeSnapshot): UiSnapshot => ({
-    coreBytes: [...runtime.coreBytes],
-    corruptedBytes: runtime.corruptedBytes,
-    shots: runtime.shots,
-    hits: runtime.hits,
-    purged: runtime.purged,
-    lives: runtime.lives,
-    enemyShotCount: runtime.enemyShots.length,
-    powerUpCount: runtime.powerUps.length,
-    hostileCount: runtime.hostileCount,
-    effects: { ...runtime.effects },
-    phase: runtime.phase,
-    bossHealth: runtime.boss?.health || 0,
-    bossMaxHealth: runtime.boss?.maxHealth || 0,
-    wingmanHealths: runtime.wingmen.map((wingman) => (wingman.active ? wingman.hp : 0)),
-    status: runtime.status,
-});
+const getEnemyFill = (kind: RenderSnapshot["enemies"][number]["kind"]): string => {
+    if (kind === "fast") {
+        return FAST_ENEMY_COLOR;
+    }
+    if (kind === "block") {
+        return BLOCK_ENEMY_COLOR;
+    }
+    if (kind === "gunner") {
+        return GUNNER_ENEMY_COLOR;
+    }
+    return STANDARD_ENEMY_COLOR;
+};
 
-const uiSnapshotNeedsReset = (snapshot: UiSnapshot): boolean => {
-    return snapshot.coreBytes.length !== CORE_BYTE_COUNT
-        || !Number.isFinite(snapshot.corruptedBytes)
-        || !Number.isFinite(snapshot.shots)
-        || !Number.isFinite(snapshot.hits)
-        || !Number.isFinite(snapshot.purged)
-        || !Number.isFinite(snapshot.lives)
-        || !Number.isFinite(snapshot.enemyShotCount)
-        || !Number.isFinite(snapshot.powerUpCount)
-        || !Number.isFinite(snapshot.hostileCount)
-        || snapshot.lives < 0
-        || snapshot.lives > PLAYER_START_LIVES;
+const playfieldMetricsChanged = (current: PlayfieldMetrics | null, next: PlayfieldMetrics): boolean => {
+    return !current
+        || current.width !== next.width
+        || current.height !== next.height
+        || current.dpr !== next.dpr;
 };
 
 const MainframeGame = ({ className = "", onRendered }: MainframeGameProps): React.ReactElement => {
-    const initialRuntime = useMemo(() => createInitialRuntime(), []);
-    const [uiSnapshot, setUiSnapshot] = useState<UiSnapshot>(() => toUiSnapshot(initialRuntime));
-    const runtimeRef = useRef<RuntimeSnapshot>(initialRuntime);
-    const inputRef = useRef<InputState>({
-        up: false,
-        down: false,
-        left: false,
-        right: false,
-        fire: false,
-    });
+    const containerClassName = ["mainframe-game", className].filter(Boolean).join(" ").trim();
+    const coreRows = useMemo(() => {
+        const rowCount = Math.ceil(CORE_BYTE_COUNT / CORE_BYTES_PER_ROW);
+        return Array.from({ length: rowCount }, (_, rowIndex) => {
+            const start = rowIndex * CORE_BYTES_PER_ROW;
+            return {
+                rowIndex,
+                offset: start.toString(16).padStart(4, "0"),
+                indices: Array.from(
+                    { length: Math.min(CORE_BYTES_PER_ROW, CORE_BYTE_COUNT - start) },
+                    (_, columnIndex) => start + columnIndex
+                ),
+            };
+        });
+    }, []);
+    const coreRowBanks = useMemo(() => {
+        const rowsPerBank = Math.ceil(coreRows.length / CORE_COLUMN_COUNT);
+        return Array.from({ length: CORE_COLUMN_COUNT }, (_, bankIndex) => {
+            const start = bankIndex * rowsPerBank;
+            return coreRows.slice(start, start + rowsPerBank);
+        });
+    }, [coreRows]);
+
+    const workerRef = useRef<Worker | null>(null);
     const canvasRef = useRef<HTMLCanvasElement | null>(null);
     const canvasContextRef = useRef<CanvasRenderingContext2D | null>(null);
     const playfieldRef = useRef<HTMLDivElement | null>(null);
-    const playfieldMetricsRef = useRef<PlayfieldMetrics | null>(null);
-    const frameRef = useRef<number | null>(null);
-    const lastFrameAtRef = useRef<number>(0);
-    const lastRenderAtRef = useRef<number>(0);
-    const lastUiSyncAtRef = useRef<number>(0);
-    const pendingUiSyncRef = useRef<boolean>(false);
-    const accumulatorRef = useRef<number>(0);
-    const shotCooldownRef = useRef<number>(0);
-    const bulletIdRef = useRef<number>(0);
-    const specialEnemyIdRef = useRef<number>(STANDARD_ENEMY_COUNT);
-    const enemyShotIdRef = useRef<number>(0);
-    const powerUpIdRef = useRef<number>(0);
-    const laserCooldownRef = useRef<number>(0);
-    const fireBufferRef = useRef<number>(0);
+    const coreRef = useRef<HTMLDivElement | null>(null);
+    const coreLayoutRef = useRef<HTMLDivElement | null>(null);
+    const coreCanvasRef = useRef<HTMLCanvasElement | null>(null);
+    const metricsRef = useRef<PlayfieldMetrics | null>(null);
+    const latestRenderRef = useRef<RenderSnapshot | null>(null);
+    const renderInWorkerRef = useRef(false);
+    const coreBytesRef = useRef<string[]>(buildInitialCoreBytes());
+    const coreByteElementsRef = useRef<Array<HTMLSpanElement | null>>([]);
+    const coreOffsetElementsRef = useRef<Array<HTMLSpanElement | null>>([]);
+    const coreBytePositionsRef = useRef<Array<CoreGlyphPosition | null>>([]);
+    const coreOffsetPositionsRef = useRef<Array<CoreGlyphPosition | null>>([]);
 
-    const syncUi = (force = false): void => {
-        if (!force) {
-            pendingUiSyncRef.current = false;
-        }
-        lastUiSyncAtRef.current = performance.now();
-        startTransition(() => {
-            setUiSnapshot(toUiSnapshot(runtimeRef.current));
-        });
+    const phaseLabelRef = useRef<HTMLSpanElement | null>(null);
+    const integrityLabelRef = useRef<HTMLSpanElement | null>(null);
+    const livesLabelRef = useRef<HTMLSpanElement | null>(null);
+    const bottomStatusRef = useRef<HTMLSpanElement | null>(null);
+    const bottomObjectiveRef = useRef<HTMLSpanElement | null>(null);
+    const overlayRef = useRef<HTMLDivElement | null>(null);
+    const overlayTitleRef = useRef<HTMLDivElement | null>(null);
+    const overlayCopyRef = useRef<HTMLDivElement | null>(null);
+
+    const sendWorkerMessage = (message: WorkerControlMessage): void => {
+        workerRef.current?.postMessage(message);
     };
 
-    const spawnEnemy = (
-        id: number,
-        spawnFromTop = false,
-        lane: EnemyLane = "standard",
-        forcedKind?: EnemyKind,
-        corruptedBytes = runtimeRef.current.corruptedBytes
-    ): EnemyState => {
-        return hydrateEnemyGeometry(
-            buildEnemy(id, spawnFromTop, lane, forcedKind, corruptedBytes),
-            playfieldMetricsRef.current,
-            canvasContextRef.current
-        );
+    const applyCoreByteToElement = (element: HTMLSpanElement, value: string): void => {
+        element.textContent = value;
+        element.className = `mainframe-game__core-byte${HEX_BYTE_PATTERN.test(value) ? "" : " mainframe-game__core-byte--corrupted"}`;
     };
 
-    const getShipAnchors = (
-        playerX: number,
-        playerY: number,
-        runtime = runtimeRef.current
-    ): Array<{ key: string; kind: "player" | "wingman"; side?: "left" | "right"; x: number; y: number; hp?: number }> => {
-        const anchors: Array<{ key: string; kind: "player" | "wingman"; side?: "left" | "right"; x: number; y: number; hp?: number }> = [
-            { key: "player", kind: "player", x: playerX, y: playerY },
-        ];
-        runtime.wingmen.forEach((wingman) => {
-            if (!wingman.active) {
-                return;
-            }
-            anchors.push({
-                key: `wingman-${wingman.side}`,
-                kind: "wingman",
-                side: wingman.side,
-                x: clamp(playerX + (wingman.side === "left" ? -PLAYER_WING_OFFSET : PLAYER_WING_OFFSET), 2, PLAYFIELD_WIDTH - 6),
-                y: playerY,
-                hp: wingman.hp,
-            });
-        });
-        return anchors;
-    };
-
-    const refreshRuntimeEnemyGeometry = (): void => {
-        const runtime = runtimeRef.current;
-        const metrics = playfieldMetricsRef.current;
-        const context = canvasContextRef.current;
-        for (let index = 0; index < runtime.enemies.length; index += 1) {
-            hydrateEnemyGeometry(runtime.enemies[index], metrics, context);
+    const prepareCoreContext = (): CanvasRenderingContext2D | null => {
+        const canvas = coreCanvasRef.current;
+        const core = coreRef.current;
+        if (!canvas || !core) {
+            return null;
         }
-    };
-
-    const getEffectDurationFor = (kind: PowerUpKind): number => {
-        if (kind === "dual") {
-            return DUAL_DURATION_MS;
-        }
-        if (kind === "laser") {
-            return LASER_DURATION_MS;
-        }
-        if (kind === "slow") {
-            return SLOW_DURATION_MS;
-        }
-        return EXPLOSIVE_DURATION_MS;
-    };
-
-    const spawnPowerUpDrop = (x: number, y: number): void => {
-        const runtime = runtimeRef.current;
-        const roll = Math.random();
-        if (roll > POWER_UP_DROP_CHANCE) {
-            return;
-        }
-
-        const kindRoll = Math.random();
-        const kind: PowerUpKind = kindRoll < 0.25
-            ? "dual"
-            : kindRoll < 0.5
-                ? "laser"
-                : kindRoll < 0.75
-                    ? "slow"
-                    : "explosive";
-        runtime.powerUps.push({
-            id: powerUpIdRef.current++,
-            x,
-            y,
-            kind,
-        });
-    };
-
-    const applyPowerUp = (kind: PowerUpKind): void => {
-        const runtime = runtimeRef.current;
-        const duration = getEffectDurationFor(kind);
-        if (kind === "dual") {
-            runtime.effects.dualMs = Math.max(runtime.effects.dualMs, duration);
-            runtime.wingmen.forEach((wingman) => {
-                wingman.active = true;
-                wingman.hp = WINGMAN_START_HP;
-                wingman.invulnerableMs = 0;
-            });
-            return;
-        }
-        if (kind === "laser") {
-            runtime.effects.laserMs = Math.max(runtime.effects.laserMs, duration);
-            return;
-        }
-        if (kind === "slow") {
-            runtime.effects.slowMs = Math.max(runtime.effects.slowMs, duration);
-            return;
-        }
-        runtime.effects.explosiveMs = Math.max(runtime.effects.explosiveMs, duration);
-    };
-
-    const spawnEnemyProjectile = (x: number, y: number, targetX: number, speedMultiplier = 1): void => {
-        const runtime = runtimeRef.current;
-        const dx = clamp(targetX - x, -14, 14);
-        runtime.enemyShots.push({
-            id: enemyShotIdRef.current++,
-            x,
-            y,
-            vx: dx * 0.55,
-            vy: ENEMY_PROJECTILE_SPEED * speedMultiplier,
-        });
-    };
-
-    const reconcileSpecialEnemies = (): void => {
-        const runtime = runtimeRef.current;
-        const standardEnemies: EnemyState[] = [];
-        const specialEnemies: EnemyState[] = [];
-
-        for (let index = 0; index < runtime.enemies.length; index += 1) {
-            const enemy = runtime.enemies[index];
-            if (enemy.lane === "standard") {
-                standardEnemies.push(enemy);
-            } else {
-                specialEnemies.push(enemy);
-            }
-        }
-
-        if (runtime.phase !== "core") {
-            runtime.enemies = standardEnemies;
-            runtime.hostileCount = standardEnemies.length;
-            return;
-        }
-
-        const allowedSpecialCount = getAllowedSpecialEnemyCount(runtime.corruptedBytes);
-
-        while (specialEnemies.length < allowedSpecialCount) {
-            specialEnemies.push(spawnEnemy(specialEnemyIdRef.current++, true, "special", undefined, runtime.corruptedBytes));
-        }
-
-        if (specialEnemies.length > allowedSpecialCount) {
-            specialEnemies.length = allowedSpecialCount;
-        }
-
-        runtime.enemies = [...standardEnemies, ...specialEnemies];
-        runtime.hostileCount = runtime.enemies.length;
-    };
-
-    const damageShipAt = (shipKey: string): boolean => {
-        const runtime = runtimeRef.current;
-        if (runtime.status !== "running") {
-            return false;
-        }
-
-        if (shipKey === "player") {
-            if (runtime.player.invulnerableMs > 0) {
-                return false;
-            }
-            runtime.lives = Math.max(0, runtime.lives - 1);
-            runtime.player.invulnerableMs = PLAYER_RESPITE_MS;
-            if (runtime.lives <= 0) {
-                runtime.status = "defeat";
-            }
-            return true;
-        }
-
-        const side = shipKey.endsWith("left") ? "left" : "right";
-        const wingman = runtime.wingmen.find((candidate) => candidate.side === side);
-        if (!wingman || !wingman.active || wingman.invulnerableMs > 0) {
-            return false;
-        }
-
-        wingman.hp = Math.max(0, wingman.hp - 1);
-        wingman.invulnerableMs = WINGMAN_RESPITE_MS;
-        if (wingman.hp <= 0) {
-            wingman.active = false;
-            wingman.invulnerableMs = 0;
-        }
-        return true;
-    };
-
-    const startBossBattle = (): void => {
-        const runtime = runtimeRef.current;
-        if (runtime.phase === "boss") {
-            return;
-        }
-
-        runtime.phase = "boss";
-        runtime.enemies = [];
-        runtime.enemyShots = [];
-        runtime.powerUps = [];
-        runtime.hostileCount = 1;
-        runtime.boss = {
-            x: 34,
-            y: 9,
-            vx: 9,
-            health: BOSS_HEALTH,
-            maxHealth: BOSS_HEALTH,
-            fireCooldownMs: BOSS_FIRE_COOLDOWN_MS,
-        };
-    };
-
-    const damageBoss = (amount: number): boolean => {
-        const runtime = runtimeRef.current;
-        if (!runtime.boss) {
-            return false;
-        }
-
-        runtime.hits += 1;
-        runtime.boss.health = Math.max(0, runtime.boss.health - amount);
-        if (runtime.boss.health <= 0) {
-            runtime.status = "victory";
-        }
-        return true;
-    };
-
-    const rebuildBackground = (): void => {
-        const canvas = canvasRef.current;
-        const playfield = playfieldRef.current;
-        if (!canvas || !playfield) {
-            return;
-        }
-
-        const metrics = buildPlayfieldMetrics(playfield);
-        playfieldMetricsRef.current = metrics;
-        canvas.width = Math.max(1, Math.round(metrics.width * metrics.dpr));
-        canvas.height = Math.max(1, Math.round(metrics.height * metrics.dpr));
-        canvas.style.width = `${metrics.width}px`;
-        canvas.style.height = `${metrics.height}px`;
 
         const context = canvas.getContext("2d");
-        canvasContextRef.current = context;
+        if (!context) {
+            return null;
+        }
+
+        const computedStyle = window.getComputedStyle(core);
+        const fontSize = Number.parseFloat(computedStyle.fontSize) || 16;
+        const lineHeight = Number.parseFloat(computedStyle.lineHeight) || fontSize;
+        const canvasFontSize = Math.min(fontSize, lineHeight * 1.08);
+        context.setTransform(1, 0, 0, 1, 0, 0);
+        context.setTransform(window.devicePixelRatio || 1, 0, 0, window.devicePixelRatio || 1, 0, 0);
+        context.font = `${computedStyle.fontStyle} ${computedStyle.fontWeight} ${canvasFontSize}px ${computedStyle.fontFamily}`;
+        context.textAlign = "left";
+        context.textBaseline = "top";
+        context.shadowBlur = 0;
+        return context;
+    };
+
+    const drawCoreOffsetAt = (rowIndex: number, context = prepareCoreContext()): void => {
         if (!context) {
             return;
         }
-        refreshRuntimeEnemyGeometry();
+        const position = coreOffsetPositionsRef.current[rowIndex];
+        const row = coreRows[rowIndex];
+        if (!position || !row) {
+            return;
+        }
+
+        context.clearRect(position.x - 1, position.y - 1, position.width + 2, position.height + 2);
+        context.shadowBlur = 0;
+        context.fillStyle = CORE_OFFSET_COLOR;
+        context.fillText(row.offset, position.x, position.y + 1);
     };
 
-    const drawScene = (alpha = 0): void => {
+    const drawCoreByteAt = (byteIndex: number, context = prepareCoreContext()): void => {
+        if (!context) {
+            return;
+        }
+        const position = coreBytePositionsRef.current[byteIndex];
+        const value = coreBytesRef.current[byteIndex];
+        if (!position || typeof value !== "string") {
+            return;
+        }
+
+        context.clearRect(position.x - 1, position.y - 1, position.width + 2, position.height + 2);
+        if (HEX_BYTE_PATTERN.test(value)) {
+            context.shadowBlur = 0;
+            context.fillStyle = CORE_BYTE_COLOR;
+        } else {
+            context.shadowColor = "rgba(255, 116, 133, 0.38)";
+            context.shadowBlur = 8;
+            context.fillStyle = CORE_CORRUPTED_BYTE_COLOR;
+        }
+        context.fillText(value, position.x, position.y + 1);
+        context.shadowBlur = 0;
+    };
+
+    const drawCoreMemory = (): void => {
+        const canvas = coreCanvasRef.current;
+        const context = prepareCoreContext();
+        if (!canvas || !context) {
+            return;
+        }
+
+        context.clearRect(0, 0, canvas.width, canvas.height);
+        for (let rowIndex = 0; rowIndex < coreRows.length; rowIndex += 1) {
+            drawCoreOffsetAt(rowIndex, context);
+        }
+        for (let byteIndex = 0; byteIndex < coreBytesRef.current.length; byteIndex += 1) {
+            drawCoreByteAt(byteIndex, context);
+        }
+    };
+
+    const syncCoreCanvas = (): void => {
+        const core = coreRef.current;
+        const layout = coreLayoutRef.current;
+        const canvas = coreCanvasRef.current;
+        if (!core || !layout || !canvas) {
+            return;
+        }
+
+        const coreRect = core.getBoundingClientRect();
+        const layoutRect = layout.getBoundingClientRect();
+        const dpr = window.devicePixelRatio || 1;
+        const width = Math.max(1, Math.ceil(Math.max(core.clientWidth, layoutRect.right - coreRect.left)));
+        const height = Math.max(1, Math.ceil(Math.max(core.clientHeight, layoutRect.bottom - coreRect.top)));
+        const nextCanvasWidth = Math.max(1, Math.round(width * dpr));
+        const nextCanvasHeight = Math.max(1, Math.round(height * dpr));
+        if (canvas.width !== nextCanvasWidth) {
+            canvas.width = nextCanvasWidth;
+        }
+        if (canvas.height !== nextCanvasHeight) {
+            canvas.height = nextCanvasHeight;
+        }
+        canvas.style.width = `${width}px`;
+        canvas.style.height = `${height}px`;
+
+        coreOffsetPositionsRef.current = coreOffsetElementsRef.current.map((element) => {
+            if (!element) {
+                return null;
+            }
+            const rect = element.getBoundingClientRect();
+            return {
+                x: rect.left - coreRect.left,
+                y: rect.top - coreRect.top,
+                width: rect.width,
+                height: rect.height,
+            };
+        });
+        coreBytePositionsRef.current = coreByteElementsRef.current.map((element) => {
+            if (!element) {
+                return null;
+            }
+            const rect = element.getBoundingClientRect();
+            return {
+                x: rect.left - coreRect.left,
+                y: rect.top - coreRect.top,
+                width: rect.width,
+                height: rect.height,
+            };
+        });
+
+        drawCoreMemory();
+    };
+
+    const drawScene = (snapshot: RenderSnapshot): void => {
         const canvas = canvasRef.current;
         const context = canvasContextRef.current;
-        const metrics = playfieldMetricsRef.current;
+        const metrics = metricsRef.current;
         if (!canvas || !context || !metrics) {
             return;
         }
 
-        const runtime = runtimeRef.current;
-        const alphaSeconds = (FIXED_DT_MS * alpha) / 1000;
-        const moveX = (inputRef.current.right ? 1 : 0) - (inputRef.current.left ? 1 : 0);
-        const moveY = (inputRef.current.down ? 1 : 0) - (inputRef.current.up ? 1 : 0);
-        const renderPlayerX = clamp(runtime.player.x + (moveX * PLAYER_SPEED * alphaSeconds), 1.5, PLAYFIELD_WIDTH - 6);
-        const renderPlayerY = clamp(runtime.player.y + (moveY * PLAYER_SPEED * alphaSeconds), 6, PLAYFIELD_HEIGHT - 6);
-        const slowMultiplier = runtime.effects.slowMs > 0 ? SLOW_FACTOR : 1;
-        const hostileSpeedMultiplier = runtime.phase === "core" && runtime.corruptedBytes >= CORE_SPEEDUP_THRESHOLD
-            ? HOSTILE_OVERDRIVE_MULTIPLIER
-            : 1;
-
         context.setTransform(1, 0, 0, 1, 0, 0);
         context.clearRect(0, 0, canvas.width, canvas.height);
-
         context.setTransform(metrics.dpr, 0, 0, metrics.dpr, 0, 0);
         context.textBaseline = "middle";
-        context.textAlign = "center";
         context.font = `${metrics.fontScale}px Vga, Menlo, Monaco, Consolas, monospace`;
 
-        const renderShipAnchors = getShipAnchors(renderPlayerX, renderPlayerY, runtime);
-
-        if (runtime.effects.laserMs > 0 && inputRef.current.fire && runtime.status === "running") {
-            context.strokeStyle = "rgba(180, 220, 255, 0.72)";
+        if (snapshot.laserActive && snapshot.status === "running") {
+            context.strokeStyle = LASER_COLOR;
             context.lineWidth = 2;
-            renderShipAnchors.forEach((anchor) => {
-                context.beginPath();
-                context.moveTo(anchor.x * metrics.xScale, anchor.y * metrics.yScale);
-                context.lineTo(anchor.x * metrics.xScale, 0);
-                context.stroke();
-            });
-        }
-
-        const playerVisible = runtime.player.invulnerableMs <= 0 || Math.floor(runtime.player.invulnerableMs / 90) % 2 === 0;
-        if (playerVisible) {
-            context.textAlign = "center";
-            for (let index = 0; index < renderShipAnchors.length; index += 1) {
-                const anchor = renderShipAnchors[index];
-                const wingmanInvulnerable = anchor.kind === "wingman"
-                    ? runtime.wingmen[anchor.side === "left" ? 0 : 1]?.invulnerableMs
-                    : 0;
-                if (anchor.kind === "wingman" && wingmanInvulnerable && Math.floor(wingmanInvulnerable / 90) % 2 !== 0) {
-                    continue;
+            context.beginPath();
+            context.moveTo(snapshot.player.x * metrics.xScale, snapshot.player.y * metrics.yScale);
+            context.lineTo(snapshot.player.x * metrics.xScale, 0);
+            snapshot.wingmen.forEach((wingman) => {
+                if (!wingman.active) {
+                    return;
                 }
-                context.fillStyle = anchor.kind === "wingman"
-                    ? (anchor.hp === 1 ? "#ffb9c2" : "#d9d4ff")
-                    : "#d8e4ff";
-                context.fillText("<^>", anchor.x * metrics.xScale, anchor.y * metrics.yScale);
-            }
+                const x = getWingmanX(snapshot.player.x, wingman.side) * metrics.xScale;
+                context.moveTo(x, snapshot.player.y * metrics.yScale);
+                context.lineTo(x, 0);
+            });
+            context.stroke();
         }
 
         context.textAlign = "center";
-        runtime.bullets.forEach((bullet) => {
-            context.fillStyle = bullet.kind === "explosive" ? "#ffd27d" : "#ff9aa8";
-            context.fillText(bullet.kind === "explosive" ? "*" : "|", bullet.x * metrics.xScale, (bullet.y - (BULLET_SPEED * alphaSeconds)) * metrics.yScale);
+        const playerVisible = snapshot.player.invulnerableMs <= 0 || Math.floor(snapshot.player.invulnerableMs / 90) % 2 === 0;
+        if (playerVisible) {
+            context.fillStyle = PLAYER_COLOR;
+            context.fillText("<^>", snapshot.player.x * metrics.xScale, snapshot.player.y * metrics.yScale);
+        }
+
+        snapshot.wingmen.forEach((wingman) => {
+            if (!wingman.active) {
+                return;
+            }
+            const visible = wingman.invulnerableMs <= 0 || Math.floor(wingman.invulnerableMs / 90) % 2 === 0;
+            if (!visible) {
+                return;
+            }
+            context.fillStyle = wingman.hp === 1 ? PLAYER_DAMAGED_COLOR : WINGMAN_COLOR;
+            context.fillText("<^>", getWingmanX(snapshot.player.x, wingman.side) * metrics.xScale, snapshot.player.y * metrics.yScale);
         });
 
-        context.fillStyle = "#ffad77";
-        runtime.enemyShots.forEach((shot) => {
-            context.fillText(
-                "v",
-                (shot.x + (shot.vx * alphaSeconds)) * metrics.xScale,
-                (shot.y + (shot.vy * alphaSeconds * slowMultiplier * hostileSpeedMultiplier)) * metrics.yScale
-            );
+        snapshot.bullets.forEach((bullet) => {
+            context.fillStyle = bullet.kind === "explosive" ? EXPLOSIVE_BULLET_COLOR : BULLET_COLOR;
+            context.fillText(bullet.kind === "explosive" ? "*" : "|", bullet.x * metrics.xScale, bullet.y * metrics.yScale);
         });
 
-        runtime.powerUps.forEach((powerUp) => {
-            context.fillStyle = powerUp.kind === "laser"
-                ? "#9fd4ff"
-                : powerUp.kind === "slow"
-                    ? "#9ff3c1"
-                    : powerUp.kind === "explosive"
-                        ? "#ffd27d"
-                        : "#f6c5ff";
-            context.fillText(POWER_UP_LABELS[powerUp.kind], powerUp.x * metrics.xScale, (powerUp.y + (POWER_UP_FALL_SPEED * alphaSeconds)) * metrics.yScale);
+        context.fillStyle = ENEMY_SHOT_COLOR;
+        snapshot.enemyShots.forEach((shot) => {
+            context.fillText("v", shot.x * metrics.xScale, shot.y * metrics.yScale);
         });
 
-        context.fillStyle = "#ff7d89";
+        snapshot.powerUps.forEach((powerUp) => {
+            context.fillStyle = POWER_UP_COLORS[powerUp.kind];
+            context.fillText(POWER_UP_LABELS[powerUp.kind], powerUp.x * metrics.xScale, powerUp.y * metrics.yScale);
+        });
+
         context.textAlign = "left";
-        runtime.enemies.forEach((enemy) => {
-            const width = enemy.width;
-            const height = enemy.height;
-            const lines = enemy.lines;
-            const nextX = clamp(enemy.x + (enemy.vx * alphaSeconds * slowMultiplier * hostileSpeedMultiplier), 1, PLAYFIELD_WIDTH - width - 1);
-            const nextY = enemy.y + (enemy.vy * alphaSeconds * slowMultiplier * hostileSpeedMultiplier);
-            context.fillStyle = enemy.kind === "fast"
-                ? "#ff6f7e"
-                : enemy.kind === "block"
-                    ? "#ffbe7d"
-                    : enemy.kind === "gunner"
-                        ? "#ff8f9d"
-                        : "#ff7d89";
-            lines.forEach((line, index) => {
-                const lineY = nextY + ((height / lines.length) * (index + 0.5));
-                context.fillText(line, nextX * metrics.xScale, lineY * metrics.yScale);
+        snapshot.enemies.forEach((enemy) => {
+            context.fillStyle = getEnemyFill(enemy.kind);
+            enemy.lines.forEach((line, index) => {
+                const lineY = enemy.y + ((enemy.height / enemy.lines.length) * (index + 0.5));
+                context.fillText(line, enemy.x * metrics.xScale, lineY * metrics.yScale);
             });
         });
 
-        if (runtime.phase === "boss" && runtime.boss) {
-            const boss = runtime.boss;
-            const renderBossX = clamp(boss.x + (boss.vx * alphaSeconds * slowMultiplier), 2, PLAYFIELD_WIDTH - BOSS_WIDTH - 2);
-            const pixelX = renderBossX * metrics.xScale;
-            const pixelY = boss.y * metrics.yScale;
+        if (snapshot.phase === "boss" && snapshot.boss) {
+            const pixelX = snapshot.boss.x * metrics.xScale;
+            const pixelY = snapshot.boss.y * metrics.yScale;
             const pixelWidth = BOSS_WIDTH * metrics.xScale;
             const pixelHeight = BOSS_HEIGHT * metrics.yScale;
 
-            context.strokeStyle = "#ff8aa0";
+            context.strokeStyle = BOSS_OUTLINE_COLOR;
             context.lineWidth = 2;
             context.strokeRect(pixelX, pixelY, pixelWidth, pixelHeight);
-            context.fillStyle = "rgba(255, 90, 116, 0.12)";
+            context.fillStyle = BOSS_FILL_COLOR;
             context.fillRect(pixelX, pixelY, pixelWidth, pixelHeight);
-            context.fillStyle = "#ffd6de";
+            context.fillStyle = BOSS_TEXT_COLOR;
             context.textAlign = "center";
             context.fillText("APHELION PRIME", pixelX + (pixelWidth * 0.5), pixelY + (pixelHeight * 0.33));
-            context.fillText(`BOSS HP ${String(boss.health).padStart(2, "0")}`, pixelX + (pixelWidth * 0.5), pixelY + (pixelHeight * 0.68));
+            context.fillText(`BOSS HP ${String(snapshot.boss.health).padStart(2, "0")}`, pixelX + (pixelWidth * 0.5), pixelY + (pixelHeight * 0.68));
         }
     };
 
-    const appendBullet = (): boolean => {
-        const runtime = runtimeRef.current;
-        if (runtime.status !== "running" || shotCooldownRef.current > 0) {
-            return false;
+    const applyUiSnapshot = (snapshot: UiSnapshot): void => {
+        if (snapshot.coreBytes) {
+            coreBytesRef.current = [...snapshot.coreBytes];
+            drawCoreMemory();
+        } else if (snapshot.coreUpdates?.length) {
+            const context = prepareCoreContext();
+            for (let index = 0; index < snapshot.coreUpdates.length; index += 1) {
+                const update = snapshot.coreUpdates[index];
+                coreBytesRef.current[update.index] = update.value;
+                drawCoreByteAt(update.index, context);
+            }
         }
 
-        const emitters = getShipAnchors(runtime.player.x + PLAYER_BULLET_EMIT_OFFSET_X, runtime.player.y, runtime);
-        const bulletKind: BulletState["kind"] = runtime.effects.explosiveMs > 0 ? "explosive" : "normal";
-        for (let index = 0; index < emitters.length; index += 1) {
-            runtime.bullets.push({
-                id: bulletIdRef.current++,
-                x: emitters[index].x,
-                y: runtime.player.y - 3,
-                kind: bulletKind,
-            });
+        const integrityPercent = Math.max(0, Math.round(((CORE_BYTE_COUNT - snapshot.corruptedBytes) / CORE_BYTE_COUNT) * 100));
+        const bossIntegrityPercent = snapshot.bossMaxHealth > 0
+            ? Math.max(0, Math.round((snapshot.bossHealth / snapshot.bossMaxHealth) * 100))
+            : 0;
+        const wingStatus = snapshot.wingmanHealths.some((health) => health > 0)
+            ? `[WINGS ${snapshot.wingmanHealths.map((health, index) => `${index === 0 ? "L" : "R"}:${health}`).join(" ")}]`
+            : "[WINGS OFFLINE]";
+        const activeEffects = [
+            snapshot.effects.dualMs > 0 ? `DUAL ${Math.ceil(snapshot.effects.dualMs / 1000)}S` : null,
+            snapshot.effects.laserMs > 0 ? `LASER ${Math.ceil(snapshot.effects.laserMs / 1000)}S` : null,
+            snapshot.effects.slowMs > 0 ? `SLOW ${Math.ceil(snapshot.effects.slowMs / 1000)}S` : null,
+            snapshot.effects.explosiveMs > 0 ? `BURST ${Math.ceil(snapshot.effects.explosiveMs / 1000)}S` : null,
+        ].filter(Boolean).join(" | ");
+
+        phaseLabelRef.current && (phaseLabelRef.current.textContent = `[APHELION_MAINFRAME//${snapshot.phase === "boss" ? "FINAL SHELL" : "FIXED PROCESS"}]`);
+        integrityLabelRef.current && (integrityLabelRef.current.textContent = snapshot.phase === "boss"
+            ? `[BOSS SHELL ${String(bossIntegrityPercent).padStart(3, "0")}%]`
+            : `[HOSTILE CORE INTEGRITY ${String(integrityPercent).padStart(3, "0")}%]`);
+        livesLabelRef.current && (livesLabelRef.current.textContent = `[LIVES ${String(snapshot.lives).padStart(2, "0")}/03]`);
+        bottomStatusRef.current && (bottomStatusRef.current.textContent = activeEffects
+            ? `[POWERUPS ${activeEffects}] ${wingStatus}`
+            : "[SALVAGE POWERUPS TO STACK ADVANTAGES]");
+        bottomObjectiveRef.current && (bottomObjectiveRef.current.textContent = snapshot.phase === "boss"
+            ? "[DESTROY APHELION PRIME TO WIN]"
+            : "[DEPLETING THE CORE SUMMONS THE BOSS SHELL]");
+
+        if (overlayRef.current) {
+            overlayRef.current.hidden = snapshot.status === "running";
         }
-        runtime.shots += emitters.length;
-        shotCooldownRef.current = SHOOT_COOLDOWN_MS;
-        return true;
+        if (overlayTitleRef.current) {
+            overlayTitleRef.current.textContent = snapshot.status === "victory" ? "APHELION DOWN" : "PILOT LOST";
+        }
+        if (overlayCopyRef.current) {
+            overlayCopyRef.current.textContent = snapshot.status === "victory"
+                ? "The memory core and final command shell have both been purged."
+                : "A hostile code shard breached the cockpit frame.";
+        }
     };
 
-    const corruptCore = (): boolean => {
-        const runtime = runtimeRef.current;
-        if (runtime.phase !== "core") {
-            return false;
-        }
-
-        if (!runtime.uncorruptedByteIndices.length) {
-            startBossBattle();
-            return true;
-        }
-
-        const corruptionCount = Math.min(CORRUPTION_BYTES_PER_HIT, runtime.uncorruptedByteIndices.length);
-        for (let index = 0; index < corruptionCount; index += 1) {
-            const targetPosition = randomInt(0, runtime.uncorruptedByteIndices.length - 1);
-            const [targetIndex] = runtime.uncorruptedByteIndices.splice(targetPosition, 1);
-            runtime.coreBytes[targetIndex] = randomCorruptionByte();
-            runtime.corruptedBytes += 1;
-        }
-
-        if (runtime.corruptedBytes >= CORE_BYTE_COUNT) {
-            startBossBattle();
-            return true;
-        }
-        return false;
-    };
-
-    const stepSimulation = (): boolean => {
-        const runtime = runtimeRef.current;
-        if (runtime.status !== "running") {
-            return false;
-        }
-
-        let uiDirty = false;
-        const dtSeconds = FIXED_DT_MS / 1000;
-        const slowMultiplier = runtime.effects.slowMs > 0 ? SLOW_FACTOR : 1;
-        const hostileSpeedMultiplier = runtime.phase === "core" && runtime.corruptedBytes >= CORE_SPEEDUP_THRESHOLD
-            ? HOSTILE_OVERDRIVE_MULTIPLIER
-            : 1;
-        shotCooldownRef.current = Math.max(0, shotCooldownRef.current - FIXED_DT_MS);
-        runtime.player.invulnerableMs = Math.max(0, runtime.player.invulnerableMs - FIXED_DT_MS);
-        runtime.wingmen.forEach((wingman) => {
-            wingman.invulnerableMs = Math.max(0, wingman.invulnerableMs - FIXED_DT_MS);
-        });
-        runtime.effects.dualMs = Math.max(0, runtime.effects.dualMs - FIXED_DT_MS);
-        runtime.effects.laserMs = Math.max(0, runtime.effects.laserMs - FIXED_DT_MS);
-        runtime.effects.slowMs = Math.max(0, runtime.effects.slowMs - FIXED_DT_MS);
-        runtime.effects.explosiveMs = Math.max(0, runtime.effects.explosiveMs - FIXED_DT_MS);
-        if (runtime.effects.dualMs <= 0) {
-            runtime.wingmen.forEach((wingman) => {
-                wingman.active = false;
-                wingman.invulnerableMs = 0;
-            });
-        }
-        reconcileSpecialEnemies();
-
-        const moveX = (inputRef.current.right ? 1 : 0) - (inputRef.current.left ? 1 : 0);
-        const moveY = (inputRef.current.down ? 1 : 0) - (inputRef.current.up ? 1 : 0);
-        runtime.player.x = clamp(runtime.player.x + (moveX * PLAYER_SPEED * dtSeconds), 1.5, PLAYFIELD_WIDTH - 6);
-        runtime.player.y = clamp(runtime.player.y + (moveY * PLAYER_SPEED * dtSeconds), 6, PLAYFIELD_HEIGHT - 6);
-        let shipAnchors = getShipAnchors(runtime.player.x, runtime.player.y, runtime);
-        const refreshShipAnchors = (): typeof shipAnchors => {
-            shipAnchors = getShipAnchors(runtime.player.x, runtime.player.y, runtime);
-            return shipAnchors;
-        };
-
-        const damageEnemyAt = (enemyIndex: number, instantKill = false): void => {
-            const currentEnemy = runtime.enemies[enemyIndex];
-            if (!currentEnemy) {
-                return;
-            }
-
-            runtime.hits += 1;
-            const bossTriggered = corruptCore();
-            uiDirty = true;
-            if (bossTriggered) {
-                return;
-            }
-
-            if (instantKill || currentEnemy.body.length <= 2) {
-                const enemyCenterX = currentEnemy.x + (currentEnemy.width * 0.5);
-                const enemyCenterY = currentEnemy.y + (currentEnemy.height * 0.5);
-                runtime.purged += 1;
-                spawnPowerUpDrop(enemyCenterX, enemyCenterY);
-                runtime.enemies[enemyIndex] = spawnEnemy(
-                    currentEnemy.id,
-                    true,
-                    currentEnemy.lane,
-                    currentEnemy.lane === "standard" ? "standard" : undefined,
-                    runtime.corruptedBytes
-                );
-                return;
-            }
-
-            currentEnemy.body = currentEnemy.body.slice(0, -2);
-            currentEnemy.vy = Math.min(currentEnemy.vy + 0.35, currentEnemy.kind === "fast" ? 26 : 18);
-            hydrateEnemyGeometry(currentEnemy, playfieldMetricsRef.current, canvasContextRef.current);
-        };
-
-        const fireLaserVolley = (): void => {
-            if (laserCooldownRef.current > 0) {
-                laserCooldownRef.current = Math.max(0, laserCooldownRef.current - FIXED_DT_MS);
-                return;
-            }
-
-            laserCooldownRef.current = LASER_TICK_MS;
-            for (let emitterIndex = 0; emitterIndex < shipAnchors.length; emitterIndex += 1) {
-                const emitterX = shipAnchors[emitterIndex].x;
-                if (runtime.phase === "boss" && runtime.boss) {
-                    const bossHit = emitterX >= runtime.boss.x && emitterX <= runtime.boss.x + BOSS_WIDTH;
-                    if (bossHit) {
-                        damageBoss(2);
-                        uiDirty = true;
-                        continue;
-                    }
-                }
-
-                let enemyIndex = -1;
-                let enemyY = Number.POSITIVE_INFINITY;
-                for (let index = 0; index < runtime.enemies.length; index += 1) {
-                    const enemy = runtime.enemies[index];
-                    if (emitterX >= enemy.x && emitterX <= enemy.x + enemy.width && enemy.y < enemyY) {
-                        enemyIndex = index;
-                        enemyY = enemy.y;
-                    }
-                }
-
-                if (enemyIndex !== -1) {
-                    damageEnemyAt(enemyIndex);
-                }
-            }
-        };
-
-        if (runtime.effects.laserMs > 0 && inputRef.current.fire) {
-            fireLaserVolley();
-        } else if ((fireBufferRef.current > 0 || inputRef.current.fire) && appendBullet()) {
-            uiDirty = true;
-            if (fireBufferRef.current > 0) {
-                fireBufferRef.current -= 1;
-            }
-        }
-
-        const nextBullets: BulletState[] = [];
-        for (let index = 0; index < runtime.bullets.length; index += 1) {
-            const bullet = runtime.bullets[index];
-            bullet.y -= BULLET_SPEED * dtSeconds;
-            if (bullet.y > -4) {
-                nextBullets.push(bullet);
-            }
-        }
-        runtime.bullets = nextBullets;
-
-        const nextPowerUps: PowerUpState[] = [];
-        for (let index = 0; index < runtime.powerUps.length; index += 1) {
-            const powerUp = runtime.powerUps[index];
-            powerUp.y += POWER_UP_FALL_SPEED * dtSeconds;
-            let collectingShip: (typeof shipAnchors)[number] | null = null;
-            for (let anchorIndex = 0; anchorIndex < shipAnchors.length; anchorIndex += 1) {
-                const anchor = shipAnchors[anchorIndex];
-                const radiusX = anchor.kind === "wingman" ? PLAYER_COLLISION_RADIUS_X + 0.2 : PLAYER_COLLISION_RADIUS_X;
-                const radiusY = anchor.kind === "wingman" ? PLAYER_COLLISION_RADIUS_Y + 0.2 : PLAYER_COLLISION_RADIUS_Y + 1.2;
-                if (Math.abs(powerUp.x - anchor.x) <= radiusX && Math.abs(powerUp.y - anchor.y) <= radiusY) {
-                    collectingShip = anchor;
-                    break;
-                }
-            }
-            if (collectingShip) {
-                applyPowerUp(powerUp.kind);
-                uiDirty = true;
-                refreshShipAnchors();
-                continue;
-            }
-            if (powerUp.y <= PLAYFIELD_HEIGHT + 4) {
-                nextPowerUps.push(powerUp);
-            }
-        }
-        runtime.powerUps = nextPowerUps;
-
-        const nextEnemyShots: EnemyProjectileState[] = [];
-        for (let index = 0; index < runtime.enemyShots.length; index += 1) {
-            const shot = runtime.enemyShots[index];
-            shot.x += shot.vx * dtSeconds;
-            shot.y += shot.vy * dtSeconds * slowMultiplier * hostileSpeedMultiplier;
-            let hitShip: (typeof shipAnchors)[number] | null = null;
-            for (let anchorIndex = 0; anchorIndex < shipAnchors.length; anchorIndex += 1) {
-                const anchor = shipAnchors[anchorIndex];
-                const radiusX = anchor.kind === "wingman" ? PLAYER_PROJECTILE_COLLISION_RADIUS_X + 0.15 : PLAYER_PROJECTILE_COLLISION_RADIUS_X;
-                const radiusY = anchor.kind === "wingman" ? PLAYER_PROJECTILE_COLLISION_RADIUS_Y + 0.1 : PLAYER_PROJECTILE_COLLISION_RADIUS_Y;
-                if (Math.abs(shot.x - anchor.x) <= radiusX && Math.abs(shot.y - anchor.y) <= radiusY) {
-                    hitShip = anchor;
-                    break;
-                }
-            }
-            if (hitShip) {
-                const damaged = damageShipAt(hitShip.key);
-                uiDirty = damaged || uiDirty;
-                if (damaged) {
-                    refreshShipAnchors();
-                }
-                continue;
-            }
-            if (shot.y <= PLAYFIELD_HEIGHT + 4) {
-                nextEnemyShots.push(shot);
-            }
-        }
-        runtime.enemyShots = nextEnemyShots;
-
-        if (runtime.phase === "core") {
-            for (let index = 0; index < runtime.enemies.length; index += 1) {
-                const enemy = runtime.enemies[index];
-                const width = enemy.width;
-                let nextEnemyX = enemy.x + (enemy.vx * dtSeconds * slowMultiplier * hostileSpeedMultiplier);
-                let nextEnemyVx = enemy.vx;
-
-                if (nextEnemyX <= 1) {
-                    nextEnemyX = 1;
-                    nextEnemyVx = Math.abs(nextEnemyVx);
-                }
-                if (nextEnemyX >= PLAYFIELD_WIDTH - width - 1) {
-                    nextEnemyX = PLAYFIELD_WIDTH - width - 1;
-                    nextEnemyVx = -Math.abs(nextEnemyVx);
-                }
-
-                enemy.x = nextEnemyX;
-                enemy.y += enemy.vy * dtSeconds * slowMultiplier * hostileSpeedMultiplier;
-                enemy.vx = nextEnemyVx;
-
-                if (enemy.kind === "gunner") {
-                    enemy.fireCooldownMs = Math.max(0, enemy.fireCooldownMs - (FIXED_DT_MS * hostileSpeedMultiplier));
-                    if (enemy.fireCooldownMs <= 0 && enemy.y > 10) {
-                        spawnEnemyProjectile(enemy.x + (width * 0.5), enemy.y + enemy.height, runtime.player.x, slowMultiplier * hostileSpeedMultiplier);
-                        enemy.fireCooldownMs = randomInt(720, 1450);
-                        uiDirty = true;
-                    }
-                }
-
-                if (enemy.y >= ENEMY_Y_LIMIT) {
-                    runtime.enemies[index] = spawnEnemy(
-                        enemy.id,
-                        true,
-                        enemy.lane,
-                        enemy.lane === "standard" ? "standard" : undefined,
-                        runtime.corruptedBytes
-                    );
-                    continue;
-                }
-            }
-
-            for (let index = 0; index < runtime.enemies.length; index += 1) {
-                const enemy = runtime.enemies[index];
-                const enemyWidth = enemy.width;
-                const enemyHeight = enemy.height;
-                const enemyCenterX = enemy.x + (enemyWidth * 0.5);
-                const enemyCenterY = enemy.y + (enemyHeight * 0.5);
-                const collisionEnemyHalfWidth = Math.max(0.55, (enemyWidth * 0.5) - ENEMY_PLAYER_COLLISION_INSET_X);
-                const collisionEnemyHalfHeight = Math.max(0.45, (enemyHeight * 0.5) - ENEMY_PLAYER_COLLISION_INSET_Y);
-                const collidingShip = shipAnchors.find((anchor) => {
-                    const radiusX = anchor.kind === "wingman" ? PLAYER_COLLISION_RADIUS_X + 0.12 : PLAYER_COLLISION_RADIUS_X;
-                    const radiusY = anchor.kind === "wingman" ? PLAYER_COLLISION_RADIUS_Y + 0.08 : PLAYER_COLLISION_RADIUS_Y;
-                    return Math.abs(enemyCenterX - anchor.x) <= collisionEnemyHalfWidth + radiusX
-                        && Math.abs(enemyCenterY - anchor.y) <= collisionEnemyHalfHeight + radiusY;
-                });
-
-                if (!collidingShip) {
-                    continue;
-                }
-
-                const damaged = damageShipAt(collidingShip.key);
-                uiDirty = damaged || uiDirty;
-                if (damaged) {
-                    refreshShipAnchors();
-                }
-                runtime.enemies[index] = spawnEnemy(enemy.id, true, enemy.lane, enemy.lane === "standard" ? "standard" : undefined, runtime.corruptedBytes);
-            }
-        } else if (runtime.boss) {
-            let nextBossX = runtime.boss.x + (runtime.boss.vx * dtSeconds * slowMultiplier);
-            if (nextBossX <= 2) {
-                nextBossX = 2;
-                runtime.boss.vx = Math.abs(runtime.boss.vx);
-            }
-            if (nextBossX >= PLAYFIELD_WIDTH - BOSS_WIDTH - 2) {
-                nextBossX = PLAYFIELD_WIDTH - BOSS_WIDTH - 2;
-                runtime.boss.vx = -Math.abs(runtime.boss.vx);
-            }
-            runtime.boss.x = nextBossX;
-            runtime.boss.fireCooldownMs = Math.max(0, runtime.boss.fireCooldownMs - FIXED_DT_MS);
-            if (runtime.boss.fireCooldownMs <= 0) {
-                [0.12, 0.34, 0.56, 0.78, 0.9].forEach((ratio) => {
-                    spawnEnemyProjectile(runtime.boss!.x + (BOSS_WIDTH * ratio), runtime.boss!.y + BOSS_HEIGHT, runtime.player.x, slowMultiplier * 1.1);
-                });
-                runtime.boss.fireCooldownMs = BOSS_FIRE_COOLDOWN_MS;
-                uiDirty = true;
-            }
-
-            const bossCenterX = runtime.boss.x + (BOSS_WIDTH * 0.5);
-            const bossCenterY = runtime.boss.y + (BOSS_HEIGHT * 0.5);
-            const bossCollisionHalfWidth = Math.max(1.2, (BOSS_WIDTH * 0.5) - BOSS_PLAYER_COLLISION_INSET_X);
-            const bossCollisionHalfHeight = Math.max(0.8, (BOSS_HEIGHT * 0.5) - BOSS_PLAYER_COLLISION_INSET_Y);
-            const collidingShip = shipAnchors.find((anchor) => {
-                const radiusX = anchor.kind === "wingman" ? PLAYER_BOSS_COLLISION_RADIUS_X + 0.1 : PLAYER_BOSS_COLLISION_RADIUS_X;
-                const radiusY = anchor.kind === "wingman" ? PLAYER_BOSS_COLLISION_RADIUS_Y + 0.08 : PLAYER_BOSS_COLLISION_RADIUS_Y;
-                return Math.abs(bossCenterX - anchor.x) <= bossCollisionHalfWidth + radiusX
-                    && Math.abs(bossCenterY - anchor.y) <= bossCollisionHalfHeight + radiusY;
-            });
-            if (collidingShip) {
-                const damaged = damageShipAt(collidingShip.key);
-                uiDirty = damaged || uiDirty;
-                if (damaged) {
-                    refreshShipAnchors();
-                }
-            }
-        }
-
-        if (runtime.bullets.length) {
-            const remainingBullets: BulletState[] = [];
-
-            for (let bulletIndex = 0; bulletIndex < runtime.bullets.length; bulletIndex += 1) {
-                const bullet = runtime.bullets[bulletIndex];
-                if (runtime.phase === "boss" && runtime.boss) {
-                    const hitsBoss = bullet.x >= runtime.boss.x
-                        && bullet.x <= runtime.boss.x + BOSS_WIDTH
-                        && bullet.y >= runtime.boss.y
-                        && bullet.y <= runtime.boss.y + BOSS_HEIGHT;
-                    if (hitsBoss) {
-                        uiDirty = damageBoss(bullet.kind === "explosive" ? 5 : 1) || uiDirty;
-                        return;
-                    }
-                }
-
-                let enemyIndex = -1;
-                for (let index = 0; index < runtime.enemies.length; index += 1) {
-                    const enemy = runtime.enemies[index];
-                    if (bullet.x >= enemy.x
-                        && bullet.x <= enemy.x + enemy.width
-                        && bullet.y >= enemy.y
-                        && bullet.y <= enemy.y + enemy.height) {
-                        enemyIndex = index;
-                        break;
-                    }
-                }
-
-                if (enemyIndex === -1) {
-                    remainingBullets.push(bullet);
-                    continue;
-                }
-
-                damageEnemyAt(enemyIndex, bullet.kind === "explosive");
-            }
-
-            runtime.bullets = remainingBullets;
-        }
-
-        if (runtime.effects.laserMs <= 0) {
-            laserCooldownRef.current = 0;
-        }
-
-        return uiDirty;
+    const applyRenderSnapshot = (snapshot: RenderSnapshot): void => {
+        latestRenderRef.current = snapshot;
+        drawScene(snapshot);
     };
 
     const handleReset = (): void => {
-        runtimeRef.current = createInitialRuntime();
-        bulletIdRef.current = 0;
-        specialEnemyIdRef.current = STANDARD_ENEMY_COUNT;
-        enemyShotIdRef.current = 0;
-        powerUpIdRef.current = 0;
-        shotCooldownRef.current = 0;
-        laserCooldownRef.current = 0;
-        fireBufferRef.current = 0;
-        accumulatorRef.current = 0;
-        lastFrameAtRef.current = 0;
-        lastRenderAtRef.current = 0;
-        lastUiSyncAtRef.current = 0;
-        pendingUiSyncRef.current = false;
-        syncUi(true);
-        rebuildBackground();
-        drawScene();
+        sendWorkerMessage({ type: "reset" });
     };
 
     const setDirection = (direction: InputDirection, active: boolean): void => {
-        inputRef.current[direction] = active;
+        sendWorkerMessage({ type: "setDirection", direction, active });
     };
 
     const setFire = (active: boolean): void => {
-        inputRef.current.fire = active;
+        sendWorkerMessage({ type: "setFire", active });
     };
 
     const pulseFire = (): void => {
-        fireBufferRef.current += 1;
+        sendWorkerMessage({ type: "pulseFire" });
     };
 
     useEffect(() => {
@@ -1277,72 +482,132 @@ const MainframeGame = ({ className = "", onRendered }: MainframeGameProps): Reac
     }, [onRendered]);
 
     useEffect(() => {
-        if (uiSnapshotNeedsReset(uiSnapshot)) {
-            handleReset();
+        const core = coreRef.current;
+        if (!core) {
+            return;
         }
-    }, [uiSnapshot]);
 
-    useEffect(() => {
-        document.body.classList.add("mainframe-game--performance");
-        rebuildBackground();
-        drawScene();
-
-        const tick = (now: number): void => {
-            if (!lastFrameAtRef.current) {
-                lastFrameAtRef.current = now;
+        let animationFrameId = 0;
+        const scheduleCoreSync = (): void => {
+            if (animationFrameId) {
+                return;
             }
-
-            let frameTime = now - lastFrameAtRef.current;
-            lastFrameAtRef.current = now;
-            frameTime = Math.min(frameTime, MAX_FRAME_MS);
-            accumulatorRef.current += frameTime;
-
-            let uiDirty = false;
-            while (accumulatorRef.current >= FIXED_DT_MS) {
-                accumulatorRef.current -= FIXED_DT_MS;
-                uiDirty = stepSimulation() || uiDirty;
-            }
-
-            const shouldRender = !lastRenderAtRef.current
-                || (now - lastRenderAtRef.current) >= MIN_RENDER_INTERVAL_MS
-                || uiDirty;
-            if (shouldRender) {
-                drawScene(accumulatorRef.current / FIXED_DT_MS);
-                lastRenderAtRef.current = now;
-            }
-            if (uiDirty) {
-                pendingUiSyncRef.current = true;
-            }
-            const shouldSyncUi = pendingUiSyncRef.current
-                && (
-                    !lastUiSyncAtRef.current
-                    || (now - lastUiSyncAtRef.current) >= UI_SYNC_INTERVAL_MS
-                    || runtimeRef.current.status !== "running"
-                );
-            if (shouldSyncUi) {
-                syncUi();
-            }
-
-            frameRef.current = window.requestAnimationFrame(tick);
+            animationFrameId = window.requestAnimationFrame(() => {
+                animationFrameId = 0;
+                syncCoreCanvas();
+            });
         };
 
-        frameRef.current = window.requestAnimationFrame(tick);
+        scheduleCoreSync();
+        void document.fonts?.ready.then(scheduleCoreSync);
 
-        let observer: ResizeObserver | null = null;
-        if (playfieldRef.current && typeof ResizeObserver !== "undefined") {
-            observer = new ResizeObserver(() => {
-                rebuildBackground();
-                drawScene();
-            });
-            observer.observe(playfieldRef.current);
+        let resizeObserver: ResizeObserver | null = null;
+        if (typeof ResizeObserver !== "undefined") {
+            resizeObserver = new ResizeObserver(scheduleCoreSync);
+            resizeObserver.observe(core);
         }
 
         return () => {
-            observer && observer.disconnect();
-            if (frameRef.current !== null) {
-                window.cancelAnimationFrame(frameRef.current);
-                frameRef.current = null;
+            if (animationFrameId) {
+                window.cancelAnimationFrame(animationFrameId);
             }
+            resizeObserver && resizeObserver.disconnect();
+        };
+    }, []);
+
+    useEffect(() => {
+        const playfield = playfieldRef.current;
+        const canvas = canvasRef.current;
+        if (!playfield || !canvas) {
+            return;
+        }
+
+        document.body.classList.add("mainframe-game--performance");
+        const worker = new Worker(new URL("./mainframeGame.worker.ts", import.meta.url), { type: "module" });
+        workerRef.current = worker;
+        const supportsOffscreenCanvas = typeof canvas.transferControlToOffscreen === "function";
+        let offscreenCanvas: OffscreenCanvas | null = null;
+        if (supportsOffscreenCanvas) {
+            offscreenCanvas = canvas.transferControlToOffscreen();
+            renderInWorkerRef.current = true;
+        }
+
+        const syncCanvasMetrics = (): void => {
+            const nextMetrics = buildPlayfieldMetrics(playfield);
+            if (!playfieldMetricsChanged(metricsRef.current, nextMetrics)) {
+                return;
+            }
+            metricsRef.current = nextMetrics;
+            canvas.style.width = `${nextMetrics.width}px`;
+            canvas.style.height = `${nextMetrics.height}px`;
+            if (renderInWorkerRef.current) {
+                sendWorkerMessage({
+                    type: "resize",
+                    width: nextMetrics.width,
+                    height: nextMetrics.height,
+                    dpr: nextMetrics.dpr,
+                });
+                return;
+            }
+
+            canvas.width = Math.max(1, Math.round(nextMetrics.width * nextMetrics.dpr));
+            canvas.height = Math.max(1, Math.round(nextMetrics.height * nextMetrics.dpr));
+            canvasContextRef.current = canvas.getContext("2d");
+            if (latestRenderRef.current) {
+                drawScene(latestRenderRef.current);
+            }
+        };
+
+        const handleFrame = (event: MessageEvent<WorkerFrameMessage>): void => {
+            const data = event.data;
+            if (!data || data.type !== "frame") {
+                return;
+            }
+            data.render && applyRenderSnapshot(data.render);
+            data.ui && applyUiSnapshot(data.ui);
+        };
+
+        worker.addEventListener("message", handleFrame);
+        const initialMetrics = buildPlayfieldMetrics(playfield);
+        metricsRef.current = initialMetrics;
+        canvas.style.width = `${initialMetrics.width}px`;
+        canvas.style.height = `${initialMetrics.height}px`;
+        if (renderInWorkerRef.current && offscreenCanvas) {
+            worker.postMessage({
+                type: "init",
+                canvas: offscreenCanvas,
+                width: initialMetrics.width,
+                height: initialMetrics.height,
+                dpr: initialMetrics.dpr,
+                renderInWorker: true,
+            } satisfies WorkerControlMessage, [offscreenCanvas]);
+        } else {
+            syncCanvasMetrics();
+            worker.postMessage({
+                type: "init",
+                width: initialMetrics.width,
+                height: initialMetrics.height,
+                dpr: initialMetrics.dpr,
+                renderInWorker: false,
+            } satisfies WorkerControlMessage);
+        }
+
+        let resizeObserver: ResizeObserver | null = null;
+        if (typeof ResizeObserver !== "undefined") {
+            resizeObserver = new ResizeObserver(() => {
+                syncCanvasMetrics();
+            });
+            resizeObserver.observe(playfield);
+        }
+
+        return () => {
+            resizeObserver && resizeObserver.disconnect();
+            worker.removeEventListener("message", handleFrame);
+            worker.postMessage({ type: "dispose" } satisfies WorkerControlMessage);
+            worker.terminate();
+            workerRef.current = null;
+            renderInWorkerRef.current = false;
+            canvasContextRef.current = null;
             document.body.classList.remove("mainframe-game--performance");
         };
     }, []);
@@ -1408,57 +673,12 @@ const MainframeGame = ({ className = "", onRendered }: MainframeGameProps): Reac
         };
     }, []);
 
-    const coreRows = useMemo(() => {
-        const rowCount = Math.ceil(CORE_BYTE_COUNT / CORE_BYTES_PER_ROW);
-        return Array.from({ length: rowCount }, (_, rowIndex) => {
-            const start = rowIndex * CORE_BYTES_PER_ROW;
-            return {
-                offset: start.toString(16).padStart(4, "0"),
-                bytes: uiSnapshot.coreBytes.slice(start, start + CORE_BYTES_PER_ROW),
-            };
-        });
-    }, [uiSnapshot.coreBytes]);
-    const coreRowBanks = useMemo(() => {
-        const rowsPerBank = Math.ceil(coreRows.length / CORE_COLUMN_COUNT);
-        return Array.from({ length: CORE_COLUMN_COUNT }, (_, bankIndex) => {
-            const start = bankIndex * rowsPerBank;
-            return coreRows.slice(start, start + rowsPerBank);
-        });
-    }, [coreRows]);
-
-    const integrityPercent = Math.max(0, Math.round(((CORE_BYTE_COUNT - uiSnapshot.corruptedBytes) / CORE_BYTE_COUNT) * 100));
-    const integrityMeter = `${"#".repeat(Math.max(0, Math.round(integrityPercent / 10))).padEnd(10, "-")}`;
-    const containerClassName = ["mainframe-game", className].filter(Boolean).join(" ").trim();
-    const livesDisplay = Number.isFinite(uiSnapshot.lives) ? uiSnapshot.lives : PLAYER_START_LIVES;
-    const bossIntegrityPercent = uiSnapshot.bossMaxHealth > 0
-        ? Math.max(0, Math.round((uiSnapshot.bossHealth / uiSnapshot.bossMaxHealth) * 100))
-        : 0;
-    const activeEffects = [
-        uiSnapshot.effects.dualMs > 0 ? `DUAL ${Math.ceil(uiSnapshot.effects.dualMs / 1000)}S` : null,
-        uiSnapshot.effects.laserMs > 0 ? `LASER ${Math.ceil(uiSnapshot.effects.laserMs / 1000)}S` : null,
-        uiSnapshot.effects.slowMs > 0 ? `SLOW ${Math.ceil(uiSnapshot.effects.slowMs / 1000)}S` : null,
-        uiSnapshot.effects.explosiveMs > 0 ? `BURST ${Math.ceil(uiSnapshot.effects.explosiveMs / 1000)}S` : null,
-    ].filter(Boolean).join(" | ");
-    const wingStatus = uiSnapshot.wingmanHealths.some((health) => health > 0)
-        ? `[WINGS ${uiSnapshot.wingmanHealths.map((health, index) => `${index === 0 ? "L" : "R"}:${health}`).join(" ")}]`
-        : "[WINGS OFFLINE]";
-    const overlayTitle = uiSnapshot.status === "victory"
-        ? "APHELION DOWN"
-        : "PILOT LOST";
-    const overlayCopy = uiSnapshot.status === "victory"
-        ? "The memory core and final command shell have both been purged."
-        : "A hostile code shard breached the cockpit frame.";
-
     return (
         <div className={containerClassName}>
             <div className="mainframe-game__topline">
-                <span>[APHELION_MAINFRAME//{uiSnapshot.phase === "boss" ? "FINAL SHELL" : "FIXED PROCESS"}]</span>
-                <span>
-                    {uiSnapshot.phase === "boss"
-                        ? `[BOSS SHELL ${String(bossIntegrityPercent).padStart(3, "0")}%]`
-                        : `[HOSTILE CORE INTEGRITY ${String(integrityPercent).padStart(3, "0")}%]`}
-                </span>
-                <span>[LIVES {String(livesDisplay).padStart(2, "0")}/03]</span>
+                <span ref={phaseLabelRef}>[APHELION_MAINFRAME//FIXED PROCESS]</span>
+                <span ref={integrityLabelRef}>[HOSTILE CORE INTEGRITY 100%]</span>
+                <span ref={livesLabelRef}>[LIVES {String(PLAYER_START_LIVES).padStart(2, "0")}/03]</span>
             </div>
 
             <div className="mainframe-game__layout">
@@ -1472,72 +692,72 @@ const MainframeGame = ({ className = "", onRendered }: MainframeGameProps): Reac
                     <div ref={playfieldRef} className="mainframe-game__playfield">
                         <canvas ref={canvasRef} className="mainframe-game__canvas" aria-label="Aphelion mainframe combat area" />
 
-                        {uiSnapshot.status !== "running" && (
-                            <div className="mainframe-game__overlay">
-                                <div className="mainframe-game__overlay-box">
-                                    <div className="mainframe-game__overlay-title">{overlayTitle}</div>
-                                    <div className="mainframe-game__overlay-copy">{overlayCopy}</div>
-                                    <button
-                                        type="button"
-                                        className="mainframe-game__button"
-                                        onClick={handleReset}
-                                    >
-                                        RESTART BREACH
-                                    </button>
-                                </div>
+                        <div ref={overlayRef} className="mainframe-game__overlay" hidden>
+                            <div className="mainframe-game__overlay-box">
+                                <div ref={overlayTitleRef} className="mainframe-game__overlay-title">PILOT LOST</div>
+                                <div ref={overlayCopyRef} className="mainframe-game__overlay-copy">A hostile code shard breached the cockpit frame.</div>
+                                <button
+                                    type="button"
+                                    className="mainframe-game__button"
+                                    onClick={handleReset}
+                                >
+                                    RESTART BREACH
+                                </button>
                             </div>
-                        )}
+                        </div>
                     </div>
-
-                    <footer className="mainframe-game__panel-footer">
-                        <span>[HITS {String(uiSnapshot.hits).padStart(3, "0")}]</span>
-                        <span>[HOSTILES {String(uiSnapshot.hostileCount).padStart(2, "0")}]</span>
-                        <span>[SHOTS {String(uiSnapshot.shots).padStart(3, "0")}]</span>
-                    </footer>
                 </section>
 
                 <section className="mainframe-game__panel mainframe-game__panel--core">
                     <header className="mainframe-game__panel-header">
                         <span>AI MEMORY CORE</span>
                         <span>{CORE_BYTE_COUNT} BYTES</span>
-                        <span>{`[${integrityMeter}]`}</span>
+                        <span>[##########]</span>
                     </header>
 
-                    <div className="mainframe-game__core">
-                        {coreRowBanks.map((bank, bankIndex) => (
-                            <div key={`bank-${bankIndex}`} className="mainframe-game__core-bank">
-                                {bank.map((row) => (
-                                    <div key={row.offset} className="mainframe-game__core-row">
-                                        <span className="mainframe-game__core-offset">{row.offset}</span>
-                                        <span className="mainframe-game__core-bytes">
-                                            {row.bytes.map((value, index) => (
-                                                <span
-                                                    key={`${row.offset}-${index}`}
-                                                    className={
-                                                        "mainframe-game__core-byte"
-                                                        + (/^[0-9a-f]{2}$/i.test(value) ? "" : " mainframe-game__core-byte--corrupted")
-                                                    }
-                                                >
-                                                    {value}
-                                                </span>
-                                            ))}
-                                        </span>
-                                    </div>
-                                ))}
-                            </div>
-                        ))}
+                    <div ref={coreRef} className="mainframe-game__core">
+                        <canvas ref={coreCanvasRef} className="mainframe-game__core-canvas" aria-hidden="true" />
+                        <div ref={coreLayoutRef} className="mainframe-game__core-layout" aria-hidden="true">
+                            {coreRowBanks.map((bank, bankIndex) => (
+                                <div key={`bank-${bankIndex}`} className="mainframe-game__core-bank">
+                                    {bank.map((row) => (
+                                        <div key={row.offset} className="mainframe-game__core-row">
+                                            <span
+                                                className="mainframe-game__core-offset"
+                                                ref={(element) => {
+                                                    coreOffsetElementsRef.current[row.rowIndex] = element;
+                                                }}
+                                            >
+                                                {row.offset}
+                                            </span>
+                                            <span className="mainframe-game__core-bytes">
+                                                {row.indices.map((byteIndex) => (
+                                                    <span
+                                                        key={`${row.offset}-${byteIndex}`}
+                                                        className="mainframe-game__core-byte"
+                                                        ref={(element) => {
+                                                            coreByteElementsRef.current[byteIndex] = element;
+                                                            if (element) {
+                                                                applyCoreByteToElement(element, coreBytesRef.current[byteIndex]);
+                                                            }
+                                                        }}
+                                                    >
+                                                        {coreBytesRef.current[byteIndex]}
+                                                    </span>
+                                                ))}
+                                            </span>
+                                        </div>
+                                    ))}
+                                </div>
+                            ))}
+                        </div>
                     </div>
-
-                    <footer className="mainframe-game__panel-footer">
-                        <span>{uiSnapshot.phase === "boss" ? "[FINAL SHELL VULNERABLE]" : "[BREACH DELTA +3 BYTES / HIT]"}</span>
-                        <span>{uiSnapshot.phase === "boss" ? "[DODGE RETURN FIRE]" : "[TARGET RESPINS AFTER PURGE]"}</span>
-                    </footer>
                 </section>
             </div>
 
             <div className="mainframe-game__bottomline">
-                <span>{activeEffects ? `[POWERUPS ${activeEffects}] ${wingStatus}` : "[SALVAGE POWERUPS TO STACK ADVANTAGES]"}</span>
-                <span>{uiSnapshot.phase === "boss" ? "[DESTROY APHELION PRIME TO WIN]" : "[DEPLETING THE CORE SUMMONS THE BOSS SHELL]"}</span>
+                <span ref={bottomStatusRef}>[SALVAGE POWERUPS TO STACK ADVANTAGES]</span>
+                <span ref={bottomObjectiveRef}>[DEPLETING THE CORE SUMMONS THE BOSS SHELL]</span>
                 <button type="button" className="mainframe-game__button mainframe-game__button--secondary" onClick={handleReset}>
                     RESET
                 </button>

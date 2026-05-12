@@ -86,27 +86,20 @@ body.mainframe-game--performance .__scanlines__ {
     background:
         linear-gradient(180deg, rgba(200, 76, 95, 0.05), rgba(127, 149, 209, 0.02)),
         var(--aphelion-core-bg);
+    contain: paint;
 }
 
-.mainframe-game__panel-header,
-.mainframe-game__panel-footer {
+.mainframe-game__panel-header {
     display: flex;
     flex-wrap: wrap;
     gap: 0.2rem 0.4rem;
     justify-content: space-between;
     padding: 0.24rem 0.34rem;
     color: rgba(185, 198, 235, 0.92);
-    background: linear-gradient(90deg, rgba(127, 149, 209, 0.14), rgba(200, 76, 95, 0.08));
+    background: linear-gradient(90deg, rgba(8, 15, 38, 0.92), rgba(38, 8, 16, 0.86));
     border-bottom: 1px solid rgba(132, 153, 221, 0.2);
     font-size: 0.45rem;
     letter-spacing: 0.07em;
-}
-
-.mainframe-game__panel-footer {
-    border-top: 1px solid rgba(132, 153, 221, 0.16);
-    border-bottom: none;
-    margin-top: auto;
-    background: linear-gradient(90deg, rgba(8, 15, 38, 0.9), rgba(38, 8, 16, 0.84));
 }
 
 .mainframe-game__playfield {
@@ -176,6 +169,10 @@ body.mainframe-game--performance .__scanlines__ {
     z-index: 4;
 }
 
+.mainframe-game__overlay[hidden] {
+    display: none;
+}
+
 .mainframe-game__overlay-box {
     width: min(92%, 20rem);
     padding: 0.5rem;
@@ -218,20 +215,36 @@ body.mainframe-game--performance .__scanlines__ {
 }
 
 .mainframe-game__core {
+    position: relative;
     display: grid;
-    grid-template-columns: repeat(2, max-content);
-    column-gap: 12px;
-    row-gap: 2px;
-    justify-content: start;
-    align-content: start;
     flex: 1;
     padding: 0.1rem 0.1rem;
-    overflow: auto;
-    font-size: 22px;
-    line-height: 0.7;
+    overflow: hidden;
+    font-size: 20px;
+    line-height: 1.08;
+    font-variant-numeric: tabular-nums;
+    contain: paint;
     background:
         linear-gradient(180deg, rgba(255, 255, 255, 0.018), rgba(255, 255, 255, 0)),
         linear-gradient(180deg, rgba(20, 5, 12, 0.96), rgba(10, 14, 29, 0.98));
+}
+
+.mainframe-game__core-canvas {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    display: block;
+    pointer-events: none;
+}
+
+.mainframe-game__core-layout {
+    display: grid;
+    grid-template-columns: repeat(2, max-content);
+    column-gap: 8px;
+    row-gap: 0;
+    justify-content: start;
+    align-content: start;
+    visibility: hidden;
 }
 
 .mainframe-game__core-bank {
@@ -240,26 +253,32 @@ body.mainframe-game--performance .__scanlines__ {
 
 .mainframe-game__core-row {
     display: grid;
-    grid-template-columns: 36px max-content;
-    gap: 1px;
+    grid-template-columns: 4ch max-content;
+    gap: 8px;
     align-items: start;
-    margin-bottom: 2px;
+    margin-bottom: 0;
 }
 
 .mainframe-game__core-offset {
+    display: inline-block;
     color: rgba(127, 149, 209, 0.82);
-    min-width: 0;
+    width: 4ch;
+    min-width: 4ch;
 }
 
 .mainframe-game__core-bytes {
     display: flex;
     flex-wrap: nowrap;
-    gap: 2px 3px;
+    gap: 1px;
     align-items: baseline;
     white-space: nowrap;
 }
 
 .mainframe-game__core-byte {
+    display: inline-block;
+    width: 2.55ch;
+    min-width: 2.55ch;
+    text-align: center;
     color: #c2d2ff;
 }
 
@@ -304,6 +323,10 @@ body.mainframe-game--performance .__scanlines__ {
     }
 
     .mainframe-game__core {
+        width: 100%;
+    }
+
+    .mainframe-game__core-layout {
         grid-template-columns: 1fr;
     }
 
@@ -319,8 +342,7 @@ body.mainframe-game--performance .__scanlines__ {
 
     .mainframe-game__topline,
     .mainframe-game__bottomline,
-    .mainframe-game__panel-header,
-    .mainframe-game__panel-footer {
+    .mainframe-game__panel-header {
         font-size: 0.42rem;
     }
 
