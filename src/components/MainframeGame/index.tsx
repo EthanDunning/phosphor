@@ -1,5 +1,12 @@
 import React, { useEffect, useMemo, useRef } from "react";
 import type { InputDirection, RenderSnapshot, UiSnapshot, WorkerFrameMessage } from "./shared";
+import bulletSoundSrc from "../../assets/aphelion game/bullet.wav";
+import explosionSoundSrc from "../../assets/aphelion game/explosion.wav";
+import deathSoundSrc from "../../assets/aphelion game/death.wav";
+import pickupSoundSrc from "../../assets/aphelion game/pickuppowerup.wav";
+import laserSoundSrc from "../../assets/aphelion game/laser.wav";
+import xblastSoundSrc from "../../assets/aphelion game/Xblast.wav";
+import gameMusicSrc from "../../assets/aphelion game/gamemusic.mp3";
 import {
     BOSS_HEIGHT,
     BOSS_WIDTH,
@@ -186,8 +193,25 @@ const MainframeGame = ({ className = "", onRendered }: MainframeGameProps): Reac
     const overlayTitleRef = useRef<HTMLDivElement | null>(null);
     const overlayCopyRef = useRef<HTMLDivElement | null>(null);
 
+    const musicRef = useRef<HTMLAudioElement | null>(null);
+    const laserSoundRef = useRef<HTMLAudioElement | null>(null);
+    const xblastSoundRef = useRef<HTMLAudioElement | null>(null);
+    const bulletSfxRef = useRef<HTMLAudioElement | null>(null);
+    const explosionSfxRef = useRef<HTMLAudioElement | null>(null);
+    const deathSfxRef = useRef<HTMLAudioElement | null>(null);
+    const pickupSfxRef = useRef<HTMLAudioElement | null>(null);
+    const laserPlayingRef = useRef(false);
+
     const sendWorkerMessage = (message: WorkerControlMessage): void => {
         workerRef.current?.postMessage(message);
+    };
+
+    const playOneShot = (audio: HTMLAudioElement | null): void => {
+        if (!audio) {
+            return;
+        }
+        audio.currentTime = 0;
+        audio.play().catch(() => {});
     };
 
     const applyCoreByteToElement = (element: HTMLSpanElement, value: string): void => {
@@ -490,6 +514,11 @@ const MainframeGame = ({ className = "", onRendered }: MainframeGameProps): Reac
     };
 
     const handleReset = (): void => {
+        if (laserSoundRef.current) {
+            laserSoundRef.current.pause();
+            laserSoundRef.current.currentTime = 0;
+        }
+        laserPlayingRef.current = false;
         sendWorkerMessage({ type: "reset" });
     };
 
@@ -504,6 +533,59 @@ const MainframeGame = ({ className = "", onRendered }: MainframeGameProps): Reac
     const pulseFire = (): void => {
         sendWorkerMessage({ type: "pulseFire" });
     };
+
+    useEffect(() => {
+        const music = new Audio(gameMusicSrc);
+        music.loop = true;
+        music.volume = 0.2;
+        musicRef.current = music;
+
+        const laser = new Audio(laserSoundSrc);
+        laser.loop = true;
+        laser.volume = 0.15;
+        laserSoundRef.current = laser;
+
+        const xblast = new Audio(xblastSoundSrc);
+        xblast.volume = 0.15;
+        xblastSoundRef.current = xblast;
+
+        const bullet = new Audio(bulletSoundSrc);
+        bullet.volume = 0.15;
+        bulletSfxRef.current = bullet;
+
+        const explosion = new Audio(explosionSoundSrc);
+        explosion.volume = 0.15;
+        explosionSfxRef.current = explosion;
+
+        const death = new Audio(deathSoundSrc);
+        death.volume = 0.15;
+        deathSfxRef.current = death;
+
+        const pickup = new Audio(pickupSoundSrc);
+        pickup.volume = 0.15;
+        pickupSfxRef.current = pickup;
+
+        const tryPlayMusic = (): void => {
+            music.play().catch(() => {});
+        };
+        tryPlayMusic();
+        document.addEventListener("click", tryPlayMusic, { once: true });
+        document.addEventListener("keydown", tryPlayMusic, { once: true });
+
+        return () => {
+            music.pause();
+            laser.pause();
+            document.removeEventListener("click", tryPlayMusic);
+            document.removeEventListener("keydown", tryPlayMusic);
+            musicRef.current = null;
+            laserSoundRef.current = null;
+            xblastSoundRef.current = null;
+            bulletSfxRef.current = null;
+            explosionSfxRef.current = null;
+            deathSfxRef.current = null;
+            pickupSfxRef.current = null;
+        };
+    }, []);
 
     useEffect(() => {
         onRendered && onRendered();
@@ -591,7 +673,43 @@ const MainframeGame = ({ className = "", onRendered }: MainframeGameProps): Reac
             if (!data || data.type !== "frame") {
                 return;
             }
-            data.render && applyRenderSnapshot(data.render);
+
+            if (data.sounds) {
+                for (const sound of data.sounds) {
+                    if (sound === "bullet") {
+                        playOneShot(bulletSfxRef.current);
+                    } else if (sound === "explosion") {
+                        playOneShot(explosionSfxRef.current);
+                    } else if (sound === "death") {
+                        playOneShot(deathSfxRef.current);
+                    } else if (sound === "pickuppowerup") {
+                        playOneShot(pickupSfxRef.current);
+                    } else if (sound === "xblast") {
+                        playOneShot(xblastSoundRef.current);
+                    }
+                }
+            }
+
+            if (data.gameState) {
+                const gameOver = data.gameState.status !== "running";
+
+                const wantsLaser = data.gameState.laserFiring && !gameOver;
+                if (wantsLaser && !laserPlayingRef.current) {
+                    laserSoundRef.current?.play().catch(() => {});
+                    laserPlayingRef.current = true;
+                } else if (!wantsLaser && laserPlayingRef.current) {
+                    if (laserSoundRef.current) {
+                        laserSoundRef.current.pause();
+                        laserSoundRef.current.currentTime = 0;
+                    }
+                    laserPlayingRef.current = false;
+                }
+            }
+
+            if (data.render) {
+                applyRenderSnapshot(data.render);
+            }
+
             data.ui && applyUiSnapshot(data.ui);
         };
 

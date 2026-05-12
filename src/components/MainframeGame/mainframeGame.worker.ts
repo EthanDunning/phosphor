@@ -12,8 +12,10 @@ import type {
     PowerUpState,
     RenderSnapshot,
     RuntimeSnapshot,
+    SoundEvent,
     UiSnapshot,
     WingmanState,
+    WorkerFrameGameState,
     WorkerFrameMessage,
 } from "./shared";
 import {
@@ -116,6 +118,7 @@ let powerUpId = 0;
 let laserCooldownMs = 0;
 let fireBufferCount = 0;
 let pendingCoreUpdates: CoreByteUpdate[] = [];
+let pendingSounds: SoundEvent[] = [];
 let terminalUiPosted = false;
 let renderInWorker = false;
 let renderCanvas: OffscreenCanvas | null = null;
@@ -626,6 +629,7 @@ const damageShipAt = (shipKey: string): boolean => {
         if (runtime.lives <= 0) {
             runtime.status = "defeat";
         }
+        pendingSounds.push("death");
         return true;
     }
 
@@ -640,6 +644,7 @@ const damageShipAt = (shipKey: string): boolean => {
     if (wingman.hp <= 0) {
         wingman.active = false;
         wingman.invulnerableMs = 0;
+        pendingSounds.push("death");
     }
     return true;
 };
@@ -870,6 +875,14 @@ const postFrame = (includeUi = false, forceFullCoreBytes = false): void => {
     if (includeUi) {
         message.ui = toUiSnapshot(forceFullCoreBytes);
     }
+    if (pendingSounds.length) {
+        message.sounds = pendingSounds.splice(0, pendingSounds.length);
+    }
+    const gameState: WorkerFrameGameState = {
+        laserFiring: runtime.effects.laserMs > 0 && inputState.fire,
+        status: runtime.status,
+    };
+    message.gameState = gameState;
     self.postMessage(message);
 };
 
@@ -1042,10 +1055,12 @@ const stepSimulation = (): boolean => {
             runtime.hits += 1;
             uiDirty = true;
             if (instantKill || currentEnemy.body.length <= trimSize) {
+                pendingSounds.push("death");
                 removeEnemy();
                 return;
             }
 
+            pendingSounds.push("explosion");
             currentEnemy.body = currentEnemy.body.slice(0, -trimSize);
             currentEnemy.vy = Math.min(currentEnemy.vy + 0.45, currentEnemy.kind === "comet" ? 30 : currentEnemy.kind === "fast" ? 26 : 18);
             if (currentEnemy.kind === "comet") {
@@ -1068,6 +1083,7 @@ const stepSimulation = (): boolean => {
             const enemyCenterY = currentEnemy.y + (currentEnemy.height * 0.5);
             runtime.purged += 1;
             spawnPowerUpDrop(enemyCenterX, enemyCenterY);
+            pendingSounds.push("death");
             runtime.enemies[enemyIndex] = spawnEnemy(
                 currentEnemy.id,
                 true,
@@ -1078,6 +1094,7 @@ const stepSimulation = (): boolean => {
             return;
         }
 
+        pendingSounds.push("explosion");
         currentEnemy.body = currentEnemy.body.slice(0, -trimSize);
         currentEnemy.vy = Math.min(currentEnemy.vy + 0.35, currentEnemy.kind === "comet" ? 28 : currentEnemy.kind === "fast" ? 26 : 18);
         if (currentEnemy.kind === "comet") {
@@ -1130,6 +1147,7 @@ const stepSimulation = (): boolean => {
         fireLaserVolley();
     } else if ((fireBufferCount > 0 || inputState.fire) && appendBullet()) {
         uiDirty = true;
+        pendingSounds.push(runtime.effects.explosiveMs > 0 ? "xblast" : "bullet");
         if (fireBufferCount > 0) {
             fireBufferCount -= 1;
         }
@@ -1162,6 +1180,7 @@ const stepSimulation = (): boolean => {
         if (collectingShip) {
             applyPowerUp(powerUp.kind);
             uiDirty = true;
+            pendingSounds.push(powerUp.kind === "explosive" ? "xblast" : "pickuppowerup");
             refreshShipAnchors();
             continue;
         }
@@ -1518,6 +1537,7 @@ const resetRuntime = (): void => {
     laserCooldownMs = 0;
     fireBufferCount = 0;
     pendingCoreUpdates = [];
+    pendingSounds = [];
     terminalUiPosted = false;
     accumulator = 0;
     lastFrameAt = 0;

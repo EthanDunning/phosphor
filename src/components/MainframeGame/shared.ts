@@ -136,10 +136,19 @@ export interface RenderSnapshot {
     status: "running" | "victory" | "defeat";
 }
 
+export type SoundEvent = "bullet" | "explosion" | "death" | "pickuppowerup" | "xblast";
+
+export interface WorkerFrameGameState {
+    laserFiring: boolean;
+    status: "running" | "victory" | "defeat";
+}
+
 export interface WorkerFrameMessage {
     type: "frame";
     render?: RenderSnapshot;
     ui?: UiSnapshot;
+    sounds?: SoundEvent[];
+    gameState?: WorkerFrameGameState;
 }
 
 export interface MainframeWorkerApi {
