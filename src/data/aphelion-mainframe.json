@@ -1,0 +1,105 @@
+{
+    "config": {
+        "name": "APHELION_MAINFRAME",
+        "author": "Ethan Dunning",
+        "comment": "An offensive bridge terminal for corrupting the Aphelion AI memory core in real time.",
+        "script": "aphelion-mainframe",
+        "theme": "custom",
+        "customTheme": {
+            "baseThemeId": "blue",
+            "bgHex": "#050916",
+            "fgHex": "#8fa5d9",
+            "textHex": "#c8d8ff",
+            "alertHex": "#d35b69",
+            "emphasisHex": "#e79a72",
+            "noticeHex": "#7eaef5",
+            "hyperlinkHex": "#9bc6ff",
+            "systemHex": "#8fa5d9"
+        },
+        "defaultTextSpeed": 14
+    },
+    "screens": [
+        {
+            "id": "boot",
+            "type": "screen",
+            "content": [
+                "APHELION MAINFRAME BREACH CONSOLE",
+                "=================================\n",
+                {
+                    "type": "bitmap",
+                    "src": "img/Aphelion.png",
+                    "className": "lighten",
+                    "scale": 0.58
+                },
+                "",
+                {
+                    "type": "text",
+                    "className": "system",
+                    "text": "[SYSTEM] OFFENSIVE SANDBOX READY"
+                },
+                {
+                    "type": "text",
+                    "className": "alert",
+                    "text": "[ALERT] AI COUNTERMEASURES ACTIVE"
+                },
+                "",
+                "The target AI has split part of its cognition into descending hex shards.\nStrip the trailing digits away and corrupt the core a byte at a time.\n",
+                {
+                    "type": "link",
+                    "text": "> JACK IN TO MEMORY CORE",
+                    "target": "briefing"
+                }
+            ]
+        },
+        {
+            "id": "briefing",
+            "type": "screen",
+            "content": [
+                "BREACH DIRECTIVE",
+                "================\n",
+                "PILOT FRAME: ALL-DIRECTION VECTOR THRUST\nWEAPON: UPWARD HEX SHREDDER\nTARGET: 8 ACTIVE CODE SHARDS\nFAILSAFE: SHARDS THAT REACH LOWER BOUND RESEED AT TOP\n",
+                "",
+                {
+                    "type": "text",
+                    "className": "notice",
+                    "text": "Each hit deletes the final two characters from a hostile string and corrupts three bytes of the AI memory core."
+                },
+                {
+                    "type": "text",
+                    "className": "alert",
+                    "text": "Corrupt all 1024 bytes to collapse the boss process."
+                },
+                "",
+                {
+                    "type": "link",
+                    "text": "> ENTER APHELION_MAINFRAME",
+                    "target": "arena"
+                },
+                {
+                    "type": "link",
+                    "text": "< BACK",
+                    "target": "boot"
+                }
+            ]
+        },
+        {
+            "id": "arena",
+            "type": "static",
+            "content": [
+                "APHELION MAINFRAME :: LIVE COMBAT INSTANCE",
+                "==========================================",
+                {
+                    "type": "mainframeGame",
+                    "className": "system"
+                },
+                "\n==========================",
+                {
+                    "type": "link",
+                    "text": "< BACK TO BREACH DIRECTIVE",
+                    "target": "briefing"
+                }
+            ]
+        }
+    ],
+    "dialogs": []
+}

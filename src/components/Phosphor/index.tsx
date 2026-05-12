@@ -16,6 +16,7 @@ import LoginPrompt from "../LoginPrompt";
 import Toggle from "../Toggle";
 import List from "../List";
 import ReportComposer from "../ReportComposer";
+import MainframeGame from "../MainframeGame";
 
 import Modal from "../Modal";
 import Scanlines from "../Scanlines";
@@ -86,6 +87,7 @@ enum ScreenDataType {
     List,
     ReportComposer,
     ReportList,
+    MainframeGame,
     Href,
 }
 
@@ -1268,6 +1270,16 @@ class Phosphor extends Component<PhosphorProps, AppState> {
                     onLoad,
                 };
 
+            case "mainframegame":
+                return {
+                    id,
+                    type: ScreenDataType.MainframeGame,
+                    scriptId: element.scriptId,
+                    className: element.className,
+                    state,
+                    onLoad,
+                };
+
             default:
                 return;
         }
@@ -1586,6 +1598,15 @@ class Phosphor extends Component<PhosphorProps, AppState> {
                     template={element.template}
                     onSave={handleSave}
                     onCancel={handleCancel}
+                />
+            );
+        }
+
+        if (element.type === ScreenDataType.MainframeGame) {
+            return (
+                <MainframeGame
+                    key={key}
+                    className={className}
                 />
             );
         }
