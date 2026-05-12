@@ -1,6 +1,7 @@
 /// <reference lib="webworker" />
 
 import type {
+    BossAttackMode,
     BulletState,
     CoreByteUpdate,
     InputDirection,
@@ -16,6 +17,7 @@ import type {
     WorkerFrameMessage,
 } from "./shared";
 import {
+    BOSS_ATTACK_MODE_DURATION_MS,
     BOSS_FIRE_COOLDOWN_MS,
     BOSS_HEALTH,
     BOSS_HEIGHT,
@@ -23,9 +25,11 @@ import {
     BOSS_PLAYER_COLLISION_INSET_Y,
     BOSS_PLAYER_COLLISION_RADIUS_X,
     BOSS_PLAYER_COLLISION_RADIUS_Y,
+    BOSS_SUMMON_COOLDOWN_MS,
     BOSS_WIDTH,
     BULLET_SPEED,
     CORE_BYTE_COUNT,
+    CORE_STAGE_COUNT,
     CORE_PHASE_ONE_END,
     CORE_PHASE_TWO_END,
     CORE_SPEEDUP_THRESHOLD,
@@ -105,6 +109,7 @@ let accumulator = 0;
 let lastUiSyncAt = 0;
 let shotCooldownRemainingMs = 0;
 let bulletId = 0;
+let standardEnemyId = STANDARD_ENEMY_COUNT;
 let specialEnemyId = STANDARD_ENEMY_COUNT;
 let enemyShotId = 0;
 let powerUpId = 0;
@@ -123,6 +128,14 @@ type WorkerScopeWithAnimationFrame = DedicatedWorkerGlobalScope & {
 };
 
 const workerScope = self as unknown as WorkerScopeWithAnimationFrame;
+const MATRIX_TRAIL_CHARS = "01<>[]{}()#$%&*+-/\\|:=!?";
+const CORE_STAGE_THREE_START = 128;
+
+const BOSS_ATTACK_LABELS: Record<BossAttackMode, string> = {
+    volley: "VOLLEY",
+    rain: "CODE RAIN",
+    sweep: "LATTICE SWEEP",
+};
 
 const clamp = (value: number, min: number, max: number): number => {
     return Math.min(max, Math.max(min, value));
@@ -160,6 +173,14 @@ const randomHexByte = (): string => {
     return `${HEX_DIGITS[randomInt(0, 15)]}${HEX_DIGITS[randomInt(0, 15)]}`;
 };
 
+const randomMatrixTrailChar = (): string => {
+    return MATRIX_TRAIL_CHARS[randomInt(0, MATRIX_TRAIL_CHARS.length - 1)];
+};
+
+const randomMatrixTrail = (length: number): string => {
+    return Array.from({ length }, (_, index) => (index === 0 ? "@" : randomMatrixTrailChar())).join("");
+};
+
 const randomCorruptionByte = (): string => {
     const left = CORRUPTION_SYMBOLS[randomInt(0, CORRUPTION_SYMBOLS.length - 1)];
     const right = CORRUPTION_SYMBOLS[randomInt(0, CORRUPTION_SYMBOLS.length - 1)];
@@ -171,13 +192,66 @@ const buildUncorruptedByteIndices = (): number[] => {
 };
 
 const getAllowedSpecialEnemyCount = (corruptedBytes: number): number => {
-    if (corruptedBytes < CORE_PHASE_ONE_END) {
+    const coreStage = getCoreStage(corruptedBytes);
+    if (coreStage === 1) {
         return 0;
     }
-    if (corruptedBytes < CORE_PHASE_TWO_END) {
+    if (coreStage === 2) {
+        return 2;
+    }
+    if (coreStage === 3) {
         return 4;
     }
-    return MAX_SPECIAL_ENEMY_COUNT;
+    return Math.min(MAX_SPECIAL_ENEMY_COUNT, 6);
+};
+
+const getCoreStage = (corruptedBytes: number): number => {
+    if (corruptedBytes < Math.floor(CORE_PHASE_ONE_END * 0.5)) {
+        return 1;
+    }
+    if (corruptedBytes < CORE_PHASE_TWO_END) {
+        return 2;
+    }
+    if (corruptedBytes < CORE_STAGE_THREE_START) {
+        return 3;
+    }
+    return CORE_STAGE_COUNT;
+};
+
+const getBossAttackLabel = (attackMode: BossAttackMode | null): string => {
+    return attackMode ? BOSS_ATTACK_LABELS[attackMode] : "";
+};
+
+const getTargetStandardEnemyCount = (corruptedBytes: number): number => {
+    const coreStage = getCoreStage(corruptedBytes);
+    if (coreStage === 1) {
+        return 5;
+    }
+    if (coreStage === 2) {
+        return 6;
+    }
+    if (coreStage === 3) {
+        return 7;
+    }
+    return STANDARD_ENEMY_COUNT;
+};
+
+const getHostileSpeedMultiplier = (): number => {
+    if (runtime.phase !== "core") {
+        return 1;
+    }
+
+    const coreStage = getCoreStage(runtime.corruptedBytes);
+    const baseMultiplier = coreStage === 1
+        ? 0.74
+        : coreStage === 2
+            ? 0.86
+            : coreStage === 3
+                ? 0.98
+                : 1.08;
+    return runtime.corruptedBytes >= CORE_SPEEDUP_THRESHOLD
+        ? baseMultiplier * HOSTILE_OVERDRIVE_MULTIPLIER
+        : baseMultiplier;
 };
 
 const chooseEnemyKind = (corruptedBytes: number, lane: EnemyLane): EnemyKind => {
@@ -186,19 +260,45 @@ const chooseEnemyKind = (corruptedBytes: number, lane: EnemyLane): EnemyKind => 
     }
 
     const roll = Math.random();
-    if (corruptedBytes < CORE_PHASE_TWO_END) {
-        return roll < 0.58 ? "fast" : "block";
+    const coreStage = getCoreStage(corruptedBytes);
+    if (coreStage <= 2) {
+        if (roll < 0.45) {
+            return "fast";
+        }
+        if (roll < 0.8) {
+            return "block";
+        }
+        return "comet";
     }
-    if (roll < 0.36) {
+    if (coreStage === 3) {
+        if (roll < 0.28) {
+            return "fast";
+        }
+        if (roll < 0.54) {
+            return "block";
+        }
+        if (roll < 0.82) {
+            return "comet";
+        }
+        return "gunner";
+    }
+    if (roll < 0.22) {
         return "fast";
     }
-    if (roll < 0.72) {
+    if (roll < 0.42) {
         return "block";
+    }
+    if (roll < 0.76) {
+        return "comet";
     }
     return "gunner";
 };
 
 const generateEnemyBody = (kind: EnemyKind): string => {
+    if (kind === "comet") {
+        return randomMatrixTrail(randomInt(7, 11));
+    }
+
     const byteCount = kind === "block"
         ? randomInt(8, 12)
         : kind === "gunner"
@@ -210,10 +310,16 @@ const generateEnemyBody = (kind: EnemyKind): string => {
 };
 
 const getEnemyLabel = (enemy: EnemyState): string => {
+    if (enemy.kind === "comet") {
+        return enemy.body;
+    }
     return `0x${enemy.body}`;
 };
 
 const getEnemyLinesFor = (kind: EnemyKind, label: string): string[] => {
+    if (kind === "comet") {
+        return label.split("");
+    }
     if (kind !== "block") {
         return [label];
     }
@@ -226,6 +332,13 @@ const getEnemyLinesFor = (kind: EnemyKind, label: string): string[] => {
 };
 
 const getEnemyDimensions = (enemy: EnemyState): Pick<EnemyState, "width" | "height"> => {
+    if (enemy.kind === "comet") {
+        return {
+            width: 2.35,
+            height: Math.max(8.8, enemy.lines.length * 1.95),
+        };
+    }
+
     const longestLineLength = enemy.lines.reduce((longest, line) => Math.max(longest, line.length), 0);
     return {
         width: Math.max(3.8, (longestLineLength * DEFAULT_ENEMY_CHAR_WORLD_WIDTH) - 0.15),
@@ -273,11 +386,15 @@ const buildEnemy = (
             ? { vx: randomFloat(-2.8, 2.8), vy: randomFloat(5.7, 8.8) }
             : kind === "gunner"
                 ? { vx: randomFloat(-4.4, 4.4), vy: randomFloat(8.8, 12.8) }
-                : { vx: randomFloat(-5.5, 5.5), vy: randomFloat(9, 15.5) };
+                : kind === "comet"
+                    ? { vx: 0, vy: randomFloat(18.5, 24.5) }
+                    : { vx: randomFloat(-5.5, 5.5), vy: randomFloat(9, 15.5) };
     return {
         ...prototypeEnemy,
-        x: randomFloat(3, Math.max(3, spawnWidth - 3)),
-        y: spawnFromTop ? randomFloat(-12, 4) : randomFloat(10, 64),
+        x: kind === "comet"
+            ? randomFloat(6, Math.max(6, spawnWidth - 4))
+            : randomFloat(3, Math.max(3, spawnWidth - 3)),
+        y: spawnFromTop ? randomFloat(kind === "comet" ? -20 : -12, 4) : randomFloat(10, 64),
         vx: speedProfile.vx,
         vy: speedProfile.vy,
         fireCooldownMs: kind === "gunner" ? randomInt(700, 1500) : 0,
@@ -285,6 +402,7 @@ const buildEnemy = (
 };
 
 function createInitialRuntime(): RuntimeSnapshot {
+    const startingStandardCount = getTargetStandardEnemyCount(0);
     return {
         player: {
             x: 48.5,
@@ -298,7 +416,7 @@ function createInitialRuntime(): RuntimeSnapshot {
         bullets: [],
         enemyShots: [],
         powerUps: [],
-        enemies: Array.from({ length: STANDARD_ENEMY_COUNT }, (_, index) => buildEnemy(index, false, "standard", "standard", 0)),
+        enemies: Array.from({ length: startingStandardCount }, (_, index) => buildEnemy(index, false, "standard", "standard", 0)),
         boss: null,
         effects: {
             dualMs: 0,
@@ -314,7 +432,7 @@ function createInitialRuntime(): RuntimeSnapshot {
         hits: 0,
         purged: 0,
         lives: PLAYER_START_LIVES,
-        hostileCount: STANDARD_ENEMY_COUNT,
+        hostileCount: startingStandardCount,
         status: "running",
     };
 }
@@ -351,6 +469,21 @@ const spawnEnemy = (
     corruptedBytes = runtime.corruptedBytes
 ): EnemyState => {
     return buildEnemy(id, spawnFromTop, lane, forcedKind, corruptedBytes);
+};
+
+const animateCometTrail = (enemy: EnemyState): void => {
+    if (enemy.kind !== "comet") {
+        return;
+    }
+
+    const nextLength = enemy.body.length;
+    if (!nextLength) {
+        enemy.body = randomMatrixTrail(8);
+    } else {
+        enemy.body = `@${Array.from({ length: Math.max(0, nextLength - 1) }, () => randomMatrixTrailChar()).join("")}`;
+    }
+    enemy.label = enemy.body;
+    enemy.lines = enemy.body.split("");
 };
 
 const getEffectDurationFor = (kind: PowerUpKind): number => {
@@ -455,9 +588,16 @@ const reconcileSpecialEnemies = (): void => {
     }
 
     if (runtime.phase !== "core") {
-        runtime.enemies = standardEnemies;
-        runtime.hostileCount = standardEnemies.length;
+        runtime.hostileCount = (runtime.boss ? 1 : 0) + runtime.enemies.length;
         return;
+    }
+
+    const targetStandardCount = getTargetStandardEnemyCount(runtime.corruptedBytes);
+    while (standardEnemies.length < targetStandardCount) {
+        standardEnemies.push(spawnEnemy(standardEnemyId++, true, "standard", "standard", runtime.corruptedBytes));
+    }
+    if (standardEnemies.length > targetStandardCount) {
+        standardEnemies.length = targetStandardCount;
     }
 
     const allowedSpecialCount = getAllowedSpecialEnemyCount(runtime.corruptedBytes);
@@ -521,6 +661,9 @@ const startBossBattle = (): void => {
         health: BOSS_HEALTH,
         maxHealth: BOSS_HEALTH,
         fireCooldownMs: BOSS_FIRE_COOLDOWN_MS,
+        attackMode: "volley",
+        attackModeMs: BOSS_ATTACK_MODE_DURATION_MS,
+        summonCooldownMs: BOSS_SUMMON_COOLDOWN_MS * 0.7,
     };
 };
 
@@ -535,6 +678,90 @@ const damageBoss = (amount: number): boolean => {
         runtime.status = "victory";
     }
     return true;
+};
+
+const getNextBossAttackMode = (current: BossAttackMode): BossAttackMode => {
+    if (current === "volley") {
+        return "rain";
+    }
+    if (current === "rain") {
+        return "sweep";
+    }
+    return "volley";
+};
+
+const spawnBossEscort = (): void => {
+    const boss = runtime.boss;
+    if (!boss) {
+        return;
+    }
+
+    const escort = spawnEnemy(specialEnemyId++, true, "special", Math.random() < 0.72 ? "comet" : "gunner", runtime.corruptedBytes);
+    escort.x = clamp(boss.x + randomFloat(-3, BOSS_WIDTH - 1), 2, PLAYFIELD_WIDTH - escort.width - 2);
+    escort.y = boss.y + BOSS_HEIGHT + randomFloat(-1.5, 1.5);
+    if (escort.kind === "comet") {
+        escort.vx = 0;
+        escort.vy = randomFloat(20, 26);
+    } else if (escort.kind === "gunner") {
+        escort.vx = randomFloat(-3.4, 3.4);
+        escort.vy = randomFloat(8.5, 11.5);
+        escort.fireCooldownMs = randomInt(480, 920);
+    }
+    runtime.enemies.push(escort);
+    runtime.hostileCount = (runtime.boss ? 1 : 0) + runtime.enemies.length;
+};
+
+const spawnDirectedEnemyShot = (x: number, y: number, vx: number, vy: number): void => {
+    runtime.enemyShots.push({
+        id: enemyShotId++,
+        x,
+        y,
+        vx,
+        vy,
+    });
+};
+
+const fireBossAttack = (slowMultiplier: number): void => {
+    const boss = runtime.boss;
+    if (!boss) {
+        return;
+    }
+
+    const bossBottomY = boss.y + BOSS_HEIGHT;
+    if (boss.attackMode === "volley") {
+        [-10, -5, 0, 5, 10].forEach((offset, index) => {
+            const x = boss.x + (BOSS_WIDTH * (0.12 + (index * 0.19)));
+            spawnEnemyProjectile(x, bossBottomY, runtime.player.x + offset, slowMultiplier * 1.08);
+        });
+        boss.fireCooldownMs = 760;
+        return;
+    }
+
+    if (boss.attackMode === "rain") {
+        for (let index = 0; index < 8; index += 1) {
+            const x = index === 0
+                ? boss.x + (BOSS_WIDTH * 0.16)
+                : index === 7
+                    ? boss.x + (BOSS_WIDTH * 0.84)
+                    : randomFloat(5, PLAYFIELD_WIDTH - 5);
+            spawnDirectedEnemyShot(x, bossBottomY + randomFloat(-1, 1.5), randomFloat(-0.45, 0.45), (ENEMY_PROJECTILE_SPEED * 1.12) * slowMultiplier);
+        }
+        boss.fireCooldownMs = 430;
+        return;
+    }
+
+    const sweepDirection = boss.vx >= 0 ? 1 : -1;
+    for (let index = 0; index < 7; index += 1) {
+        const spread = (index - 3) * 2.35;
+        const x = boss.x + (BOSS_WIDTH * 0.5) + (spread * 0.45);
+        spawnDirectedEnemyShot(
+            x,
+            bossBottomY,
+            (spread + (sweepDirection * 3.8)) * slowMultiplier,
+            (ENEMY_PROJECTILE_SPEED * 0.78) * slowMultiplier
+        );
+    }
+    boss.fireCooldownMs = 620;
 };
 
 const appendBullet = (): boolean => {
@@ -602,6 +829,7 @@ const toRenderSnapshot = (): RenderSnapshot => ({
 });
 
 const toUiSnapshot = (forceFullCoreBytes = false): UiSnapshot => {
+    const coreStage = getCoreStage(runtime.corruptedBytes);
     const snapshot: UiSnapshot = {
         corruptedBytes: runtime.corruptedBytes,
         shots: runtime.shots,
@@ -613,8 +841,11 @@ const toUiSnapshot = (forceFullCoreBytes = false): UiSnapshot => {
         hostileCount: runtime.hostileCount,
         effects: { ...runtime.effects },
         phase: runtime.phase,
+        coreStage,
+        coreStageCount: CORE_STAGE_COUNT,
         bossHealth: runtime.boss?.health || 0,
         bossMaxHealth: runtime.boss?.maxHealth || 0,
+        bossAttackMode: runtime.boss?.attackMode || null,
         wingmanHealths: runtime.wingmen.map((wingman) => (wingman.active ? wingman.hp : 0)),
         status: runtime.status,
     };
@@ -718,6 +949,8 @@ const drawScene = (): void => {
     runtime.enemies.forEach((enemy) => {
         renderContext.fillStyle = enemy.kind === "fast"
             ? "#7edcff"
+            : enemy.kind === "comet"
+                ? "#7dff95"
             : enemy.kind === "block"
                 ? "#ffbe7d"
                 : enemy.kind === "gunner"
@@ -743,7 +976,11 @@ const drawScene = (): void => {
         renderContext.fillStyle = "#ffd6de";
         renderContext.textAlign = "center";
         renderContext.fillText("APHELION PRIME", pixelX + (pixelWidth * 0.5), pixelY + (pixelHeight * 0.33));
-        renderContext.fillText(`BOSS HP ${String(runtime.boss.health).padStart(2, "0")}`, pixelX + (pixelWidth * 0.5), pixelY + (pixelHeight * 0.68));
+        renderContext.fillText(
+            `${getBossAttackLabel(runtime.boss.attackMode)} // HP ${String(runtime.boss.health).padStart(3, "0")}`,
+            pixelX + (pixelWidth * 0.5),
+            pixelY + (pixelHeight * 0.68)
+        );
     }
 };
 
@@ -755,9 +992,7 @@ const stepSimulation = (): boolean => {
     let uiDirty = false;
     const dtSeconds = FIXED_DT_MS / 1000;
     const slowMultiplier = runtime.effects.slowMs > 0 ? SLOW_FACTOR : 1;
-    const hostileSpeedMultiplier = runtime.phase === "core" && runtime.corruptedBytes >= CORE_SPEEDUP_THRESHOLD
-        ? HOSTILE_OVERDRIVE_MULTIPLIER
-        : 1;
+    const hostileSpeedMultiplier = getHostileSpeedMultiplier();
 
     shotCooldownRemainingMs = Math.max(0, shotCooldownRemainingMs - FIXED_DT_MS);
     runtime.player.invulnerableMs = Math.max(0, runtime.player.invulnerableMs - FIXED_DT_MS);
@@ -793,6 +1028,34 @@ const stepSimulation = (): boolean => {
             return;
         }
 
+        const trimSize = currentEnemy.kind === "comet" ? 1 : 2;
+        const removeEnemy = (): void => {
+            const enemyCenterX = currentEnemy.x + (currentEnemy.width * 0.5);
+            const enemyCenterY = currentEnemy.y + (currentEnemy.height * 0.5);
+            runtime.purged += 1;
+            spawnPowerUpDrop(enemyCenterX, enemyCenterY);
+            runtime.enemies.splice(enemyIndex, 1);
+            runtime.hostileCount = (runtime.boss ? 1 : 0) + runtime.enemies.length;
+        };
+
+        if (runtime.phase === "boss") {
+            runtime.hits += 1;
+            uiDirty = true;
+            if (instantKill || currentEnemy.body.length <= trimSize) {
+                removeEnemy();
+                return;
+            }
+
+            currentEnemy.body = currentEnemy.body.slice(0, -trimSize);
+            currentEnemy.vy = Math.min(currentEnemy.vy + 0.45, currentEnemy.kind === "comet" ? 30 : currentEnemy.kind === "fast" ? 26 : 18);
+            if (currentEnemy.kind === "comet") {
+                animateCometTrail(currentEnemy);
+            } else {
+                hydrateEnemyGeometry(currentEnemy);
+            }
+            return;
+        }
+
         runtime.hits += 1;
         const bossTriggered = corruptCore();
         uiDirty = true;
@@ -800,7 +1063,7 @@ const stepSimulation = (): boolean => {
             return;
         }
 
-        if (instantKill || currentEnemy.body.length <= 2) {
+        if (instantKill || currentEnemy.body.length <= trimSize) {
             const enemyCenterX = currentEnemy.x + (currentEnemy.width * 0.5);
             const enemyCenterY = currentEnemy.y + (currentEnemy.height * 0.5);
             runtime.purged += 1;
@@ -815,9 +1078,13 @@ const stepSimulation = (): boolean => {
             return;
         }
 
-        currentEnemy.body = currentEnemy.body.slice(0, -2);
-        currentEnemy.vy = Math.min(currentEnemy.vy + 0.35, currentEnemy.kind === "fast" ? 26 : 18);
-        hydrateEnemyGeometry(currentEnemy);
+        currentEnemy.body = currentEnemy.body.slice(0, -trimSize);
+        currentEnemy.vy = Math.min(currentEnemy.vy + 0.35, currentEnemy.kind === "comet" ? 28 : currentEnemy.kind === "fast" ? 26 : 18);
+        if (currentEnemy.kind === "comet") {
+            animateCometTrail(currentEnemy);
+        } else {
+            hydrateEnemyGeometry(currentEnemy);
+        }
     };
 
     const fireLaserVolley = (): void => {
@@ -828,6 +1095,7 @@ const stepSimulation = (): boolean => {
 
         laserCooldownMs = LASER_TICK_MS;
         const damagedEnemyIndices = new Set<number>();
+        let bossDamaged = false;
         for (let emitterIndex = 0; emitterIndex < shipAnchors.length; emitterIndex += 1) {
             const emitterX = shipAnchors[emitterIndex].x;
             if (runtime.phase === "boss" && runtime.boss) {
@@ -835,7 +1103,7 @@ const stepSimulation = (): boolean => {
                 if (bossHit) {
                     damageBoss(2);
                     uiDirty = true;
-                    continue;
+                    bossDamaged = true;
                 }
             }
 
@@ -850,10 +1118,10 @@ const stepSimulation = (): boolean => {
             }
         }
 
-        damagedEnemyIndices.forEach((enemyIndex) => {
+        Array.from(damagedEnemyIndices).sort((left, right) => right - left).forEach((enemyIndex) => {
             damageEnemyAt(enemyIndex);
         });
-        if (damagedEnemyIndices.size) {
+        if (damagedEnemyIndices.size || bossDamaged) {
             uiDirty = true;
         }
     };
@@ -955,12 +1223,19 @@ const stepSimulation = (): boolean => {
         runtime.bullets = runtime.bullets.filter((bullet) => !interceptedBulletIds.has(bullet.id));
     }
 
-    if (runtime.phase === "core") {
-        for (let index = 0; index < runtime.enemies.length; index += 1) {
-            const enemy = runtime.enemies[index];
-            let nextEnemyX = enemy.x + (enemy.vx * dtSeconds * slowMultiplier * hostileSpeedMultiplier);
-            let nextEnemyVx = enemy.vx;
+    for (let index = 0; index < runtime.enemies.length;) {
+        const enemy = runtime.enemies[index];
+        if (enemy.kind === "comet") {
+            animateCometTrail(enemy);
+            enemy.vx = 0;
+        }
 
+        let nextEnemyX = enemy.kind === "comet"
+            ? enemy.x
+            : enemy.x + (enemy.vx * dtSeconds * slowMultiplier * hostileSpeedMultiplier);
+        let nextEnemyVx = enemy.vx;
+
+        if (enemy.kind !== "comet") {
             if (nextEnemyX <= 1) {
                 nextEnemyX = 1;
                 nextEnemyVx = Math.abs(nextEnemyVx);
@@ -969,55 +1244,73 @@ const stepSimulation = (): boolean => {
                 nextEnemyX = PLAYFIELD_WIDTH - enemy.width - 1;
                 nextEnemyVx = -Math.abs(nextEnemyVx);
             }
+        }
 
-            enemy.x = nextEnemyX;
-            enemy.y += enemy.vy * dtSeconds * slowMultiplier * hostileSpeedMultiplier;
-            enemy.vx = nextEnemyVx;
+        enemy.x = nextEnemyX;
+        enemy.y += enemy.vy * dtSeconds * slowMultiplier * hostileSpeedMultiplier;
+        enemy.vx = nextEnemyVx;
 
-            if (enemy.kind === "gunner") {
-                enemy.fireCooldownMs = Math.max(0, enemy.fireCooldownMs - (FIXED_DT_MS * hostileSpeedMultiplier));
-                if (enemy.fireCooldownMs <= 0 && enemy.y > 10) {
-                    spawnEnemyProjectile(enemy.x + (enemy.width * 0.5), enemy.y + enemy.height, runtime.player.x, slowMultiplier * hostileSpeedMultiplier);
-                    enemy.fireCooldownMs = randomInt(720, 1450);
-                    uiDirty = true;
-                }
-            }
-
-            if (enemy.y >= ENEMY_Y_LIMIT) {
-                runtime.enemies[index] = spawnEnemy(
-                    enemy.id,
-                    true,
-                    enemy.lane,
-                    enemy.lane === "standard" ? "standard" : undefined,
-                    runtime.corruptedBytes
-                );
+        if (enemy.kind === "gunner") {
+            enemy.fireCooldownMs = Math.max(0, enemy.fireCooldownMs - (FIXED_DT_MS * hostileSpeedMultiplier));
+            if (enemy.fireCooldownMs <= 0 && enemy.y > 10) {
+                spawnEnemyProjectile(enemy.x + (enemy.width * 0.5), enemy.y + enemy.height, runtime.player.x, slowMultiplier * Math.max(1, hostileSpeedMultiplier));
+                enemy.fireCooldownMs = runtime.phase === "boss" ? randomInt(520, 940) : randomInt(720, 1450);
+                uiDirty = true;
             }
         }
 
-        for (let index = 0; index < runtime.enemies.length; index += 1) {
-            const enemy = runtime.enemies[index];
-            const enemyCenterX = enemy.x + (enemy.width * 0.5);
-            const enemyCenterY = enemy.y + (enemy.height * 0.5);
-            const collisionEnemyHalfWidth = Math.max(0.55, (enemy.width * 0.5) - ENEMY_PLAYER_COLLISION_INSET_X);
-            const collisionEnemyHalfHeight = Math.max(0.45, (enemy.height * 0.5) - ENEMY_PLAYER_COLLISION_INSET_Y);
-            const collidingShip = shipAnchors.find((anchor) => {
-                const radiusX = anchor.kind === "wingman" ? PLAYER_COLLISION_RADIUS_X + 0.12 : PLAYER_COLLISION_RADIUS_X;
-                const radiusY = anchor.kind === "wingman" ? PLAYER_COLLISION_RADIUS_Y + 0.08 : PLAYER_COLLISION_RADIUS_Y;
-                return Math.abs(enemyCenterX - anchor.x) <= collisionEnemyHalfWidth + radiusX
-                    && Math.abs(enemyCenterY - anchor.y) <= collisionEnemyHalfHeight + radiusY;
-            });
+        if (runtime.phase === "core" && enemy.y >= ENEMY_Y_LIMIT) {
+            runtime.enemies[index] = spawnEnemy(
+                enemy.id,
+                true,
+                enemy.lane,
+                enemy.lane === "standard" ? "standard" : undefined,
+                runtime.corruptedBytes
+            );
+            index += 1;
+            continue;
+        }
 
-            if (!collidingShip) {
-                continue;
-            }
+        if (runtime.phase === "boss" && enemy.y >= PLAYFIELD_HEIGHT + 8) {
+            runtime.enemies.splice(index, 1);
+            runtime.hostileCount = (runtime.boss ? 1 : 0) + runtime.enemies.length;
+            continue;
+        }
 
-            const damaged = damageShipAt(collidingShip.key);
-            uiDirty = damaged || uiDirty;
-            if (damaged) {
-                refreshShipAnchors();
-            }
+        const enemyCenterX = enemy.x + (enemy.width * 0.5);
+        const enemyCenterY = enemy.y + (enemy.height * 0.5);
+        const collisionEnemyHalfWidth = Math.max(0.55, (enemy.width * 0.5) - ENEMY_PLAYER_COLLISION_INSET_X);
+        const collisionEnemyHalfHeight = Math.max(0.45, (enemy.height * 0.5) - ENEMY_PLAYER_COLLISION_INSET_Y);
+        const collidingShip = shipAnchors.find((anchor) => {
+            const radiusX = anchor.kind === "wingman" ? PLAYER_COLLISION_RADIUS_X + 0.12 : PLAYER_COLLISION_RADIUS_X;
+            const radiusY = anchor.kind === "wingman" ? PLAYER_COLLISION_RADIUS_Y + 0.08 : PLAYER_COLLISION_RADIUS_Y;
+            return Math.abs(enemyCenterX - anchor.x) <= collisionEnemyHalfWidth + radiusX
+                && Math.abs(enemyCenterY - anchor.y) <= collisionEnemyHalfHeight + radiusY;
+        });
+
+        if (!collidingShip) {
+            index += 1;
+            continue;
+        }
+
+        const damaged = damageShipAt(collidingShip.key);
+        uiDirty = damaged || uiDirty;
+        if (damaged) {
+            refreshShipAnchors();
+        }
+
+        if (runtime.phase === "core") {
             runtime.enemies[index] = spawnEnemy(enemy.id, true, enemy.lane, enemy.lane === "standard" ? "standard" : undefined, runtime.corruptedBytes);
+            index += 1;
+            continue;
         }
+
+        runtime.enemies.splice(index, 1);
+        runtime.hostileCount = (runtime.boss ? 1 : 0) + runtime.enemies.length;
+    }
+
+    if (runtime.phase === "core") {
+        runtime.hostileCount = runtime.enemies.length;
     } else if (runtime.boss) {
         let nextBossX = runtime.boss.x + (runtime.boss.vx * dtSeconds * slowMultiplier);
         if (nextBossX <= 2) {
@@ -1029,12 +1322,22 @@ const stepSimulation = (): boolean => {
             runtime.boss.vx = -Math.abs(runtime.boss.vx);
         }
         runtime.boss.x = nextBossX;
+        runtime.boss.attackModeMs = Math.max(0, runtime.boss.attackModeMs - FIXED_DT_MS);
+        runtime.boss.summonCooldownMs = Math.max(0, runtime.boss.summonCooldownMs - FIXED_DT_MS);
         runtime.boss.fireCooldownMs = Math.max(0, runtime.boss.fireCooldownMs - FIXED_DT_MS);
+        if (runtime.boss.attackModeMs <= 0) {
+            runtime.boss.attackMode = getNextBossAttackMode(runtime.boss.attackMode);
+            runtime.boss.attackModeMs = BOSS_ATTACK_MODE_DURATION_MS;
+            runtime.boss.fireCooldownMs = 90;
+            uiDirty = true;
+        }
+        if (runtime.boss.summonCooldownMs <= 0) {
+            spawnBossEscort();
+            runtime.boss.summonCooldownMs = BOSS_SUMMON_COOLDOWN_MS;
+            uiDirty = true;
+        }
         if (runtime.boss.fireCooldownMs <= 0) {
-            [0.12, 0.34, 0.56, 0.78, 0.9].forEach((ratio) => {
-                spawnEnemyProjectile(runtime.boss!.x + (BOSS_WIDTH * ratio), runtime.boss!.y + BOSS_HEIGHT, runtime.player.x, slowMultiplier * 1.1);
-            });
-            runtime.boss.fireCooldownMs = BOSS_FIRE_COOLDOWN_MS;
+            fireBossAttack(slowMultiplier);
             uiDirty = true;
         }
 
@@ -1065,8 +1368,10 @@ const stepSimulation = (): boolean => {
             const previousBulletY = bullet.y + bulletTravelDistance;
             const bulletRadiusX = bullet.kind === "explosive" ? 1.05 : 0.45;
             const bulletRadiusY = bullet.kind === "explosive" ? 1.4 : 0.65;
+            let hitsBoss = false;
+            let closestImpactY = Number.NEGATIVE_INFINITY;
             if (runtime.phase === "boss" && runtime.boss) {
-                const hitsBoss = verticalSegmentHitsRect(
+                hitsBoss = verticalSegmentHitsRect(
                     bullet.x,
                     previousBulletY,
                     bullet.y,
@@ -1078,13 +1383,11 @@ const stepSimulation = (): boolean => {
                     bulletRadiusY
                 );
                 if (hitsBoss) {
-                    uiDirty = damageBoss(bullet.kind === "explosive" ? 5 : 1) || uiDirty;
-                    continue;
+                    closestImpactY = runtime.boss.y + BOSS_HEIGHT;
                 }
             }
 
             let enemyIndex = -1;
-            let closestImpactY = Number.NEGATIVE_INFINITY;
             for (let index = 0; index < runtime.enemies.length; index += 1) {
                 const enemy = runtime.enemies[index];
                 if (verticalSegmentHitsRect(
@@ -1108,6 +1411,10 @@ const stepSimulation = (): boolean => {
             }
 
             if (enemyIndex === -1) {
+                if (hitsBoss) {
+                    uiDirty = damageBoss(bullet.kind === "explosive" ? 5 : 1) || uiDirty;
+                    continue;
+                }
                 remainingBullets.push(bullet);
                 continue;
             }
@@ -1204,6 +1511,7 @@ const resetRuntime = (): void => {
     runtime = createInitialRuntime();
     shotCooldownRemainingMs = 0;
     bulletId = 0;
+    standardEnemyId = STANDARD_ENEMY_COUNT;
     specialEnemyId = STANDARD_ENEMY_COUNT;
     enemyShotId = 0;
     powerUpId = 0;

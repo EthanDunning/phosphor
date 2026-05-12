@@ -23,30 +23,32 @@
             "id": "boot",
             "type": "screen",
             "content": [
-                "APHELION MAINFRAME BREACH CONSOLE",
-                "=================================\n",
+                "  INCR-SS-ARK",
+                "===============",
                 {
                     "type": "bitmap",
-                    "src": "img/Aphelion.png",
-                    "className": "lighten",
-                    "scale": 0.58
+                    "src": "img/INCR_Logo.png ",
+                    "className": "lighten"
                 },
                 "",
-                {
-                    "type": "text",
-                    "className": "system",
-                    "text": "[SYSTEM] OFFENSIVE SANDBOX READY"
-                },
+                "International Nexus of Cosmic Research\nGalaxy-Class Generation Vessel\nMission Status: CRITICAL ALERT\n",
+                "",
                 {
                     "type": "text",
                     "className": "alert",
-                    "text": "[ALERT] AI COUNTERMEASURES ACTIVE"
+                    "text": "\\>>> TERMINAL REACTIVATED <<<"
                 },
-                "",
-                "The target AI has split part of its cognition into descending hex shards.\nStrip the trailing digits away and corrupt the core a byte at a time.\n",
+                "VERSION 1.3.6\n",
                 {
+                    "type": "text",
+                    "className": "alert",
+                    "text": "\\>>> SHIP INTEGRITY: COMPROMISED <<<"
+                },
+                "\n",
+                "Accessing main system...\n",
+                {
+                    "text": "> ACCEPT SYSTEM ACCESS & CONTINUE",
                     "type": "link",
-                    "text": "> JACK IN TO MEMORY CORE",
                     "target": "briefing"
                 }
             ]
@@ -55,24 +57,22 @@
             "id": "briefing",
             "type": "screen",
             "content": [
-                "BREACH DIRECTIVE",
-                "================\n",
-                "PILOT FRAME: ALL-DIRECTION VECTOR THRUST\nWEAPON: UPWARD HEX SHREDDER\nTARGET: 8 ACTIVE CODE SHARDS\nFAILSAFE: SHARDS THAT REACH LOWER BOUND RESEED AT TOP\nTHREAT INDEX: FAST SHARDS / BLOCK CLUSTERS / GUNNER SHARDS / FINAL BOSS SHELL\n",
-                "",
+                "INCR-SS-ARK APHELION MAINFRAME",
+                "==============================\n",
                 {
                     "type": "text",
-                    "className": "notice",
-                    "text": "Each hit deletes the final two characters from a hostile string and corrupts three bytes of the AI memory core. Purged shards may drop combat powerups."
+                    "className": "alert",
+                    "text": "[CRITICAL] CORE INTEGRITY COMPROMISED"
                 },
                 {
                     "type": "text",
                     "className": "alert",
-                    "text": "Corrupt all 1024 bytes to expose the final shell, then destroy the APHELION PRIME boss body."
+                    "text": "[WARNING] COOLING SYSTEMS OFFLINE"
                 },
                 "",
                 {
                     "type": "link",
-                    "text": "> ENTER APHELION_MAINFRAME",
+                    "text": "> ENTER MAINFRAME CORE",
                     "target": "arena"
                 },
                 {
@@ -86,7 +86,7 @@
             "id": "arena",
             "type": "static",
             "content": [
-                "APHELION MAINFRAME :: LIVE COMBAT INSTANCE",
+                "APHELION MAINFRAME CORE",
                 "==========================================",
                 {
                     "type": "mainframeGame",

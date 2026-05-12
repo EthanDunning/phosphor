@@ -1,7 +1,8 @@
 export type InputDirection = "up" | "down" | "left" | "right";
-export type EnemyKind = "standard" | "fast" | "block" | "gunner";
+export type EnemyKind = "standard" | "fast" | "block" | "gunner" | "comet";
 export type EnemyLane = "standard" | "special";
 export type PowerUpKind = "dual" | "laser" | "slow" | "explosive";
+export type BossAttackMode = "volley" | "rain" | "sweep";
 
 export interface PlayerState {
     x: number;
@@ -61,6 +62,9 @@ export interface BossState {
     health: number;
     maxHealth: number;
     fireCooldownMs: number;
+    attackMode: BossAttackMode;
+    attackModeMs: number;
+    summonCooldownMs: number;
 }
 
 export interface EffectState {
@@ -109,8 +113,11 @@ export interface UiSnapshot {
     hostileCount: number;
     effects: EffectState;
     phase: "core" | "boss";
+    coreStage: number;
+    coreStageCount: number;
     bossHealth: number;
     bossMaxHealth: number;
+    bossAttackMode: BossAttackMode | null;
     wingmanHealths: number[];
     status: "running" | "victory" | "defeat";
 }
@@ -154,7 +161,8 @@ export const SHOOT_COOLDOWN_MS = 140;
 export const CORE_BYTE_COUNT = 1024;
 export const CORE_BYTES_PER_ROW = 16;
 export const CORE_COLUMN_COUNT = 2;
-export const CORRUPTION_BYTES_PER_HIT = 3;
+export const CORRUPTION_BYTES_PER_HIT = 2;
+export const CORE_STAGE_COUNT = 4;
 export const ENEMY_Y_LIMIT = 94;
 export const FIXED_DT_MS = 1000 / 60;
 export const UI_SYNC_INTERVAL_MS = 90;
@@ -190,8 +198,10 @@ export const CORE_SPEEDUP_THRESHOLD = CORE_BYTE_COUNT / 2;
 export const HOSTILE_OVERDRIVE_MULTIPLIER = 1.22;
 export const BOSS_WIDTH = 33;
 export const BOSS_HEIGHT = 8.4;
-export const BOSS_HEALTH = 40;
+export const BOSS_HEALTH = 400;
 export const BOSS_FIRE_COOLDOWN_MS = 1150;
+export const BOSS_ATTACK_MODE_DURATION_MS = 3200;
+export const BOSS_SUMMON_COOLDOWN_MS = 5200;
 export const DEFAULT_ENEMY_CHAR_WORLD_WIDTH = 0.72;
 export const DEFAULT_BLOCK_LINE_HEIGHT = 2.72;
 export const CORRUPTION_SYMBOLS = [

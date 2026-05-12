@@ -53,6 +53,7 @@ const EXPLOSIVE_BULLET_COLOR = "#ffd27d";
 const ENEMY_SHOT_COLOR = "#ffad77";
 const STANDARD_ENEMY_COLOR = "#ff7d89";
 const FAST_ENEMY_COLOR = "#7edcff";
+const COMET_ENEMY_COLOR = "#7dff95";
 const BLOCK_ENEMY_COLOR = "#ffbe7d";
 const GUNNER_ENEMY_COLOR = "#ff8f9d";
 const BOSS_OUTLINE_COLOR = "#ff8aa0";
@@ -69,6 +70,17 @@ const POWER_UP_COLORS: Record<keyof typeof POWER_UP_LABELS, string> = {
     explosive: "#ffd27d",
 };
 const HEX_DIGITS = "0123456789abcdef";
+const CORE_STAGE_LABELS = [
+    "SCAN DRIFT",
+    "BREACH CURRENT",
+    "FIREWALL FALL",
+    "PURGE VECTOR",
+] as const;
+const BOSS_ATTACK_LABELS = {
+    volley: "VOLLEY",
+    rain: "CODE RAIN",
+    sweep: "LATTICE SWEEP",
+} as const;
 
 const randomHexByte = (): string => {
     const left = HEX_DIGITS[Math.floor(Math.random() * HEX_DIGITS.length)];
@@ -105,6 +117,9 @@ const getWingmanX = (playerX: number, side: "left" | "right"): number => {
 const getEnemyFill = (kind: RenderSnapshot["enemies"][number]["kind"]): string => {
     if (kind === "fast") {
         return FAST_ENEMY_COLOR;
+    }
+    if (kind === "comet") {
+        return COMET_ENEMY_COLOR;
     }
     if (kind === "block") {
         return BLOCK_ENEMY_COLOR;
@@ -400,7 +415,12 @@ const MainframeGame = ({ className = "", onRendered }: MainframeGameProps): Reac
             context.fillStyle = BOSS_TEXT_COLOR;
             context.textAlign = "center";
             context.fillText("APHELION PRIME", pixelX + (pixelWidth * 0.5), pixelY + (pixelHeight * 0.33));
-            context.fillText(`BOSS HP ${String(snapshot.boss.health).padStart(2, "0")}`, pixelX + (pixelWidth * 0.5), pixelY + (pixelHeight * 0.68));
+            const attackLabel = BOSS_ATTACK_LABELS[snapshot.boss.attackMode];
+            context.fillText(
+                `${attackLabel} // HP ${String(snapshot.boss.health).padStart(3, "0")}`,
+                pixelX + (pixelWidth * 0.5),
+                pixelY + (pixelHeight * 0.68)
+            );
         }
     };
 
@@ -424,6 +444,8 @@ const MainframeGame = ({ className = "", onRendered }: MainframeGameProps): Reac
         const wingStatus = snapshot.wingmanHealths.some((health) => health > 0)
             ? `[WINGS ${snapshot.wingmanHealths.map((health, index) => `${index === 0 ? "L" : "R"}:${health}`).join(" ")}]`
             : "[WINGS OFFLINE]";
+        const coreStageLabel = CORE_STAGE_LABELS[Math.max(0, Math.min(CORE_STAGE_LABELS.length - 1, snapshot.coreStage - 1))];
+        const bossAttackLabel = snapshot.bossAttackMode ? BOSS_ATTACK_LABELS[snapshot.bossAttackMode] : null;
         const activeEffects = [
             snapshot.effects.dualMs > 0 ? `DUAL ${Math.ceil(snapshot.effects.dualMs / 1000)}S` : null,
             snapshot.effects.laserMs > 0 ? `LASER ${Math.ceil(snapshot.effects.laserMs / 1000)}S` : null,
@@ -431,17 +453,23 @@ const MainframeGame = ({ className = "", onRendered }: MainframeGameProps): Reac
             snapshot.effects.explosiveMs > 0 ? `BURST ${Math.ceil(snapshot.effects.explosiveMs / 1000)}S` : null,
         ].filter(Boolean).join(" | ");
 
-        phaseLabelRef.current && (phaseLabelRef.current.textContent = `[APHELION_MAINFRAME//${snapshot.phase === "boss" ? "FINAL SHELL" : "FIXED PROCESS"}]`);
+        phaseLabelRef.current && (phaseLabelRef.current.textContent = snapshot.phase === "boss"
+            ? "[APHELION_MAINFRAME//FINAL SHELL]"
+            : `[APHELION_MAINFRAME//STAGE ${snapshot.coreStage}/${snapshot.coreStageCount} ${coreStageLabel}]`);
         integrityLabelRef.current && (integrityLabelRef.current.textContent = snapshot.phase === "boss"
             ? `[BOSS SHELL ${String(bossIntegrityPercent).padStart(3, "0")}%]`
             : `[HOSTILE CORE INTEGRITY ${String(integrityPercent).padStart(3, "0")}%]`);
         livesLabelRef.current && (livesLabelRef.current.textContent = `[LIVES ${String(snapshot.lives).padStart(2, "0")}/03]`);
         bottomStatusRef.current && (bottomStatusRef.current.textContent = activeEffects
             ? `[POWERUPS ${activeEffects}] ${wingStatus}`
-            : "[SALVAGE POWERUPS TO STACK ADVANTAGES]");
+            : snapshot.phase === "boss"
+                ? `[BOSS PATTERN ${bossAttackLabel || "VOLLEY"}] ${wingStatus}`
+                : `[CORE STAGE ${snapshot.coreStage}/${snapshot.coreStageCount} ${coreStageLabel}]`);
         bottomObjectiveRef.current && (bottomObjectiveRef.current.textContent = snapshot.phase === "boss"
-            ? "[DESTROY APHELION PRIME TO WIN]"
-            : "[DEPLETING THE CORE SUMMONS THE BOSS SHELL]");
+            ? `[SURVIVE ${bossAttackLabel || "VOLLEY"} // BURN DOWN ${String(snapshot.bossMaxHealth).padStart(3, "0")} HP]`
+            : snapshot.coreStage < snapshot.coreStageCount
+                ? `[ESCALATE TO STAGE ${snapshot.coreStage + 1} TO UNLOCK NEW HOSTILES]`
+                : "[DEPLETING THE CORE SUMMONS APHELION PRIME]");
 
         if (overlayRef.current) {
             overlayRef.current.hidden = snapshot.status === "running";
