@@ -1397,31 +1397,6 @@ const drawScene = (): void => {
         );
     });
 
-    renderContext.save();
-    renderContext.strokeStyle = "rgba(255, 255, 255, 0.9)";
-    renderContext.lineWidth = 1;
-    renderContext.strokeRect(
-        (runtime.player.x - PLAYER_PROJECTILE_COLLISION_RADIUS_X) * renderMetrics.xScale,
-        (runtime.player.y - PLAYER_PROJECTILE_COLLISION_RADIUS_Y) * renderMetrics.yScale,
-        PLAYER_PROJECTILE_COLLISION_RADIUS_X * 2 * renderMetrics.xScale,
-        PLAYER_PROJECTILE_COLLISION_RADIUS_Y * 2 * renderMetrics.yScale
-    );
-    runtime.wingmen.forEach((wingman) => {
-        if (!wingman.active) {
-            return;
-        }
-        const wingmanRadiusX = PLAYER_PROJECTILE_COLLISION_RADIUS_X + 0.15;
-        const wingmanRadiusY = PLAYER_PROJECTILE_COLLISION_RADIUS_Y + 0.1;
-        const wingmanX = clamp(runtime.player.x + (wingman.side === "left" ? -PLAYER_WING_OFFSET : PLAYER_WING_OFFSET), 2, PLAYFIELD_WIDTH - 6);
-        renderContext.strokeRect(
-            (wingmanX - wingmanRadiusX) * renderMetrics.xScale,
-            (runtime.player.y - wingmanRadiusY) * renderMetrics.yScale,
-            wingmanRadiusX * 2 * renderMetrics.xScale,
-            wingmanRadiusY * 2 * renderMetrics.yScale
-        );
-    });
-    renderContext.restore();
-
     runtime.bullets.forEach((bullet) => {
         renderContext.fillStyle = bullet.kind === "explosive" ? "#ffd27d" : "#ff9aa8";
         renderContext.fillText(bullet.kind === "explosive" ? "*" : "|", bullet.x * renderMetrics.xScale, bullet.y * renderMetrics.yScale);
@@ -1460,18 +1435,6 @@ const drawScene = (): void => {
             const lineY = enemy.y + ((enemy.height / enemy.lines.length) * (index + 0.5));
             renderContext.fillText(line, enemy.x * renderMetrics.xScale, lineY * renderMetrics.yScale);
         });
-
-        const hitbox = getEnemyHitbox(enemy);
-        renderContext.save();
-        renderContext.strokeStyle = "rgba(255, 255, 255, 0.9)";
-        renderContext.lineWidth = 1;
-        renderContext.strokeRect(
-            hitbox.x * renderMetrics.xScale,
-            hitbox.y * renderMetrics.yScale,
-            hitbox.width * renderMetrics.xScale,
-            hitbox.height * renderMetrics.yScale
-        );
-        renderContext.restore();
     });
 
     if ((runtime.phase === "boss" || runtime.phase === "collapse") && runtime.boss) {

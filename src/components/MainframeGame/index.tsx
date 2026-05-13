@@ -17,12 +17,9 @@ import {
     HEX_BYTE_PATTERN,
     PLAYFIELD_HEIGHT,
     PLAYFIELD_WIDTH,
-    PLAYER_PROJECTILE_COLLISION_RADIUS_X,
-    PLAYER_PROJECTILE_COLLISION_RADIUS_Y,
     SHIELD_MAX_HP,
     PLAYER_WING_OFFSET,
     POWER_UP_LABELS,
-    getEnemyHitbox,
 } from "./shared";
 import "./style.scss";
 
@@ -473,31 +470,6 @@ const MainframeGame = ({ className = "", onRendered, onPhaseChange }: MainframeG
             context.fillText("<^>", getWingmanX(snapshot.player.x, wingman.side) * metrics.xScale, snapshot.player.y * metrics.yScale);
         });
 
-        context.save();
-        context.strokeStyle = "rgba(255, 255, 255, 0.9)";
-        context.lineWidth = 1;
-        context.strokeRect(
-            (snapshot.player.x - PLAYER_PROJECTILE_COLLISION_RADIUS_X) * metrics.xScale,
-            (snapshot.player.y - PLAYER_PROJECTILE_COLLISION_RADIUS_Y) * metrics.yScale,
-            PLAYER_PROJECTILE_COLLISION_RADIUS_X * 2 * metrics.xScale,
-            PLAYER_PROJECTILE_COLLISION_RADIUS_Y * 2 * metrics.yScale
-        );
-        snapshot.wingmen.forEach((wingman) => {
-            if (!wingman.active) {
-                return;
-            }
-            const wingmanRadiusX = PLAYER_PROJECTILE_COLLISION_RADIUS_X + 0.15;
-            const wingmanRadiusY = PLAYER_PROJECTILE_COLLISION_RADIUS_Y + 0.1;
-            const wingmanX = getWingmanX(snapshot.player.x, wingman.side);
-            context.strokeRect(
-                (wingmanX - wingmanRadiusX) * metrics.xScale,
-                (snapshot.player.y - wingmanRadiusY) * metrics.yScale,
-                wingmanRadiusX * 2 * metrics.xScale,
-                wingmanRadiusY * 2 * metrics.yScale
-            );
-        });
-        context.restore();
-
         snapshot.bullets.forEach((bullet) => {
             context.fillStyle = bullet.kind === "explosive" ? EXPLOSIVE_BULLET_COLOR : BULLET_COLOR;
             context.fillText(bullet.kind === "explosive" ? "*" : "|", bullet.x * metrics.xScale, bullet.y * metrics.yScale);
@@ -520,17 +492,6 @@ const MainframeGame = ({ className = "", onRendered, onPhaseChange }: MainframeG
                 const lineY = enemy.y + ((enemy.height / enemy.lines.length) * (index + 0.5));
                 context.fillText(line, enemy.x * metrics.xScale, lineY * metrics.yScale);
             });
-            const hitbox = getEnemyHitbox(enemy);
-            context.save();
-            context.strokeStyle = "rgba(255, 255, 255, 0.9)";
-            context.lineWidth = 1;
-            context.strokeRect(
-                hitbox.x * metrics.xScale,
-                hitbox.y * metrics.yScale,
-                hitbox.width * metrics.xScale,
-                hitbox.height * metrics.yScale
-            );
-            context.restore();
         });
 
         if ((snapshot.phase === "boss" || snapshot.phase === "collapse") && snapshot.boss) {
