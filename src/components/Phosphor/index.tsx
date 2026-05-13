@@ -323,6 +323,9 @@ class Phosphor extends Component<PhosphorProps, AppState> {
         this._clearShutdownTimer();
         this._shutdownTimerId = window.setTimeout(() => {
             this._shutdownTimerId = null;
+            if (stage === 5) {
+                void this._playPowerOff();
+            }
             this.setState({ shutdownTextStage: stage });
         }, delayMs);
     }
@@ -339,6 +342,10 @@ class Phosphor extends Component<PhosphorProps, AppState> {
                 }, 4000);
             });
             return;
+        }
+
+        if (nextPhase === "shutdown") {
+            void this._playPowerOn();
         }
 
         if (nextPhase !== "epilogue") {
