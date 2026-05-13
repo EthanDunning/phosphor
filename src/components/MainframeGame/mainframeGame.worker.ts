@@ -100,7 +100,8 @@ type WorkerControlMessage =
     | { type: "devToggleInvulnerable" }
     | { type: "devPowerUp"; kind: PowerUpKind }
     | { type: "devHeal" }
-    | { type: "devSkipCollapse" };
+    | { type: "devSkipCollapse" }
+    | { type: "devGotoCollapse" };
 
 interface InputState {
     up: boolean;
@@ -2295,6 +2296,22 @@ self.addEventListener("message", (event: MessageEvent<WorkerControlMessage>) => 
             finalGlitchRemainingMs = 0;
             finalShutdownRemainingMs = 0;
             runtime.status = "victory";
+            postFrame(true, true);
+        }
+        return;
+    }
+
+    if (message.type === "devGotoCollapse") {
+        if (runtime.status === "running") {
+            if (!runtime.boss) {
+                startBossBattle();
+            }
+            startFinalCollapse();
+            bossFirewallsRemaining = 0;
+            if (runtime.boss) {
+                runtime.boss.bossShieldHp = 0;
+                runtime.boss.attackMode = "sweep";
+            }
             postFrame(true, true);
         }
         return;

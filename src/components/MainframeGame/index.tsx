@@ -57,7 +57,8 @@ type WorkerControlMessage =
     | { type: "devToggleInvulnerable" }
     | { type: "devPowerUp"; kind: "dual" | "laser" | "slow" | "explosive" | "shield" | "healthpack" }
     | { type: "devHeal" }
-    | { type: "devSkipCollapse" };
+    | { type: "devSkipCollapse" }
+    | { type: "devGotoCollapse" };
 
 const PLAYER_COLOR = "#d8e4ff";
 const PLAYER_DAMAGED_COLOR = "#ffb9c2";
@@ -925,7 +926,7 @@ const MainframeGame = ({ className = "", onRendered, onPhaseChange }: MainframeG
                 } else if (key === "j") {
                     sendWorkerMessage({ type: "devHeal" });
                 } else if (key === "o") {
-                    sendWorkerMessage({ type: "devSkipCollapse" });
+                    sendWorkerMessage({ type: "devGotoCollapse" });
                 }
             }
         };
