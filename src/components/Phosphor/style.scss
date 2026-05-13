@@ -31,12 +31,26 @@ body {
 
 
 .phosphor {
+    position: relative;
+    isolation: isolate;
     color: var(--theme-fg, var(--fg));
     text-shadow: var(--theme-fg-glow, var(--fg-glow));
     padding-top: calc(max(env(safe-area-inset-top), #{$lineheight}) + var(--header-height, 0px));
     padding-bottom: max(env(safe-area-inset-bottom),$lineheight);
     padding-left: max(env(safe-area-inset-left),$lineheight);
     padding-right: max(env(safe-area-inset-right),$lineheight);
+
+    &::before {
+        content: "";
+        position: fixed;
+        inset: 0;
+        pointer-events: none;
+        z-index: 2147483647;
+        background:
+            radial-gradient(circle at 50% 45%, transparent 38%, rgba(0, 0, 0, 0.1) 68%, rgba(0, 0, 0, 0.22) 100%),
+            linear-gradient(180deg, rgba(255, 255, 255, 0.012), rgba(255, 255, 255, 0));
+        opacity: 1;
+    }
 }
 
 .phosphor-shutdown-screen {

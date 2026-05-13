@@ -21,10 +21,6 @@
         0 0 18px rgba(17, 31, 77, 0.3);
 }
 
-body.mainframe-game--performance .__scanlines__ {
-    display: none;
-}
-
 .mainframe-game::before,
 .mainframe-game::after {
     position: absolute;
