@@ -12,7 +12,7 @@ export interface BundledScript {
 
 export const BUNDLED_SCRIPTS: BundledScript[] = [
     { id: "ypsilon14",   label: "YPSILON-14",    json: ypsilon14Json },
-    { id: "aphelion-mainframe", label: "APHELION_MAINFRAME", json: aphelionMainframeJson },
+    // { id: "aphelion-mainframe", label: "APHELION_MAINFRAME", json: aphelionMainframeJson },
     // { id: "incr-ss-ark", label: "INCR-SS-ARK",  json: incrSsArkJson },
     // { id: "gradient-descent-terminal", label: "GRADIENT DESCENT TERMINAL", json: gradientDescentTerminalJson },
     { id: "sample",      label: "PHOSPHOR SAMPLE SCRIPT",     json: sampleJson    },
