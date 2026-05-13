@@ -592,12 +592,7 @@ const MainframeGame = ({ className = "", onRendered, onPhaseChange }: MainframeG
         if (overlayRef.current) {
             overlayRef.current.hidden = snapshot.status !== "defeat";
         }
-        if (overlayTitleRef.current) {
-            overlayTitleRef.current.textContent = "PILOT LOST";
-        }
-        if (overlayCopyRef.current) {
-            overlayCopyRef.current.textContent = "A hostile code shard breached the cockpit frame.";
-        }
+       
     };
 
     const applyRenderSnapshot = (snapshot: RenderSnapshot): void => {
@@ -967,19 +962,12 @@ const MainframeGame = ({ className = "", onRendered, onPhaseChange }: MainframeG
         <div className={containerClassName}>
             <div className="mainframe-game__layout">
                 <section className="mainframe-game__panel mainframe-game__panel--playfield">
-                    <header className="mainframe-game__panel-header">
-                        <span>TARGET LATTICE</span>
-                        <span>MOVE: WASD / ARROWS</span>
-                        <span>FIRE: SPACE / ENTER</span>
-                    </header>
 
                     <div ref={playfieldRef} className="mainframe-game__playfield">
                         <canvas ref={canvasRef} className="mainframe-game__canvas" aria-label="Aphelion mainframe combat area" />
 
                         <div ref={overlayRef} className="mainframe-game__overlay" hidden>
                             <div className="mainframe-game__overlay-box">
-                                <div ref={overlayTitleRef} className="mainframe-game__overlay-title">PILOT LOST</div>
-                                <div ref={overlayCopyRef} className="mainframe-game__overlay-copy">A hostile code shard breached the cockpit frame.</div>
                                 <button
                                     type="button"
                                     className="mainframe-game__button"
@@ -1040,9 +1028,7 @@ const MainframeGame = ({ className = "", onRendered, onPhaseChange }: MainframeG
             </div>
 
             <div className="mainframe-game__bottomline">
-                <button type="button" className="mainframe-game__button mainframe-game__button--secondary" onClick={handleReset}>
-                    RESET
-                </button>
+                
             </div>
 
             <div className="mainframe-game__touch-controls">
