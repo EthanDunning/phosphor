@@ -1,0 +1,99 @@
+{
+    "config": {
+        "name": "APHELION_MAINFRAME",
+        "author": "Ethan Dunning",
+        "comment": "An offensive bridge terminal for corrupting the Aphelion AI memory core in real time.",
+        "script": "aphelion-mainframe",
+        "theme": "custom",
+        "customTheme": {
+            "baseThemeId": "blue",
+            "bgHex": "#050916",
+            "fgHex": "#8fa5d9",
+            "textHex": "#c8d8ff",
+            "alertHex": "#d35b69",
+            "emphasisHex": "#e79a72",
+            "noticeHex": "#7eaef5",
+            "hyperlinkHex": "#9bc6ff",
+            "systemHex": "#8fa5d9"
+        },
+        "defaultTextSpeed": 14
+    },
+    "screens": [
+        {
+            "id": "boot",
+            "type": "screen",
+            "content": [
+                "  INCR-SS-ARK",
+                "===============",
+                {
+                    "type": "bitmap",
+                    "src": "img/INCR_Logo.png ",
+                    "className": "lighten"
+                },
+                "",
+                "International Nexus of Cosmic Research\nGalaxy-Class Generation Vessel\nMission Status: CRITICAL ALERT\n",
+                "",
+                {
+                    "type": "text",
+                    "className": "alert",
+                    "text": "\\>>> TERMINAL REACTIVATED <<<"
+                },
+                "VERSION 1.3.6\n",
+                {
+                    "type": "text",
+                    "className": "alert",
+                    "text": "\\>>> SHIP INTEGRITY: COMPROMISED <<<"
+                },
+                "\n",
+                "Accessing main system...\n",
+                {
+                    "text": "> ACCEPT SYSTEM ACCESS & CONTINUE",
+                    "type": "link",
+                    "target": "briefing"
+                }
+            ]
+        },
+        {
+            "id": "briefing",
+            "type": "screen",
+            "content": [
+                "INCR-SS-ARK APHELION MAINFRAME",
+                "==============================\n",
+                {
+                    "type": "text",
+                    "className": "alert",
+                    "text": "[CRITICAL] CORE INTEGRITY COMPROMISED"
+                },
+                {
+                    "type": "text",
+                    "className": "alert",
+                    "text": "[WARNING] COOLING SYSTEMS OFFLINE"
+                },
+                "",
+                {
+                    "type": "link",
+                    "text": "> ENTER MAINFRAME CORE",
+                    "target": "arena"
+                },
+                {
+                    "type": "link",
+                    "text": "< BACK",
+                    "target": "boot"
+                }
+            ]
+        },
+        {
+            "id": "arena",
+            "type": "static",
+            "content": [
+                "APHELION MAINFRAME CORE",
+                "=======================",
+                {
+                    "type": "mainframeGame",
+                    "className": "system"
+                }
+            ]
+        }
+    ],
+    "dialogs": []
+}
