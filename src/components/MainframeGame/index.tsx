@@ -8,6 +8,7 @@ import laserSoundSrc from "../../assets/aphelion game/laser.wav";
 import xblastSoundSrc from "../../assets/aphelion game/Xblast.wav";
 import gameMusicSrc from "../../assets/aphelion game/gamemusic.mp3";
 import {
+    BOSS_FIREWALL_HALF_THICKNESS,
     BOSS_HEIGHT,
     BOSS_WIDTH,
     CORE_BYTE_COUNT,
@@ -84,11 +85,12 @@ const POWER_UP_COLORS: Record<keyof typeof POWER_UP_LABELS, string> = {
     healthpack: "#ff7878",
 };
 const HEX_DIGITS = "0123456789abcdef";
-const BOSS_ATTACK_LABELS = {
+const BOSS_ATTACK_LABELS: Record<string, string> = {
+    firewall: "FIREWALL",
     volley: "VOLLEY",
     rain: "CODE RAIN",
     sweep: "LATTICE SWEEP",
-} as const;
+};
 
 const buildCenteredBar = (fraction: number, width: number): string => {
     const filled = Math.round(Math.max(0, Math.min(1, fraction)) * width);
@@ -199,6 +201,7 @@ const MainframeGame = ({ className = "", onRendered }: MainframeGameProps): Reac
     const overlayCopyRef = useRef<HTMLDivElement | null>(null);
 
     const musicRef = useRef<HTMLAudioElement | null>(null);
+    const musicFadeRef = useRef<ReturnType<typeof setInterval> | null>(null);
     const laserSoundRef = useRef<HTMLAudioElement | null>(null);
     const xblastSoundRef = useRef<HTMLAudioElement | null>(null);
     const bulletSfxRef = useRef<HTMLAudioElement | null>(null);
@@ -441,15 +444,53 @@ const MainframeGame = ({ className = "", onRendered }: MainframeGameProps): Reac
             context.strokeRect(pixelX, pixelY, pixelWidth, pixelHeight);
             context.fillStyle = BOSS_FILL_COLOR;
             context.fillRect(pixelX, pixelY, pixelWidth, pixelHeight);
+
+            if (snapshot.boss.bossShieldHp > 0) {
+                const shieldFrac = snapshot.boss.bossShieldHp / Math.max(1, snapshot.boss.bossMaxShieldHp);
+                context.strokeStyle = `rgba(0, 255, 240, ${0.45 + shieldFrac * 0.55})`;
+                context.lineWidth = 3;
+                context.strokeRect(pixelX - 4, pixelY - 4, pixelWidth + 8, pixelHeight + 8);
+                context.fillStyle = `rgba(0, 255, 240, ${0.04 + shieldFrac * 0.1})`;
+                context.fillRect(pixelX - 4, pixelY - 4, pixelWidth + 8, pixelHeight + 8);
+            }
+
+            const bossStatusLabel = snapshot.boss.bossShieldHp > 0
+                ? `${BOSS_ATTACK_LABELS[snapshot.boss.attackMode] ?? snapshot.boss.attackMode.toUpperCase()} // BARRIER ${String(snapshot.boss.bossShieldHp).padStart(3, "0")}`
+                : `${BOSS_ATTACK_LABELS[snapshot.boss.attackMode] ?? snapshot.boss.attackMode.toUpperCase()} // HP ${String(snapshot.boss.health).padStart(3, "0")}`;
             context.fillStyle = BOSS_TEXT_COLOR;
             context.textAlign = "center";
             context.fillText("APHELION PRIME", pixelX + (pixelWidth * 0.5), pixelY + (pixelHeight * 0.33));
-            const attackLabel = BOSS_ATTACK_LABELS[snapshot.boss.attackMode];
-            context.fillText(
-                `${attackLabel} // HP ${String(snapshot.boss.health).padStart(3, "0")}`,
-                pixelX + (pixelWidth * 0.5),
-                pixelY + (pixelHeight * 0.68)
-            );
+            context.fillText(bossStatusLabel, pixelX + (pixelWidth * 0.5), pixelY + (pixelHeight * 0.68));
+        }
+
+        if (snapshot.phase === "boss" && snapshot.boss?.firewall) {
+            const fw = snapshot.boss.firewall;
+            context.save();
+            context.globalAlpha = fw.alpha;
+            context.shadowColor = "#ff8844";
+            context.shadowBlur = 12;
+            context.strokeStyle = "#ff3322";
+            context.lineWidth = BOSS_FIREWALL_HALF_THICKNESS * 2 * metrics.yScale;
+            context.beginPath();
+            if (fw.direction === "top") {
+                const y = fw.progress * PLAYFIELD_HEIGHT * metrics.yScale;
+                context.moveTo(0, y);
+                context.lineTo(metrics.width, y);
+            } else if (fw.direction === "bottom") {
+                const y = (1 - fw.progress) * PLAYFIELD_HEIGHT * metrics.yScale;
+                context.moveTo(0, y);
+                context.lineTo(metrics.width, y);
+            } else if (fw.direction === "left") {
+                const x = fw.progress * PLAYFIELD_WIDTH * metrics.xScale;
+                context.moveTo(x, 0);
+                context.lineTo(x, metrics.height);
+            } else {
+                const x = (1 - fw.progress) * PLAYFIELD_WIDTH * metrics.xScale;
+                context.moveTo(x, 0);
+                context.lineTo(x, metrics.height);
+            }
+            context.stroke();
+            context.restore();
         }
 
         const barFontSize = Math.max(18, Math.min(metrics.height * 0.065, 36));
@@ -510,6 +551,15 @@ const MainframeGame = ({ className = "", onRendered }: MainframeGameProps): Reac
             laserSoundRef.current.currentTime = 0;
         }
         laserPlayingRef.current = false;
+        if (musicFadeRef.current !== null) {
+            clearInterval(musicFadeRef.current);
+            musicFadeRef.current = null;
+        }
+        if (musicRef.current) {
+            musicRef.current.volume = 0.2;
+            musicRef.current.currentTime = 0;
+            musicRef.current.play().catch(() => {});
+        }
         sendWorkerMessage({ type: "reset" });
     };
 
@@ -683,6 +733,25 @@ const MainframeGame = ({ className = "", onRendered }: MainframeGameProps): Reac
 
             if (data.gameState) {
                 const gameOver = data.gameState.status !== "running";
+
+                if (data.gameState.status === "victory" && musicFadeRef.current === null && musicRef.current) {
+                    musicFadeRef.current = setInterval(() => {
+                        const music = musicRef.current;
+                        if (!music) {
+                            clearInterval(musicFadeRef.current!);
+                            musicFadeRef.current = null;
+                            return;
+                        }
+                        if (music.volume > 0.008) {
+                            music.volume = Math.max(0, music.volume - 0.008);
+                        } else {
+                            music.volume = 0;
+                            music.pause();
+                            clearInterval(musicFadeRef.current!);
+                            musicFadeRef.current = null;
+                        }
+                    }, 100);
+                }
 
                 const wantsLaser = data.gameState.laserFiring && !gameOver;
                 if (wantsLaser && !laserPlayingRef.current) {

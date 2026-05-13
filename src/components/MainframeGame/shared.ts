@@ -2,7 +2,14 @@ export type InputDirection = "up" | "down" | "left" | "right";
 export type EnemyKind = "standard" | "fast" | "block" | "gunner" | "comet" | "sniper";
 export type EnemyLane = "standard" | "special";
 export type PowerUpKind = "dual" | "laser" | "slow" | "explosive" | "shield" | "healthpack";
-export type BossAttackMode = "volley" | "rain" | "sweep";
+export type BossAttackMode = "firewall" | "volley" | "rain" | "sweep";
+
+export interface BossFirewallState {
+    direction: "top" | "bottom" | "left" | "right";
+    progress: number;
+    alpha: number;
+    fading: boolean;
+}
 
 export interface PlayerState {
     x: number;
@@ -66,6 +73,9 @@ export interface BossState {
     attackMode: BossAttackMode;
     attackModeMs: number;
     summonCooldownMs: number;
+    bossShieldHp: number;
+    bossMaxShieldHp: number;
+    firewall: BossFirewallState | null;
 }
 
 export interface EffectState {
@@ -223,8 +233,13 @@ export const BOSS_WIDTH = 33;
 export const BOSS_HEIGHT = 8.4;
 export const BOSS_HEALTH = 400;
 export const BOSS_FIRE_COOLDOWN_MS = 1150;
-export const BOSS_ATTACK_MODE_DURATION_MS = 3200;
+export const BOSS_ATTACK_MODE_DURATION_MS = 20000;
 export const BOSS_SUMMON_COOLDOWN_MS = 5200;
+export const BOSS_SHIELD_HP = 200;
+export const BOSS_FIREWALL_SPEED = 22;
+export const BOSS_FIREWALL_HALF_THICKNESS = 2.2;
+export const BOSS_FIREWALL_FADE_RATE = 1.6;
+export const BOSS_POWERUP_INTERVAL_MS = 13000;
 export const DEFAULT_ENEMY_CHAR_WORLD_WIDTH = 0.72;
 export const DEFAULT_BLOCK_LINE_HEIGHT = 2.72;
 export const CORRUPTION_SYMBOLS = [

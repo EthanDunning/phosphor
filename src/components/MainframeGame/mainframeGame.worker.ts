@@ -2,6 +2,7 @@
 
 import type {
     BossAttackMode,
+    BossFirewallState,
     BulletState,
     CoreByteUpdate,
     InputDirection,
@@ -25,6 +26,11 @@ import {
     BOSS_PLAYER_COLLISION_INSET_X,
     BOSS_PLAYER_COLLISION_INSET_Y,
     BOSS_SUMMON_COOLDOWN_MS,
+    BOSS_SHIELD_HP,
+    BOSS_FIREWALL_SPEED,
+    BOSS_FIREWALL_HALF_THICKNESS,
+    BOSS_FIREWALL_FADE_RATE,
+    BOSS_POWERUP_INTERVAL_MS,
     BOSS_WIDTH,
     BULLET_SPEED,
     CORE_BYTE_COUNT,
@@ -127,6 +133,9 @@ let pendingCoreUpdates: CoreByteUpdate[] = [];
 let pendingSounds: SoundEvent[] = [];
 let terminalUiPosted = false;
 let devInvulnerable = false;
+let bossPowerUpCooldownMs = 0;
+let bossFirewallsRemaining = 0;
+let lastFirewallDirection: BossFirewallState["direction"] | "" = "";
 let renderInWorker = false;
 let renderCanvas: OffscreenCanvas | null = null;
 let renderContext: OffscreenCanvasRenderingContext2D | null = null;
@@ -139,6 +148,13 @@ type WorkerScopeWithAnimationFrame = DedicatedWorkerGlobalScope & {
 
 const workerScope = self as unknown as WorkerScopeWithAnimationFrame;
 const MATRIX_TRAIL_CHARS = "01<>[]{}()#$%&*+-/\\|:=!?";
+
+const pickFirewallDir = (): BossFirewallState["direction"] => {
+    const dirs = (["top", "bottom", "left", "right"] as const).filter((d) => d !== lastFirewallDirection);
+    const dir = dirs[Math.floor(Math.random() * dirs.length)];
+    lastFirewallDirection = dir;
+    return dir;
+};
 
 const buildCenteredBar = (fraction: number, width: number): string => {
     const filled = Math.round(Math.max(0, Math.min(1, fraction)) * width);
@@ -155,6 +171,7 @@ const getProjectileChar = (vx: number, vy: number): string => {
 const CORE_STAGE_THREE_START = 128;
 
 const BOSS_ATTACK_LABELS: Record<BossAttackMode, string> = {
+    firewall: "FIREWALL",
     volley: "VOLLEY",
     rain: "CODE RAIN",
     sweep: "LATTICE SWEEP",
@@ -717,16 +734,27 @@ const startBossBattle = (): void => {
     runtime.enemyShots = [];
     runtime.powerUps = [];
     runtime.hostileCount = 1;
+    bossPowerUpCooldownMs = BOSS_POWERUP_INTERVAL_MS;
+    bossFirewallsRemaining = 5;
+    lastFirewallDirection = "";
     runtime.boss = {
         x: 34,
-        y: 9,
+        y: 2,
         vx: 9,
         health: BOSS_HEALTH,
         maxHealth: BOSS_HEALTH,
         fireCooldownMs: BOSS_FIRE_COOLDOWN_MS,
-        attackMode: "volley",
+        attackMode: "firewall",
         attackModeMs: BOSS_ATTACK_MODE_DURATION_MS,
         summonCooldownMs: BOSS_SUMMON_COOLDOWN_MS * 0.7,
+        bossShieldHp: BOSS_SHIELD_HP,
+        bossMaxShieldHp: BOSS_SHIELD_HP,
+        firewall: {
+            direction: pickFirewallDir(),
+            progress: 0,
+            alpha: 1,
+            fading: false,
+        },
     };
 };
 
@@ -736,6 +764,10 @@ const damageBoss = (amount: number): boolean => {
     }
 
     runtime.hits += 1;
+    if (runtime.boss.bossShieldHp > 0) {
+        runtime.boss.bossShieldHp = Math.max(0, runtime.boss.bossShieldHp - amount);
+        return true;
+    }
     runtime.boss.health = Math.max(0, runtime.boss.health - amount);
     if (runtime.boss.health <= 0) {
         runtime.status = "victory";
@@ -744,13 +776,16 @@ const damageBoss = (amount: number): boolean => {
 };
 
 const getNextBossAttackMode = (current: BossAttackMode): BossAttackMode => {
-    if (current === "volley") {
-        return "rain";
-    }
-    if (current === "rain") {
-        return "sweep";
-    }
-    return "volley";
+    const options = (["volley", "rain", "sweep"] as BossAttackMode[]).filter((m) => m !== current);
+    return options[Math.floor(Math.random() * options.length)];
+};
+
+const transitionBossMode = (nextMode: BossAttackMode): void => {
+    const boss = runtime.boss;
+    if (!boss) return;
+    boss.attackMode = nextMode;
+    boss.attackModeMs = BOSS_ATTACK_MODE_DURATION_MS;
+    boss.fireCooldownMs = 400;
 };
 
 const spawnBossEscort = (): void => {
@@ -759,20 +794,23 @@ const spawnBossEscort = (): void => {
         return;
     }
 
-    const escort = spawnEnemy(specialEnemyId++, true, "special", Math.random() < 0.72 ? "comet" : "gunner", runtime.corruptedBytes);
-    escort.x = clamp(boss.x + randomFloat(-3, BOSS_WIDTH - 1), 2, PLAYFIELD_WIDTH - escort.width - 2);
-    escort.y = boss.y + BOSS_HEIGHT + randomFloat(-1.5, 1.5);
-    if (escort.kind === "comet") {
-        escort.vx = 0;
-        const stepMs = randomFloat(80, 105);
-        escort.vy = stepMs;
-        escort.fireCooldownMs = stepMs;
-    } else if (escort.kind === "gunner") {
-        escort.vx = randomFloat(-3.4, 3.4);
-        escort.vy = randomFloat(8.5, 11.5);
-        escort.fireCooldownMs = randomInt(480, 920);
+    const spawnCount = Math.random() < 0.55 ? 2 : 1;
+    for (let si = 0; si < spawnCount; si += 1) {
+        const escort = spawnEnemy(specialEnemyId++, true, "special", Math.random() < 0.88 ? "comet" : "gunner", runtime.corruptedBytes);
+        escort.x = clamp(boss.x + randomFloat(-3, BOSS_WIDTH - 1) + (si * randomFloat(8, 16)), 2, PLAYFIELD_WIDTH - escort.width - 2);
+        escort.y = boss.y + BOSS_HEIGHT + randomFloat(-1.5, 1.5);
+        if (escort.kind === "comet") {
+            escort.vx = 0;
+            const stepMs = randomFloat(80, 105);
+            escort.vy = stepMs;
+            escort.fireCooldownMs = stepMs;
+        } else if (escort.kind === "gunner") {
+            escort.vx = randomFloat(-3.4, 3.4);
+            escort.vy = randomFloat(8.5, 11.5);
+            escort.fireCooldownMs = randomInt(480, 920);
+        }
+        runtime.enemies.push(escort);
     }
-    runtime.enemies.push(escort);
     runtime.hostileCount = (runtime.boss ? 1 : 0) + runtime.enemies.length;
 };
 
@@ -789,6 +827,10 @@ const spawnDirectedEnemyShot = (x: number, y: number, vx: number, vy: number): v
 const fireBossAttack = (slowMultiplier: number): void => {
     const boss = runtime.boss;
     if (!boss) {
+        return;
+    }
+
+    if (boss.attackMode === "firewall") {
         return;
     }
 
@@ -886,7 +928,7 @@ const toRenderSnapshot = (): RenderSnapshot => ({
         ...enemy,
         lines: [...enemy.lines],
     })),
-    boss: runtime.boss ? { ...runtime.boss } : null,
+    boss: runtime.boss ? { ...runtime.boss, firewall: runtime.boss.firewall ? { ...runtime.boss.firewall } : null } : null,
     effects: { ...runtime.effects },
     phase: runtime.phase,
     laserActive: runtime.effects.laserMs > 0 && inputState.fire,
@@ -1053,14 +1095,53 @@ const drawScene = (): void => {
         renderContext.strokeRect(pixelX, pixelY, pixelWidth, pixelHeight);
         renderContext.fillStyle = "rgba(255, 90, 116, 0.12)";
         renderContext.fillRect(pixelX, pixelY, pixelWidth, pixelHeight);
+
+        if (runtime.boss.bossShieldHp > 0) {
+            const shieldFrac = runtime.boss.bossShieldHp / Math.max(1, runtime.boss.bossMaxShieldHp);
+            renderContext.strokeStyle = `rgba(0, 255, 240, ${0.45 + shieldFrac * 0.55})`;
+            renderContext.lineWidth = 3;
+            renderContext.strokeRect(pixelX - 4, pixelY - 4, pixelWidth + 8, pixelHeight + 8);
+            renderContext.fillStyle = `rgba(0, 255, 240, ${0.04 + shieldFrac * 0.1})`;
+            renderContext.fillRect(pixelX - 4, pixelY - 4, pixelWidth + 8, pixelHeight + 8);
+        }
+
+        const bossStatusLabel = runtime.boss.bossShieldHp > 0
+            ? `${getBossAttackLabel(runtime.boss.attackMode)} // BARRIER ${String(runtime.boss.bossShieldHp).padStart(3, "0")}`
+            : `${getBossAttackLabel(runtime.boss.attackMode)} // HP ${String(runtime.boss.health).padStart(3, "0")}`;
         renderContext.fillStyle = "#ffd6de";
         renderContext.textAlign = "center";
         renderContext.fillText("APHELION PRIME", pixelX + (pixelWidth * 0.5), pixelY + (pixelHeight * 0.33));
-        renderContext.fillText(
-            `${getBossAttackLabel(runtime.boss.attackMode)} // HP ${String(runtime.boss.health).padStart(3, "0")}`,
-            pixelX + (pixelWidth * 0.5),
-            pixelY + (pixelHeight * 0.68)
-        );
+        renderContext.fillText(bossStatusLabel, pixelX + (pixelWidth * 0.5), pixelY + (pixelHeight * 0.68));
+    }
+
+    if (runtime.phase === "boss" && runtime.boss?.firewall) {
+        const fw = runtime.boss.firewall;
+        renderContext.save();
+        renderContext.globalAlpha = fw.alpha;
+        renderContext.shadowColor = "#ff8844";
+        renderContext.shadowBlur = 12;
+        renderContext.strokeStyle = "#ff3322";
+        renderContext.lineWidth = BOSS_FIREWALL_HALF_THICKNESS * 2 * renderMetrics.yScale;
+        renderContext.beginPath();
+        if (fw.direction === "top") {
+            const y = fw.progress * PLAYFIELD_HEIGHT * renderMetrics.yScale;
+            renderContext.moveTo(0, y);
+            renderContext.lineTo(renderMetrics.width, y);
+        } else if (fw.direction === "bottom") {
+            const y = (1 - fw.progress) * PLAYFIELD_HEIGHT * renderMetrics.yScale;
+            renderContext.moveTo(0, y);
+            renderContext.lineTo(renderMetrics.width, y);
+        } else if (fw.direction === "left") {
+            const x = fw.progress * PLAYFIELD_WIDTH * renderMetrics.xScale;
+            renderContext.moveTo(x, 0);
+            renderContext.lineTo(x, renderMetrics.height);
+        } else {
+            const x = (1 - fw.progress) * PLAYFIELD_WIDTH * renderMetrics.xScale;
+            renderContext.moveTo(x, 0);
+            renderContext.lineTo(x, renderMetrics.height);
+        }
+        renderContext.stroke();
+        renderContext.restore();
     }
 
     const barFontSize = Math.max(18, Math.min(renderMetrics.height * 0.065, 36));
@@ -1433,15 +1514,67 @@ const stepSimulation = (): boolean => {
             runtime.boss.vx = -Math.abs(runtime.boss.vx);
         }
         runtime.boss.x = nextBossX;
-        runtime.boss.attackModeMs = Math.max(0, runtime.boss.attackModeMs - FIXED_DT_MS);
         runtime.boss.summonCooldownMs = Math.max(0, runtime.boss.summonCooldownMs - FIXED_DT_MS);
         runtime.boss.fireCooldownMs = Math.max(0, runtime.boss.fireCooldownMs - FIXED_DT_MS);
-        if (runtime.boss.attackModeMs <= 0) {
-            runtime.boss.attackMode = getNextBossAttackMode(runtime.boss.attackMode);
-            runtime.boss.attackModeMs = BOSS_ATTACK_MODE_DURATION_MS;
-            runtime.boss.fireCooldownMs = 90;
-            uiDirty = true;
+
+        if (runtime.boss.attackMode === "firewall") {
+            const fw = runtime.boss.firewall;
+            if (fw) {
+                if (!fw.fading) {
+                    fw.progress = Math.min(1, fw.progress + (BOSS_FIREWALL_SPEED * dtSeconds) / PLAYFIELD_HEIGHT);
+                    let fwPos: number;
+                    let playerCoord: number;
+                    if (fw.direction === "top") {
+                        fwPos = fw.progress * PLAYFIELD_HEIGHT;
+                        playerCoord = runtime.player.y;
+                    } else if (fw.direction === "bottom") {
+                        fwPos = (1 - fw.progress) * PLAYFIELD_HEIGHT;
+                        playerCoord = runtime.player.y;
+                    } else if (fw.direction === "left") {
+                        fwPos = fw.progress * PLAYFIELD_WIDTH;
+                        playerCoord = runtime.player.x;
+                    } else {
+                        fwPos = (1 - fw.progress) * PLAYFIELD_WIDTH;
+                        playerCoord = runtime.player.x;
+                    }
+                    if (Math.abs(playerCoord - fwPos) <= BOSS_FIREWALL_HALF_THICKNESS) {
+                        const damaged = damageShipAt("player");
+                        uiDirty = damaged || uiDirty;
+                        if (damaged) refreshShipAnchors();
+                    }
+                    if (fw.progress >= 0.8) {
+                        fw.fading = true;
+                    }
+                } else {
+                    fw.alpha = Math.max(0, fw.alpha - BOSS_FIREWALL_FADE_RATE * dtSeconds);
+                    if (fw.alpha <= 0) {
+                        runtime.boss.firewall = null;
+                        bossFirewallsRemaining -= 1;
+                        if (bossFirewallsRemaining > 0) {
+                            runtime.boss.firewall = { direction: pickFirewallDir(), progress: 0, alpha: 1, fading: false };
+                        } else {
+                            transitionBossMode(getNextBossAttackMode("firewall"));
+                        }
+                        uiDirty = true;
+                    }
+                }
+            } else {
+                bossFirewallsRemaining -= 1;
+                if (bossFirewallsRemaining > 0) {
+                    runtime.boss.firewall = { direction: pickFirewallDir(), progress: 0, alpha: 1, fading: false };
+                } else {
+                    transitionBossMode(getNextBossAttackMode("firewall"));
+                }
+                uiDirty = true;
+            }
+        } else {
+            runtime.boss.attackModeMs = Math.max(0, runtime.boss.attackModeMs - FIXED_DT_MS);
+            if (runtime.boss.attackModeMs <= 0) {
+                transitionBossMode(getNextBossAttackMode(runtime.boss.attackMode));
+                uiDirty = true;
+            }
         }
+
         if (runtime.boss.summonCooldownMs <= 0) {
             spawnBossEscort();
             runtime.boss.summonCooldownMs = BOSS_SUMMON_COOLDOWN_MS;
@@ -1449,6 +1582,15 @@ const stepSimulation = (): boolean => {
         }
         if (runtime.boss.fireCooldownMs <= 0) {
             fireBossAttack(slowMultiplier);
+            uiDirty = true;
+        }
+
+        bossPowerUpCooldownMs = Math.max(0, bossPowerUpCooldownMs - FIXED_DT_MS);
+        if (bossPowerUpCooldownMs <= 0) {
+            const kindRoll = Math.random();
+            const bossDropKind: PowerUpKind = kindRoll < 0.20 ? "dual" : kindRoll < 0.40 ? "laser" : kindRoll < 0.58 ? "slow" : kindRoll < 0.76 ? "explosive" : kindRoll < 0.88 ? "shield" : "healthpack";
+            runtime.powerUps.push({ id: powerUpId++, x: randomFloat(10, PLAYFIELD_WIDTH - 10), y: runtime.boss.y + BOSS_HEIGHT + 2, kind: bossDropKind });
+            bossPowerUpCooldownMs = BOSS_POWERUP_INTERVAL_MS;
             uiDirty = true;
         }
 
@@ -1632,6 +1774,9 @@ const resetRuntime = (): void => {
     pendingSounds = [];
     terminalUiPosted = false;
     devInvulnerable = false;
+    bossPowerUpCooldownMs = 0;
+    bossFirewallsRemaining = 0;
+    lastFirewallDirection = "";
     accumulator = 0;
     lastFrameAt = 0;
     lastUiSyncAt = performance.now();
