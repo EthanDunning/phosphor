@@ -87,16 +87,10 @@
             "type": "static",
             "content": [
                 "APHELION MAINFRAME CORE",
-                "==========================================",
+                "=======================",
                 {
                     "type": "mainframeGame",
                     "className": "system"
-                },
-                "\n==========================",
-                {
-                    "type": "link",
-                    "text": "< BACK TO BREACH DIRECTIVE",
-                    "target": "briefing"
                 }
             ]
         }
