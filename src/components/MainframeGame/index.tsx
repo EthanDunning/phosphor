@@ -226,7 +226,7 @@ const MainframeGame = ({ className = "", onRendered, onPhaseChange }: MainframeG
 
         const startVolume = music.volume;
         const startedAt = performance.now();
-        musicFadeRef.current = window.setInterval(() => {
+        musicFadeRef.current = setInterval(() => {
             const activeMusic = musicRef.current;
             if (!activeMusic) {
                 if (musicFadeRef.current !== null) {
@@ -908,25 +908,25 @@ const MainframeGame = ({ className = "", onRendered, onPhaseChange }: MainframeG
             }
 
             if (event.shiftKey) {
-                // if (key === "k") {
-                //     sendWorkerMessage({ type: "devGotoBoss" });
-                // } else if (key === "i") {
-                //     sendWorkerMessage({ type: "devToggleInvulnerable" });
-                // } else if (key === "x") {
-                //     sendWorkerMessage({ type: "devPowerUp", kind: "explosive" });
-                // } else if (key === "d") {
-                //     sendWorkerMessage({ type: "devPowerUp", kind: "dual" });
-                // } else if (key === "s") {
-                //     sendWorkerMessage({ type: "devPowerUp", kind: "slow" });
-                // } else if (key === "l") {
-                //     sendWorkerMessage({ type: "devPowerUp", kind: "laser" });
-                // } else if (key === "b") {
-                //     sendWorkerMessage({ type: "devPowerUp", kind: "shield" });
-                // } else if (key === "j") {
-                //     sendWorkerMessage({ type: "devHeal" });
-                // } else if (key === "o") {
-                //     sendWorkerMessage({ type: "devSkipCollapse" });
-                // }
+                if (key === "k") {
+                    sendWorkerMessage({ type: "devGotoBoss" });
+                } else if (key === "i") {
+                    sendWorkerMessage({ type: "devToggleInvulnerable" });
+                } else if (key === "x") {
+                    sendWorkerMessage({ type: "devPowerUp", kind: "explosive" });
+                } else if (key === "d") {
+                    sendWorkerMessage({ type: "devPowerUp", kind: "dual" });
+                } else if (key === "s") {
+                    sendWorkerMessage({ type: "devPowerUp", kind: "slow" });
+                } else if (key === "l") {
+                    sendWorkerMessage({ type: "devPowerUp", kind: "laser" });
+                } else if (key === "b") {
+                    sendWorkerMessage({ type: "devPowerUp", kind: "shield" });
+                } else if (key === "j") {
+                    sendWorkerMessage({ type: "devHeal" });
+                } else if (key === "o") {
+                    sendWorkerMessage({ type: "devSkipCollapse" });
+                }
             }
         };
 
