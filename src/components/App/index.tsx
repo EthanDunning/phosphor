@@ -1304,7 +1304,7 @@ class App extends Component<any, AppState> {
                 : prev.activeScriptRevision,
             activeTerminalScreenId: shouldResetActiveScript ? null : prev.activeTerminalScreenId,
             activeModule: shouldResetActiveScript ? null : prev.activeModule,
-            ...(nextThemeState || {}),
+            ...(nextThemeState || { activeTheme: prev.activeTheme, customTheme: prev.customTheme }),
             scriptDropdownOpen: false,
             optionsDropdownOpen: false,
             profileDropdownOpen: false,
@@ -1358,7 +1358,7 @@ class App extends Component<any, AppState> {
                     : prev.activeScriptRevision,
                 activeTerminalScreenId: shouldResetActiveScript ? null : prev.activeTerminalScreenId,
                 activeModule: shouldResetActiveScript ? null : prev.activeModule,
-                ...(nextThemeState || {}),
+                ...(nextThemeState || { activeTheme: prev.activeTheme, customTheme: prev.customTheme }),
                 creatorInitialScript: null,
                 previewMode: false,
                 uploadError: null as string | null,
@@ -1474,7 +1474,7 @@ class App extends Component<any, AppState> {
     private _handleCreatorClose(scriptJson?: any): void {
         // Save the script state if provided, so shift-click can restore to this state
         if (scriptJson && Array.isArray(scriptJson?.screens)) {
-            this.setState((prev) => {
+            this.setState((prev): Pick<AppState, "creatorOpen" | "creatorInitialScript" | "activeScript" | "customScripts"> => {
                 const nextScript: BundledScript = {
                     ...prev.activeScript,
                     json: this._sanitizeScriptJson(scriptJson),
