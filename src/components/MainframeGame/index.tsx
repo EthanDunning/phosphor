@@ -477,7 +477,8 @@ const MainframeGame = ({ className = "", onRendered }: MainframeGameProps): Reac
                 context.moveTo(0, y);
                 context.lineTo(metrics.width, y);
             } else if (fw.direction === "bottom") {
-                const y = (1 - fw.progress) * PLAYFIELD_HEIGHT * metrics.yScale;
+                const bossCeiling = Math.min(PLAYFIELD_HEIGHT - 10, snapshot.boss.y + BOSS_HEIGHT + 6);
+                const y = (PLAYFIELD_HEIGHT - (fw.progress * (PLAYFIELD_HEIGHT - bossCeiling))) * metrics.yScale;
                 context.moveTo(0, y);
                 context.lineTo(metrics.width, y);
             } else if (fw.direction === "left") {

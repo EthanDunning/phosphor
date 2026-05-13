@@ -21,6 +21,7 @@ import type {
 import {
     BOSS_ATTACK_MODE_DURATION_MS,
     BOSS_FIRE_COOLDOWN_MS,
+    BOSS_FIREWALL_BURST_COUNT,
     BOSS_HEALTH,
     BOSS_HEIGHT,
     BOSS_PLAYER_COLLISION_INSET_X,
@@ -31,6 +32,8 @@ import {
     BOSS_FIREWALL_HALF_THICKNESS,
     BOSS_FIREWALL_FADE_RATE,
     BOSS_POWERUP_INTERVAL_MS,
+    BOSS_SHIELDED_ENEMY_CAP,
+    BOSS_UNSHIELDED_ENEMY_CAP,
     BOSS_WIDTH,
     BULLET_SPEED,
     CORE_BYTE_COUNT,
@@ -135,6 +138,7 @@ let terminalUiPosted = false;
 let devInvulnerable = false;
 let bossPowerUpCooldownMs = 0;
 let bossFirewallsRemaining = 0;
+let bossPatternIndex = 0;
 let lastFirewallDirection: BossFirewallState["direction"] | "" = "";
 let renderInWorker = false;
 let renderCanvas: OffscreenCanvas | null = null;
@@ -148,6 +152,20 @@ type WorkerScopeWithAnimationFrame = DedicatedWorkerGlobalScope & {
 
 const workerScope = self as unknown as WorkerScopeWithAnimationFrame;
 const MATRIX_TRAIL_CHARS = "01<>[]{}()#$%&*+-/\\|:=!?";
+const BOSS_PATTERN_ORDER: BossAttackMode[] = ["volley", "rain", "sweep"];
+const CORE_POWER_UP_DROP_MULTIPLIER = 0.55;
+const CORE_ENEMY_UNLOCK_BYTES = {
+    standard: 0,
+    gunner: 96,
+    fast: 192,
+    block: 288,
+    comet: 384,
+    sniper: 448,
+} as const;
+const CORE_STANDARD_ENEMY_MAX = 8;
+const CORE_SPECIAL_ENEMY_MAX = 4;
+const CORE_MAX_ENEMIES = 28;
+const CORE_FULL_ROSTER_BYTES = CORE_BYTE_COUNT / 2;
 
 const pickFirewallDir = (): BossFirewallState["direction"] => {
     const dirs = (["top", "bottom", "left", "right"] as const).filter((d) => d !== lastFirewallDirection);
@@ -231,20 +249,6 @@ const buildUncorruptedByteIndices = (): number[] => {
     return Array.from({ length: CORE_BYTE_COUNT }, (_, index) => index);
 };
 
-const getAllowedSpecialEnemyCount = (corruptedBytes: number): number => {
-    const coreStage = getCoreStage(corruptedBytes);
-    if (coreStage === 1) {
-        return 0;
-    }
-    if (coreStage === 2) {
-        return 2;
-    }
-    if (coreStage === 3) {
-        return 4;
-    }
-    return Math.min(MAX_SPECIAL_ENEMY_COUNT, 6);
-};
-
 const getCoreStage = (corruptedBytes: number): number => {
     if (corruptedBytes < Math.floor(CORE_PHASE_ONE_END * 0.5)) {
         return 1;
@@ -262,18 +266,94 @@ const getBossAttackLabel = (attackMode: BossAttackMode | null): string => {
     return attackMode ? BOSS_ATTACK_LABELS[attackMode] : "";
 };
 
+const getFirewallAxisPosition = (firewall: BossFirewallState): number => {
+    if (firewall.direction === "top") {
+        return firewall.progress * PLAYFIELD_HEIGHT;
+    }
+    if (firewall.direction === "bottom") {
+        const bossCeiling = runtime.boss
+            ? Math.min(PLAYFIELD_HEIGHT - 10, runtime.boss.y + BOSS_HEIGHT + 6)
+            : PLAYFIELD_HEIGHT * 0.18;
+        return PLAYFIELD_HEIGHT - (firewall.progress * (PLAYFIELD_HEIGHT - bossCeiling));
+    }
+    if (firewall.direction === "left") {
+        return firewall.progress * PLAYFIELD_WIDTH;
+    }
+    return PLAYFIELD_WIDTH - (firewall.progress * PLAYFIELD_WIDTH);
+};
+
+const getNextCoreUnlockBytes = (kind: keyof typeof CORE_ENEMY_UNLOCK_BYTES): number => {
+    if (kind === "standard") {
+        return CORE_ENEMY_UNLOCK_BYTES.gunner;
+    }
+    if (kind === "gunner") {
+        return CORE_ENEMY_UNLOCK_BYTES.fast;
+    }
+    if (kind === "fast") {
+        return CORE_ENEMY_UNLOCK_BYTES.block;
+    }
+    if (kind === "block") {
+        return CORE_ENEMY_UNLOCK_BYTES.comet;
+    }
+    if (kind === "comet") {
+        return CORE_ENEMY_UNLOCK_BYTES.sniper;
+    }
+    return CORE_BYTE_COUNT;
+};
+
+const getCoreTargetCountFromUnlock = (
+    corruptedBytes: number,
+    unlockBytes: number,
+    nextUnlockBytes: number,
+    baseCount: number,
+    maxCount: number
+): number => {
+    if (corruptedBytes < unlockBytes) {
+        return 0;
+    }
+
+    const growthEndBytes = Math.min(nextUnlockBytes, CORE_FULL_ROSTER_BYTES);
+    if (corruptedBytes >= growthEndBytes) {
+        return maxCount;
+    }
+
+    const span = Math.max(1, growthEndBytes - unlockBytes);
+    const progress = (corruptedBytes - unlockBytes) / span;
+    const extraCount = Math.floor(progress * (maxCount - baseCount));
+    return Math.min(maxCount, baseCount + extraCount);
+};
+
 const getTargetStandardEnemyCount = (corruptedBytes: number): number => {
-    const coreStage = getCoreStage(corruptedBytes);
-    if (coreStage === 1) {
-        return 5;
+    return getCoreTargetCountFromUnlock(
+        corruptedBytes,
+        CORE_ENEMY_UNLOCK_BYTES.standard,
+        getNextCoreUnlockBytes("standard"),
+        4,
+        CORE_STANDARD_ENEMY_MAX
+    );
+};
+
+const getSpecialEnemyTargets = (corruptedBytes: number): Record<Exclude<EnemyKind, "standard">, number> => {
+    return {
+        gunner: getCoreTargetCountFromUnlock(corruptedBytes, CORE_ENEMY_UNLOCK_BYTES.gunner, getNextCoreUnlockBytes("gunner"), 2, CORE_SPECIAL_ENEMY_MAX),
+        fast: getCoreTargetCountFromUnlock(corruptedBytes, CORE_ENEMY_UNLOCK_BYTES.fast, getNextCoreUnlockBytes("fast"), 2, CORE_SPECIAL_ENEMY_MAX),
+        block: getCoreTargetCountFromUnlock(corruptedBytes, CORE_ENEMY_UNLOCK_BYTES.block, getNextCoreUnlockBytes("block"), 2, CORE_SPECIAL_ENEMY_MAX),
+        comet: getCoreTargetCountFromUnlock(corruptedBytes, CORE_ENEMY_UNLOCK_BYTES.comet, getNextCoreUnlockBytes("comet"), 2, CORE_SPECIAL_ENEMY_MAX),
+        sniper: getCoreTargetCountFromUnlock(corruptedBytes, CORE_ENEMY_UNLOCK_BYTES.sniper, getNextCoreUnlockBytes("sniper"), 2, CORE_SPECIAL_ENEMY_MAX),
+    };
+};
+
+const getBossEnemyCap = (): number => {
+    if (!runtime.boss) {
+        return BOSS_SHIELDED_ENEMY_CAP;
     }
-    if (coreStage === 2) {
-        return 6;
+    if (runtime.boss.attackMode === "firewall") {
+        return BOSS_UNSHIELDED_ENEMY_CAP;
     }
-    if (coreStage === 3) {
-        return 7;
+    if (runtime.boss.bossShieldHp > 0) {
+        return BOSS_SHIELDED_ENEMY_CAP;
     }
-    return STANDARD_ENEMY_COUNT;
+    return BOSS_UNSHIELDED_ENEMY_CAP;
 };
 
 const getHostileSpeedMultiplier = (): number => {
@@ -427,8 +507,9 @@ const buildEnemy = (
     });
     const spawnWidth = Math.max(0, PLAYFIELD_WIDTH - prototypeEnemy.width);
     const cometStepMs = randomFloat(80, 105);
+    const fastHorizontalDirection = Math.random() < 0.5 ? -1 : 1;
     const speedProfile = kind === "fast"
-        ? { vx: randomFloat(-28, 28), vy: randomFloat(34, 47) }
+        ? { vx: fastHorizontalDirection * randomFloat(42, 58), vy: randomFloat(11, 17) }
         : kind === "block"
             ? { vx: randomFloat(-2.8, 2.8), vy: randomFloat(5.7, 8.8) }
             : kind === "gunner"
@@ -443,7 +524,14 @@ const buildEnemy = (
         x: kind === "comet"
             ? randomFloat(6, Math.max(6, spawnWidth - 4))
             : randomFloat(3, Math.max(3, spawnWidth - 3)),
-        y: spawnFromTop ? randomFloat(kind === "comet" ? -20 : -12, 4) : randomFloat(10, 64),
+        y: spawnFromTop
+            ? randomFloat(
+                (-prototypeEnemy.height - (kind === "comet" ? 20 : 10)),
+                kind === "comet"
+                    ? Math.min(-prototypeEnemy.height - COMET_CHAR_HEIGHT, -8)
+                    : Math.min(-prototypeEnemy.height * 0.75, -4)
+            )
+            : randomFloat(10, 64),
         vx: speedProfile.vx,
         vy: speedProfile.vy,
         fireCooldownMs: kind === "gunner" ? randomInt(700, 1500) : kind === "sniper" ? randomInt(1800, 3200) : kind === "comet" ? cometStepMs : 0,
@@ -538,7 +626,10 @@ const getEffectDurationFor = (kind: PowerUpKind): number => {
 
 const spawnPowerUpDrop = (x: number, y: number): void => {
     const roll = Math.random();
-    if (roll > POWER_UP_DROP_CHANCE) {
+    const dropChance = runtime.phase === "core"
+        ? POWER_UP_DROP_CHANCE * CORE_POWER_UP_DROP_MULTIPLIER
+        : POWER_UP_DROP_CHANCE;
+    if (roll > dropChance) {
         return;
     }
 
@@ -564,6 +655,9 @@ const spawnPowerUpDrop = (x: number, y: number): void => {
 
 const applyPowerUp = (kind: PowerUpKind): void => {
     const duration = getEffectDurationFor(kind);
+    const restoreHitWorth = (): void => {
+        runtime.health = Math.min(runtime.maxHealth, runtime.health + HIT_DAMAGE);
+    };
     if (kind === "dual") {
         runtime.effects.dualMs = Math.max(runtime.effects.dualMs, duration);
         runtime.wingmen.forEach((wingman) => {
@@ -574,6 +668,9 @@ const applyPowerUp = (kind: PowerUpKind): void => {
         return;
     }
     if (kind === "laser") {
+        if (runtime.effects.laserMs > 0) {
+            restoreHitWorth();
+        }
         runtime.effects.laserMs = Math.max(runtime.effects.laserMs, duration);
         runtime.effects.explosiveMs = 0;
         return;
@@ -583,12 +680,18 @@ const applyPowerUp = (kind: PowerUpKind): void => {
         return;
     }
     if (kind === "shield") {
+        if (runtime.shieldHp >= SHIELD_MAX_HP) {
+            restoreHitWorth();
+        }
         runtime.shieldHp = SHIELD_MAX_HP;
         return;
     }
     if (kind === "healthpack") {
         runtime.health = Math.min(runtime.maxHealth, runtime.health + HEALTH_PACK_RESTORE);
         return;
+    }
+    if (runtime.effects.explosiveMs > 0) {
+        restoreHitWorth();
     }
     runtime.effects.explosiveMs = Math.max(runtime.effects.explosiveMs, duration);
     runtime.effects.laserMs = 0;
@@ -644,14 +747,20 @@ const verticalSegmentHitsRect = (
 
 const reconcileSpecialEnemies = (): void => {
     const standardEnemies: EnemyState[] = [];
-    const specialEnemies: EnemyState[] = [];
+    const specialEnemiesByKind: Record<Exclude<EnemyKind, "standard">, EnemyState[]> = {
+        fast: [],
+        block: [],
+        gunner: [],
+        comet: [],
+        sniper: [],
+    };
 
     for (let index = 0; index < runtime.enemies.length; index += 1) {
         const enemy = runtime.enemies[index];
         if (enemy.lane === "standard") {
             standardEnemies.push(enemy);
         } else {
-            specialEnemies.push(enemy);
+            specialEnemiesByKind[enemy.kind as Exclude<EnemyKind, "standard">].push(enemy);
         }
     }
 
@@ -668,15 +777,28 @@ const reconcileSpecialEnemies = (): void => {
         standardEnemies.length = targetStandardCount;
     }
 
-    const allowedSpecialCount = getAllowedSpecialEnemyCount(runtime.corruptedBytes);
-    while (specialEnemies.length < allowedSpecialCount) {
-        specialEnemies.push(spawnEnemy(specialEnemyId++, true, "special", undefined, runtime.corruptedBytes));
-    }
-    if (specialEnemies.length > allowedSpecialCount) {
-        specialEnemies.length = allowedSpecialCount;
+    const specialTargets = getSpecialEnemyTargets(runtime.corruptedBytes);
+    (Object.keys(specialTargets) as Array<keyof typeof specialTargets>).forEach((kind) => {
+        const targetCount = specialTargets[kind];
+        const enemiesForKind = specialEnemiesByKind[kind];
+        while (enemiesForKind.length < targetCount) {
+            enemiesForKind.push(spawnEnemy(specialEnemyId++, true, "special", kind, runtime.corruptedBytes));
+        }
+        if (enemiesForKind.length > targetCount) {
+            enemiesForKind.length = targetCount;
+        }
+    });
+
+    const specialEnemies = (Object.keys(specialEnemiesByKind) as Array<keyof typeof specialEnemiesByKind>)
+        .flatMap((kind) => specialEnemiesByKind[kind]);
+    if (specialEnemies.length > CORE_MAX_ENEMIES - CORE_STANDARD_ENEMY_MAX) {
+        specialEnemies.length = CORE_MAX_ENEMIES - CORE_STANDARD_ENEMY_MAX;
     }
 
     runtime.enemies = [...standardEnemies, ...specialEnemies];
+    if (runtime.enemies.length > CORE_MAX_ENEMIES) {
+        runtime.enemies.length = CORE_MAX_ENEMIES;
+    }
     runtime.hostileCount = runtime.enemies.length;
 };
 
@@ -734,8 +856,9 @@ const startBossBattle = (): void => {
     runtime.enemyShots = [];
     runtime.powerUps = [];
     runtime.hostileCount = 1;
-    bossPowerUpCooldownMs = BOSS_POWERUP_INTERVAL_MS;
-    bossFirewallsRemaining = 5;
+    bossPowerUpCooldownMs = Math.max(1600, BOSS_POWERUP_INTERVAL_MS * 0.225);
+    bossFirewallsRemaining = BOSS_FIREWALL_BURST_COUNT;
+    bossPatternIndex = 0;
     lastFirewallDirection = "";
     runtime.boss = {
         x: 34,
@@ -745,7 +868,7 @@ const startBossBattle = (): void => {
         maxHealth: BOSS_HEALTH,
         fireCooldownMs: BOSS_FIRE_COOLDOWN_MS,
         attackMode: "firewall",
-        attackModeMs: BOSS_ATTACK_MODE_DURATION_MS,
+        attackModeMs: 0,
         summonCooldownMs: BOSS_SUMMON_COOLDOWN_MS * 0.7,
         bossShieldHp: BOSS_SHIELD_HP,
         bossMaxShieldHp: BOSS_SHIELD_HP,
@@ -766,6 +889,15 @@ const damageBoss = (amount: number): boolean => {
     runtime.hits += 1;
     if (runtime.boss.bossShieldHp > 0) {
         runtime.boss.bossShieldHp = Math.max(0, runtime.boss.bossShieldHp - amount);
+        if (runtime.boss.bossShieldHp <= 0) {
+            runtime.boss.firewall = null;
+            bossFirewallsRemaining = 0;
+            runtime.boss.summonCooldownMs = 0;
+            bossPowerUpCooldownMs = Math.min(bossPowerUpCooldownMs, 1300);
+            if (runtime.boss.attackMode === "firewall") {
+                transitionBossMode(BOSS_PATTERN_ORDER[bossPatternIndex]);
+            }
+        }
         return true;
     }
     runtime.boss.health = Math.max(0, runtime.boss.health - amount);
@@ -776,16 +908,34 @@ const damageBoss = (amount: number): boolean => {
 };
 
 const getNextBossAttackMode = (current: BossAttackMode): BossAttackMode => {
-    const options = (["volley", "rain", "sweep"] as BossAttackMode[]).filter((m) => m !== current);
-    return options[Math.floor(Math.random() * options.length)];
+    if (current === "firewall") {
+        return BOSS_PATTERN_ORDER[bossPatternIndex];
+    }
+    bossPatternIndex = (bossPatternIndex + 1) % BOSS_PATTERN_ORDER.length;
+    return "firewall";
 };
 
 const transitionBossMode = (nextMode: BossAttackMode): void => {
     const boss = runtime.boss;
     if (!boss) return;
     boss.attackMode = nextMode;
+    if (nextMode === "firewall") {
+        boss.attackModeMs = 0;
+        boss.fireCooldownMs = Math.max(boss.fireCooldownMs, 320);
+        bossFirewallsRemaining = BOSS_FIREWALL_BURST_COUNT;
+        boss.firewall = {
+            direction: pickFirewallDir(),
+            progress: 0,
+            alpha: 1,
+            fading: false,
+        };
+        return;
+    }
+
     boss.attackModeMs = BOSS_ATTACK_MODE_DURATION_MS;
     boss.fireCooldownMs = 400;
+    boss.firewall = null;
+    bossFirewallsRemaining = 0;
 };
 
 const spawnBossEscort = (): void => {
@@ -794,9 +944,24 @@ const spawnBossEscort = (): void => {
         return;
     }
 
-    const spawnCount = Math.random() < 0.55 ? 2 : 1;
+    const availableSlots = Math.max(0, getBossEnemyCap() - runtime.enemies.length);
+    if (!availableSlots) {
+        return;
+    }
+
+    const wantsLargeWave = boss.bossShieldHp <= 0;
+    const spawnCount = Math.min(
+        availableSlots,
+        wantsLargeWave
+            ? randomInt(2, 4)
+            : (Math.random() < 0.55 ? 2 : 1)
+    );
     for (let si = 0; si < spawnCount; si += 1) {
-        const escort = spawnEnemy(specialEnemyId++, true, "special", Math.random() < 0.88 ? "comet" : "gunner", runtime.corruptedBytes);
+        const kindRoll = Math.random();
+        const forcedKind: EnemyKind = boss.bossShieldHp > 0
+            ? (kindRoll < 0.78 ? "comet" : kindRoll < 0.94 ? "gunner" : "sniper")
+            : (kindRoll < 0.48 ? "comet" : kindRoll < 0.74 ? "gunner" : "sniper");
+        const escort = spawnEnemy(specialEnemyId++, true, "special", forcedKind, runtime.corruptedBytes);
         escort.x = clamp(boss.x + randomFloat(-3, BOSS_WIDTH - 1) + (si * randomFloat(8, 16)), 2, PLAYFIELD_WIDTH - escort.width - 2);
         escort.y = boss.y + BOSS_HEIGHT + randomFloat(-1.5, 1.5);
         if (escort.kind === "comet") {
@@ -808,6 +973,10 @@ const spawnBossEscort = (): void => {
             escort.vx = randomFloat(-3.4, 3.4);
             escort.vy = randomFloat(8.5, 11.5);
             escort.fireCooldownMs = randomInt(480, 920);
+        } else if (escort.kind === "sniper") {
+            escort.vx = randomFloat(-2.5, 2.5);
+            escort.vy = randomFloat(5.8, 8.2);
+            escort.fireCooldownMs = randomInt(1100, 1800);
         }
         runtime.enemies.push(escort);
     }
@@ -1233,7 +1402,7 @@ const stepSimulation = (): boolean => {
                 currentEnemy.lines = currentEnemy.body.split("");
                 currentEnemy.height = Math.max(8.8, currentEnemy.lines.length * COMET_CHAR_HEIGHT);
             } else {
-                currentEnemy.vy = Math.min(currentEnemy.vy + 0.45, currentEnemy.kind === "fast" ? 26 : 18);
+                currentEnemy.vy = Math.min(currentEnemy.vy + 0.45, currentEnemy.kind === "fast" ? 25.5 : 18);
                 hydrateEnemyGeometry(currentEnemy);
             }
             return;
@@ -1268,7 +1437,7 @@ const stepSimulation = (): boolean => {
             currentEnemy.lines = currentEnemy.body.split("");
             currentEnemy.height = Math.max(8.8, currentEnemy.lines.length * COMET_CHAR_HEIGHT);
         } else {
-            currentEnemy.vy = Math.min(currentEnemy.vy + 0.35, currentEnemy.kind === "fast" ? 26 : 18);
+            currentEnemy.vy = Math.min(currentEnemy.vy + 0.35, currentEnemy.kind === "fast" ? 25.5 : 18);
             hydrateEnemyGeometry(currentEnemy);
         }
     };
@@ -1517,7 +1686,7 @@ const stepSimulation = (): boolean => {
         runtime.boss.summonCooldownMs = Math.max(0, runtime.boss.summonCooldownMs - FIXED_DT_MS);
         runtime.boss.fireCooldownMs = Math.max(0, runtime.boss.fireCooldownMs - FIXED_DT_MS);
 
-        if (runtime.boss.attackMode === "firewall") {
+        if (runtime.boss.attackMode === "firewall" && runtime.boss.bossShieldHp > 0) {
             const fw = runtime.boss.firewall;
             if (fw) {
                 if (!fw.fading) {
@@ -1525,16 +1694,16 @@ const stepSimulation = (): boolean => {
                     let fwPos: number;
                     let playerCoord: number;
                     if (fw.direction === "top") {
-                        fwPos = fw.progress * PLAYFIELD_HEIGHT;
+                        fwPos = getFirewallAxisPosition(fw);
                         playerCoord = runtime.player.y;
                     } else if (fw.direction === "bottom") {
-                        fwPos = (1 - fw.progress) * PLAYFIELD_HEIGHT;
+                        fwPos = getFirewallAxisPosition(fw);
                         playerCoord = runtime.player.y;
                     } else if (fw.direction === "left") {
-                        fwPos = fw.progress * PLAYFIELD_WIDTH;
+                        fwPos = getFirewallAxisPosition(fw);
                         playerCoord = runtime.player.x;
                     } else {
-                        fwPos = (1 - fw.progress) * PLAYFIELD_WIDTH;
+                        fwPos = getFirewallAxisPosition(fw);
                         playerCoord = runtime.player.x;
                     }
                     if (Math.abs(playerCoord - fwPos) <= BOSS_FIREWALL_HALF_THICKNESS) {
@@ -1549,7 +1718,7 @@ const stepSimulation = (): boolean => {
                     fw.alpha = Math.max(0, fw.alpha - BOSS_FIREWALL_FADE_RATE * dtSeconds);
                     if (fw.alpha <= 0) {
                         runtime.boss.firewall = null;
-                        bossFirewallsRemaining -= 1;
+                        bossFirewallsRemaining = Math.max(0, bossFirewallsRemaining - 1);
                         if (bossFirewallsRemaining > 0) {
                             runtime.boss.firewall = { direction: pickFirewallDir(), progress: 0, alpha: 1, fading: false };
                         } else {
@@ -1558,16 +1727,17 @@ const stepSimulation = (): boolean => {
                         uiDirty = true;
                     }
                 }
-            } else {
-                bossFirewallsRemaining -= 1;
-                if (bossFirewallsRemaining > 0) {
-                    runtime.boss.firewall = { direction: pickFirewallDir(), progress: 0, alpha: 1, fading: false };
-                } else {
-                    transitionBossMode(getNextBossAttackMode("firewall"));
-                }
+            } else if (bossFirewallsRemaining > 0) {
+                runtime.boss.firewall = { direction: pickFirewallDir(), progress: 0, alpha: 1, fading: false };
                 uiDirty = true;
             }
-        } else {
+        } else if (runtime.boss.firewall) {
+            runtime.boss.firewall = null;
+            bossFirewallsRemaining = 0;
+            uiDirty = true;
+        }
+
+        if (runtime.boss.attackMode !== "firewall") {
             runtime.boss.attackModeMs = Math.max(0, runtime.boss.attackModeMs - FIXED_DT_MS);
             if (runtime.boss.attackModeMs <= 0) {
                 transitionBossMode(getNextBossAttackMode(runtime.boss.attackMode));
@@ -1577,7 +1747,11 @@ const stepSimulation = (): boolean => {
 
         if (runtime.boss.summonCooldownMs <= 0) {
             spawnBossEscort();
-            runtime.boss.summonCooldownMs = BOSS_SUMMON_COOLDOWN_MS;
+            runtime.boss.summonCooldownMs = runtime.boss.attackMode === "firewall"
+                ? Math.max(1200, BOSS_SUMMON_COOLDOWN_MS * 0.28)
+                : runtime.boss.bossShieldHp > 0
+                    ? BOSS_SUMMON_COOLDOWN_MS
+                    : Math.max(1700, BOSS_SUMMON_COOLDOWN_MS * 0.4);
             uiDirty = true;
         }
         if (runtime.boss.fireCooldownMs <= 0) {
@@ -1590,7 +1764,9 @@ const stepSimulation = (): boolean => {
             const kindRoll = Math.random();
             const bossDropKind: PowerUpKind = kindRoll < 0.20 ? "dual" : kindRoll < 0.40 ? "laser" : kindRoll < 0.58 ? "slow" : kindRoll < 0.76 ? "explosive" : kindRoll < 0.88 ? "shield" : "healthpack";
             runtime.powerUps.push({ id: powerUpId++, x: randomFloat(10, PLAYFIELD_WIDTH - 10), y: runtime.boss.y + BOSS_HEIGHT + 2, kind: bossDropKind });
-            bossPowerUpCooldownMs = BOSS_POWERUP_INTERVAL_MS;
+            bossPowerUpCooldownMs = runtime.boss.bossShieldHp > 0
+                ? Math.max(2600, BOSS_POWERUP_INTERVAL_MS * 0.275)
+                : Math.max(1600, BOSS_POWERUP_INTERVAL_MS * 0.16);
             uiDirty = true;
         }
 
@@ -1776,6 +1952,7 @@ const resetRuntime = (): void => {
     devInvulnerable = false;
     bossPowerUpCooldownMs = 0;
     bossFirewallsRemaining = 0;
+    bossPatternIndex = 0;
     lastFirewallDirection = "";
     accumulator = 0;
     lastFrameAt = 0;
