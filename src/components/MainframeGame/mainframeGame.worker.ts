@@ -44,7 +44,6 @@ import {
     CORRUPTION_BYTES_PER_HIT,
     CORRUPTION_SYMBOLS,
     DEFAULT_BLOCK_LINE_HEIGHT,
-    DEFAULT_ENEMY_CHAR_WORLD_WIDTH,
     DUAL_DURATION_MS,
     ENEMY_PLAYER_COLLISION_INSET_X,
     ENEMY_PLAYER_COLLISION_INSET_Y,
@@ -86,6 +85,7 @@ import {
     UI_SYNC_INTERVAL_MS,
     WINGMAN_RESPITE_MS,
     WINGMAN_START_HP,
+    getEnemyHitbox,
 } from "./shared";
 
 type WorkerControlMessage =
@@ -475,8 +475,10 @@ const getEnemyDimensions = (enemy: EnemyState): Pick<EnemyState, "width" | "heig
     }
 
     const longestLineLength = enemy.lines.reduce((longest, line) => Math.max(longest, line.length), 0);
+    const visualCharWidth = 0.88;
+    const rightSidePadding = 0.45;
     return {
-        width: Math.max(3.8, (longestLineLength * DEFAULT_ENEMY_CHAR_WORLD_WIDTH) - 0.15),
+        width: Math.max(4.2, (longestLineLength * visualCharWidth) + rightSidePadding),
         height: Math.max(3.2, enemy.lines.length * DEFAULT_BLOCK_LINE_HEIGHT),
     };
 };
@@ -1395,6 +1397,31 @@ const drawScene = (): void => {
         );
     });
 
+    renderContext.save();
+    renderContext.strokeStyle = "rgba(255, 255, 255, 0.9)";
+    renderContext.lineWidth = 1;
+    renderContext.strokeRect(
+        (runtime.player.x - PLAYER_PROJECTILE_COLLISION_RADIUS_X) * renderMetrics.xScale,
+        (runtime.player.y - PLAYER_PROJECTILE_COLLISION_RADIUS_Y) * renderMetrics.yScale,
+        PLAYER_PROJECTILE_COLLISION_RADIUS_X * 2 * renderMetrics.xScale,
+        PLAYER_PROJECTILE_COLLISION_RADIUS_Y * 2 * renderMetrics.yScale
+    );
+    runtime.wingmen.forEach((wingman) => {
+        if (!wingman.active) {
+            return;
+        }
+        const wingmanRadiusX = PLAYER_PROJECTILE_COLLISION_RADIUS_X + 0.15;
+        const wingmanRadiusY = PLAYER_PROJECTILE_COLLISION_RADIUS_Y + 0.1;
+        const wingmanX = clamp(runtime.player.x + (wingman.side === "left" ? -PLAYER_WING_OFFSET : PLAYER_WING_OFFSET), 2, PLAYFIELD_WIDTH - 6);
+        renderContext.strokeRect(
+            (wingmanX - wingmanRadiusX) * renderMetrics.xScale,
+            (runtime.player.y - wingmanRadiusY) * renderMetrics.yScale,
+            wingmanRadiusX * 2 * renderMetrics.xScale,
+            wingmanRadiusY * 2 * renderMetrics.yScale
+        );
+    });
+    renderContext.restore();
+
     runtime.bullets.forEach((bullet) => {
         renderContext.fillStyle = bullet.kind === "explosive" ? "#ffd27d" : "#ff9aa8";
         renderContext.fillText(bullet.kind === "explosive" ? "*" : "|", bullet.x * renderMetrics.xScale, bullet.y * renderMetrics.yScale);
@@ -1433,6 +1460,18 @@ const drawScene = (): void => {
             const lineY = enemy.y + ((enemy.height / enemy.lines.length) * (index + 0.5));
             renderContext.fillText(line, enemy.x * renderMetrics.xScale, lineY * renderMetrics.yScale);
         });
+
+        const hitbox = getEnemyHitbox(enemy);
+        renderContext.save();
+        renderContext.strokeStyle = "rgba(255, 255, 255, 0.9)";
+        renderContext.lineWidth = 1;
+        renderContext.strokeRect(
+            hitbox.x * renderMetrics.xScale,
+            hitbox.y * renderMetrics.yScale,
+            hitbox.width * renderMetrics.xScale,
+            hitbox.height * renderMetrics.yScale
+        );
+        renderContext.restore();
     });
 
     if ((runtime.phase === "boss" || runtime.phase === "collapse") && runtime.boss) {
@@ -1573,18 +1612,17 @@ const stepSimulation = (): boolean => {
         return true;
     }
 
-    const damageEnemyAt = (enemyIndex: number, instantKill = false, doubleCometDamage = false): void => {
+    const damageEnemyAt = (enemyIndex: number, nonCometDamage = 2, cometDamage = 1): void => {
         const currentEnemy = runtime.enemies[enemyIndex];
         if (!currentEnemy) {
             return;
         }
 
-        const trimSize = currentEnemy.kind === "comet" ? (doubleCometDamage ? 5 : 1) : 2;
-        const killThreshold = currentEnemy.kind === "comet" ? 1 : trimSize;
+        const trimSize = currentEnemy.kind === "comet" ? cometDamage : nonCometDamage;
+        const killThreshold = trimSize;
         const safeTrimSize = currentEnemy.kind === "comet"
             ? Math.min(trimSize, Math.max(1, currentEnemy.body.length - 1))
             : trimSize;
-        const effectiveInstantKill = instantKill && currentEnemy.kind !== "comet";
         const removeEnemy = (): void => {
             const enemyCenterX = currentEnemy.x + (currentEnemy.width * 0.5);
             const enemyCenterY = currentEnemy.y + (currentEnemy.height * 0.5);
@@ -1597,7 +1635,7 @@ const stepSimulation = (): boolean => {
         if (runtime.phase === "boss") {
             runtime.hits += 1;
             uiDirty = true;
-            if (effectiveInstantKill || currentEnemy.body.length <= killThreshold) {
+            if (currentEnemy.body.length <= killThreshold) {
                 pendingSounds.push("death");
                 removeEnemy();
                 return;
@@ -1622,7 +1660,7 @@ const stepSimulation = (): boolean => {
             return;
         }
 
-        if (effectiveInstantKill || currentEnemy.body.length <= killThreshold) {
+        if (currentEnemy.body.length <= killThreshold) {
             const enemyCenterX = currentEnemy.x + (currentEnemy.width * 0.5);
             const enemyCenterY = currentEnemy.y + (currentEnemy.height * 0.5);
             runtime.purged += 1;
@@ -1671,9 +1709,10 @@ const stepSimulation = (): boolean => {
 
             for (let index = 0; index < runtime.enemies.length; index += 1) {
                 const enemy = runtime.enemies[index];
+                const hitbox = getEnemyHitbox(enemy);
                 if (
                     !damagedEnemyIndices.has(index)
-                    && verticalSegmentHitsRect(emitterX, runtime.player.y, 0, enemy.x, enemy.y, enemy.width, enemy.height)
+                    && verticalSegmentHitsRect(emitterX, runtime.player.y, 0, hitbox.x, hitbox.y, hitbox.width, hitbox.height)
                 ) {
                     damagedEnemyIndices.add(index);
                 }
@@ -1681,7 +1720,7 @@ const stepSimulation = (): boolean => {
         }
 
         Array.from(damagedEnemyIndices).sort((left, right) => right - left).forEach((enemyIndex) => {
-            damageEnemyAt(enemyIndex, false, true);
+            damageEnemyAt(enemyIndex, 2, 10);
         });
 
         const interceptedShotIds = new Set<number>();
@@ -1862,10 +1901,11 @@ const stepSimulation = (): boolean => {
             continue;
         }
 
-        const enemyCenterX = enemy.x + (enemy.width * 0.5);
-        const enemyCenterY = enemy.y + (enemy.height * 0.5);
-        const collisionEnemyHalfWidth = Math.max(0.55, (enemy.width * 0.5) - ENEMY_PLAYER_COLLISION_INSET_X);
-        const collisionEnemyHalfHeight = Math.max(0.45, (enemy.height * 0.5) - ENEMY_PLAYER_COLLISION_INSET_Y);
+        const hitbox = getEnemyHitbox(enemy);
+        const enemyCenterX = hitbox.x + (hitbox.width * 0.5);
+        const enemyCenterY = hitbox.y + (hitbox.height * 0.5);
+        const collisionEnemyHalfWidth = Math.max(0.55, (hitbox.width * 0.5) - ENEMY_PLAYER_COLLISION_INSET_X);
+        const collisionEnemyHalfHeight = Math.max(0.45, (hitbox.height * 0.5) - ENEMY_PLAYER_COLLISION_INSET_Y);
         const collidingShip = shipAnchors.find((anchor) => {
             const radiusX = anchor.kind === "wingman" ? PLAYER_COLLISION_RADIUS_X + 0.12 : PLAYER_COLLISION_RADIUS_X;
             const radiusY = anchor.kind === "wingman" ? PLAYER_COLLISION_RADIUS_Y + 0.08 : PLAYER_COLLISION_RADIUS_Y;
@@ -2045,18 +2085,19 @@ const stepSimulation = (): boolean => {
             let enemyIndex = -1;
             for (let index = 0; index < runtime.enemies.length; index += 1) {
                 const enemy = runtime.enemies[index];
+                const hitbox = getEnemyHitbox(enemy);
                 if (verticalSegmentHitsRect(
                     bullet.x,
                     previousBulletY,
                     bullet.y,
-                    enemy.x,
-                    enemy.y,
-                    enemy.width,
-                    enemy.height,
+                    hitbox.x,
+                    hitbox.y,
+                    hitbox.width,
+                    hitbox.height,
                     bulletRadiusX,
                     bulletRadiusY
                 )) {
-                    const impactY = enemy.y + enemy.height;
+                    const impactY = hitbox.y + hitbox.height;
                     if (impactY <= closestImpactY) {
                         continue;
                     }
@@ -2074,7 +2115,7 @@ const stepSimulation = (): boolean => {
                 continue;
             }
 
-            damageEnemyAt(enemyIndex, bullet.kind === "explosive", bullet.kind === "explosive");
+            damageEnemyAt(enemyIndex, bullet.kind === "explosive" ? 10 : 2, bullet.kind === "explosive" ? 10 : 2);
         }
 
         runtime.bullets = remainingBullets;

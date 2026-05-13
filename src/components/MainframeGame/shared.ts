@@ -64,6 +64,13 @@ export interface EnemyState {
     fireCooldownMs: number;
 }
 
+export interface EnemyHitbox {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+}
+
 export interface BossState {
     x: number;
     y: number;
@@ -262,4 +269,66 @@ export const POWER_UP_LABELS: Record<PowerUpKind, string> = {
     explosive: "[X]",
     shield: "[B]",
     healthpack: "[+]",
+};
+
+export const getEnemyHitbox = (enemy: Pick<EnemyState, "kind" | "x" | "y" | "width" | "height" | "lines">): EnemyHitbox => {
+    const longestLineLength = enemy.lines.reduce((longest, line) => Math.max(longest, line.length), 0);
+
+    if (enemy.kind === "comet") {
+        return {
+            x: enemy.x - 0.7,
+            y: enemy.y,
+            width: 1.95,
+            height: enemy.height,
+        };
+    }
+
+    if (enemy.kind === "block") {
+        return {
+            x: enemy.x - 0.2,
+            y: enemy.y,
+            width: enemy.width + 1.1,
+            height: enemy.height,
+        };
+    }
+
+    if (enemy.kind === "standard") {
+        const standardCharWidth = 1.02;
+        const standardSidePadding = 0.48;
+        return {
+            x: enemy.x - 0.08,
+            y: enemy.y,
+            width: (longestLineLength * standardCharWidth) + standardSidePadding,
+            height: enemy.height,
+        };
+    }
+
+    if (enemy.kind === "gunner") {
+        const gunnerCharWidth = 1.08;
+        const gunnerSidePadding = 0.78;
+        return {
+            x: enemy.x - 0.08,
+            y: enemy.y,
+            width: (longestLineLength * gunnerCharWidth) + gunnerSidePadding,
+            height: enemy.height,
+        };
+    }
+
+    if (enemy.kind === "sniper") {
+        const sniperCharWidth = 1.08;
+        const sniperSidePadding = 0.78;
+        return {
+            x: enemy.x - 0.08,
+            y: enemy.y,
+            width: (longestLineLength * sniperCharWidth) + sniperSidePadding,
+            height: enemy.height,
+        };
+    }
+
+    return {
+        x: enemy.x,
+        y: enemy.y,
+        width: enemy.width,
+        height: enemy.height,
+    };
 };
