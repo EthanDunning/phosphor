@@ -272,7 +272,7 @@ const getFirewallAxisPosition = (firewall: BossFirewallState): number => {
     }
     if (firewall.direction === "bottom") {
         const bossCeiling = runtime.boss
-            ? Math.min(PLAYFIELD_HEIGHT - 10, runtime.boss.y + BOSS_HEIGHT + 6)
+            ? Math.min(PLAYFIELD_HEIGHT - 14, runtime.boss.y + BOSS_HEIGHT + 12)
             : PLAYFIELD_HEIGHT * 0.18;
         return PLAYFIELD_HEIGHT - (firewall.progress * (PLAYFIELD_HEIGHT - bossCeiling));
     }
@@ -746,6 +746,11 @@ const verticalSegmentHitsRect = (
 };
 
 const reconcileSpecialEnemies = (): void => {
+    if (runtime.phase !== "core") {
+        runtime.hostileCount = (runtime.boss ? 1 : 0) + runtime.enemies.length;
+        return;
+    }
+
     const standardEnemies: EnemyState[] = [];
     const specialEnemiesByKind: Record<Exclude<EnemyKind, "standard">, EnemyState[]> = {
         fast: [],
@@ -760,13 +765,12 @@ const reconcileSpecialEnemies = (): void => {
         if (enemy.lane === "standard") {
             standardEnemies.push(enemy);
         } else {
-            specialEnemiesByKind[enemy.kind as Exclude<EnemyKind, "standard">].push(enemy);
+            if (enemy.kind === "standard") {
+                standardEnemies.push(enemy);
+                continue;
+            }
+            specialEnemiesByKind[enemy.kind].push(enemy);
         }
-    }
-
-    if (runtime.phase !== "core") {
-        runtime.hostileCount = (runtime.boss ? 1 : 0) + runtime.enemies.length;
-        return;
     }
 
     const targetStandardCount = getTargetStandardEnemyCount(runtime.corruptedBytes);
@@ -915,6 +919,51 @@ const getNextBossAttackMode = (current: BossAttackMode): BossAttackMode => {
     return "firewall";
 };
 
+const getDesiredBossEscortKinds = (): EnemyKind[] => {
+    const desiredKinds: EnemyKind[] = ["standard", "gunner", "fast", "block", "comet", "sniper"];
+    const activeKinds = new Set(runtime.enemies.map((enemy) => enemy.kind));
+    return desiredKinds.filter((kind) => !activeKinds.has(kind));
+};
+
+const getWeightedBossEscortKind = (shielded: boolean): EnemyKind => {
+    const roll = Math.random();
+    if (shielded) {
+        if (roll < 0.2) {
+            return "standard";
+        }
+        if (roll < 0.38) {
+            return "gunner";
+        }
+        if (roll < 0.54) {
+            return "fast";
+        }
+        if (roll < 0.68) {
+            return "block";
+        }
+        if (roll < 0.87) {
+            return "comet";
+        }
+        return "sniper";
+    }
+
+    if (roll < 0.14) {
+        return "standard";
+    }
+    if (roll < 0.31) {
+        return "gunner";
+    }
+    if (roll < 0.47) {
+        return "fast";
+    }
+    if (roll < 0.61) {
+        return "block";
+    }
+    if (roll < 0.82) {
+        return "comet";
+    }
+    return "sniper";
+};
+
 const transitionBossMode = (nextMode: BossAttackMode): void => {
     const boss = runtime.boss;
     if (!boss) return;
@@ -949,21 +998,22 @@ const spawnBossEscort = (): void => {
         return;
     }
 
+    const shielded = boss.bossShieldHp > 0;
+    const missingKinds = getDesiredBossEscortKinds();
     const wantsLargeWave = boss.bossShieldHp <= 0;
     const spawnCount = Math.min(
         availableSlots,
-        wantsLargeWave
-            ? randomInt(2, 4)
-            : (Math.random() < 0.55 ? 2 : 1)
+        Math.max(
+            missingKinds.length,
+            wantsLargeWave
+                ? randomInt(2, 4)
+                : randomInt(2, 3)
+        )
     );
     for (let si = 0; si < spawnCount; si += 1) {
-        const kindRoll = Math.random();
-        const forcedKind: EnemyKind = boss.bossShieldHp > 0
-            ? (kindRoll < 0.78 ? "comet" : kindRoll < 0.94 ? "gunner" : "sniper")
-            : (kindRoll < 0.48 ? "comet" : kindRoll < 0.74 ? "gunner" : "sniper");
+        const forcedKind: EnemyKind = missingKinds[si] || getWeightedBossEscortKind(shielded);
         const escort = spawnEnemy(specialEnemyId++, true, "special", forcedKind, runtime.corruptedBytes);
         escort.x = clamp(boss.x + randomFloat(-3, BOSS_WIDTH - 1) + (si * randomFloat(8, 16)), 2, PLAYFIELD_WIDTH - escort.width - 2);
-        escort.y = boss.y + BOSS_HEIGHT + randomFloat(-1.5, 1.5);
         if (escort.kind === "comet") {
             escort.vx = 0;
             const stepMs = randomFloat(80, 105);
