@@ -56,6 +56,7 @@ interface AppState {
     renderScanlines: boolean; // should scanlines be enabled?
     skipTextAnimation: boolean; // skip teletype animation for the active screen
     shutdownTextStage: 0 | 1 | 2 | 3 | 4 | 5;
+    shutdownFxActive: boolean;
 }
 
 enum DialogType {
@@ -210,6 +211,7 @@ class Phosphor extends Component<PhosphorProps, AppState> {
             renderScanlines: true, // TODO: support option to disable this effect
             skipTextAnimation: false,
             shutdownTextStage: 0,
+            shutdownFxActive: false,
         };
 
         this._changeScreen = this._changeScreen.bind(this);
@@ -233,6 +235,7 @@ class Phosphor extends Component<PhosphorProps, AppState> {
             activeDialogId,
             renderScanlines,
             shutdownTextStage,
+            shutdownFxActive,
         } = this.state;
         const shutdownPhase = this.props.shutdownPhase || null;
 
@@ -244,7 +247,7 @@ class Phosphor extends Component<PhosphorProps, AppState> {
 
                 {activeDialogId && this._renderDialog()}
 
-                {shutdownPhase && this._renderShutdownOverlay(shutdownPhase, shutdownTextStage)}
+                {shutdownPhase && this._renderShutdownOverlay(shutdownPhase, shutdownTextStage, shutdownFxActive)}
 
                 {/* scanlines should be the last child */}
                 {renderScanlines && <Scanlines />}
@@ -325,16 +328,29 @@ class Phosphor extends Component<PhosphorProps, AppState> {
     }
 
     private _syncShutdownSequence(_prevPhase: MainframePhase | null, nextPhase: MainframePhase | null): void {
+        if (nextPhase === "glitch") {
+            this._clearShutdownTimer();
+            this.setState({ shutdownTextStage: 0, shutdownFxActive: false }, () => {
+                this._shutdownTimerId = window.setTimeout(() => {
+                    this._shutdownTimerId = null;
+                    if (this.props.shutdownPhase === "glitch") {
+                        this.setState({ shutdownFxActive: true });
+                    }
+                }, 4000);
+            });
+            return;
+        }
+
         if (nextPhase !== "epilogue") {
             this._clearShutdownTimer();
-            if (this.state.shutdownTextStage !== 0) {
-                this.setState({ shutdownTextStage: 0 });
+            if (this.state.shutdownTextStage !== 0 || this.state.shutdownFxActive) {
+                this.setState({ shutdownTextStage: 0, shutdownFxActive: false });
             }
             return;
         }
 
         this._clearShutdownTimer();
-        this.setState({ shutdownTextStage: 1 });
+        this.setState({ shutdownTextStage: 1, shutdownFxActive: false });
     }
 
     private _handleShutdownLineOneComplete(): void {
@@ -359,8 +375,19 @@ class Phosphor extends Component<PhosphorProps, AppState> {
 
     private _renderShutdownOverlay(
         phase: MainframePhase,
-        shutdownTextStage: 0 | 1 | 2 | 3 | 4 | 5
+        shutdownTextStage: 0 | 1 | 2 | 3 | 4 | 5,
+        shutdownFxActive: boolean
     ): ReactElement | null {
+        if (phase === "glitch" && shutdownFxActive) {
+            return (
+                <div className="phosphor-shutdown-screen phosphor-shutdown-screen--glitch" aria-hidden="true">
+                    <div className="phosphor-shutdown-screen__glitch-band phosphor-shutdown-screen__glitch-band--a" />
+                    <div className="phosphor-shutdown-screen__glitch-band phosphor-shutdown-screen__glitch-band--b" />
+                    <div className="phosphor-shutdown-screen__glitch-noise" />
+                </div>
+            );
+        }
+
         if (phase === "shutdown") {
             return <div className="phosphor-shutdown-screen phosphor-shutdown-screen--blackout" aria-hidden="true" />;
         }
