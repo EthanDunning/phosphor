@@ -380,3 +380,29 @@ $font-bump: 4pt;
         }
     }
 }
+
+.phosphor-shutdown {
+    position: fixed;
+    inset: 0;
+    z-index: 2147483649;
+    background: #000;
+    color: #f2f5ff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: max(env(safe-area-inset-top), 1rem) max(env(safe-area-inset-right), 1rem) max(env(safe-area-inset-bottom), 1rem) max(env(safe-area-inset-left), 1rem);
+    box-sizing: border-box;
+    text-shadow: none;
+}
+
+.phosphor-shutdown__message {
+    display: flex;
+    flex-direction: column;
+    gap: 1.1rem;
+    max-width: min(92vw, 36rem);
+    text-align: center;
+    font-family: $font-family;
+    font-size: calc(#{$smallfontsize * 0.9} + 3pt);
+    letter-spacing: 0.12em;
+    line-height: 1.7;
+}

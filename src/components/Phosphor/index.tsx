@@ -17,6 +17,7 @@ import Toggle from "../Toggle";
 import List from "../List";
 import ReportComposer from "../ReportComposer";
 import MainframeGame from "../MainframeGame";
+import type { MainframePhase } from "../MainframeGame/shared";
 
 import Modal from "../Modal";
 import Scanlines from "../Scanlines";
@@ -54,6 +55,7 @@ interface AppState {
 
     renderScanlines: boolean; // should scanlines be enabled?
     skipTextAnimation: boolean; // skip teletype animation for the active screen
+    shutdownTextStage: 0 | 1 | 2 | 3 | 4 | 5;
 }
 
 enum DialogType {
@@ -154,6 +156,8 @@ interface PhosphorProps {
     defaultTextSpeed?: number;
     soundEnabled?: boolean;
     onScreenChanged?: (screenId: string) => void;
+    onMainframePhaseChange?: (phase: MainframePhase) => void;
+    shutdownPhase?: MainframePhase | null;
 }
 
 class Phosphor extends Component<PhosphorProps, AppState> {
@@ -181,6 +185,7 @@ class Phosphor extends Component<PhosphorProps, AppState> {
     private _sessionStorageKey: string;
     private _shipLogStorageKey: string;
     private _userReportStorageKey: string;
+    private _shutdownTimerId: number = null;
 
     constructor(props: PhosphorProps) {
         super(props);
@@ -204,6 +209,7 @@ class Phosphor extends Component<PhosphorProps, AppState> {
             status: AppStatus.Unset,
             renderScanlines: true, // TODO: support option to disable this effect
             skipTextAnimation: false,
+            shutdownTextStage: 0,
         };
 
         this._changeScreen = this._changeScreen.bind(this);
@@ -226,7 +232,9 @@ class Phosphor extends Component<PhosphorProps, AppState> {
             activeScreenId,
             activeDialogId,
             renderScanlines,
+            shutdownTextStage,
         } = this.state;
+        const shutdownPhase = this.props.shutdownPhase || null;
 
         return (
             <div className="phosphor">
@@ -235,6 +243,8 @@ class Phosphor extends Component<PhosphorProps, AppState> {
                 </section>
 
                 {activeDialogId && this._renderDialog()}
+
+                {shutdownPhase && this._renderShutdownOverlay(shutdownPhase, shutdownTextStage)}
 
                 {/* scanlines should be the last child */}
                 {renderScanlines && <Scanlines />}
@@ -271,10 +281,15 @@ class Phosphor extends Component<PhosphorProps, AppState> {
         document.removeEventListener("visibilitychange", this._handleVisibilityChange);
         window.removeEventListener("wheel", this._handleWheel);
         this._clearScreenDoneTimer();
+        this._clearShutdownTimer();
         this._teardownAudio();
     }
 
     public componentDidUpdate(prevProps: PhosphorProps): void {
+        if (prevProps.shutdownPhase !== this.props.shutdownPhase) {
+            this._syncShutdownSequence(prevProps.shutdownPhase || null, this.props.shutdownPhase || null);
+        }
+
         const wasSoundEnabled = prevProps.soundEnabled !== false;
         const isSoundEnabled = this._isSoundEnabled();
         if (wasSoundEnabled === isSoundEnabled) {
@@ -292,6 +307,102 @@ class Phosphor extends Component<PhosphorProps, AppState> {
     // private methods
     private _isSoundEnabled(): boolean {
         return this.props.soundEnabled !== false;
+    }
+
+    private _clearShutdownTimer(): void {
+        if (this._shutdownTimerId !== null) {
+            window.clearTimeout(this._shutdownTimerId);
+            this._shutdownTimerId = null;
+        }
+    }
+
+    private _scheduleShutdownStage(stage: 0 | 1 | 2 | 3 | 4 | 5, delayMs: number): void {
+        this._clearShutdownTimer();
+        this._shutdownTimerId = window.setTimeout(() => {
+            this._shutdownTimerId = null;
+            this.setState({ shutdownTextStage: stage });
+        }, delayMs);
+    }
+
+    private _syncShutdownSequence(_prevPhase: MainframePhase | null, nextPhase: MainframePhase | null): void {
+        if (nextPhase !== "epilogue") {
+            this._clearShutdownTimer();
+            if (this.state.shutdownTextStage !== 0) {
+                this.setState({ shutdownTextStage: 0 });
+            }
+            return;
+        }
+
+        this._clearShutdownTimer();
+        this.setState({ shutdownTextStage: 1 });
+    }
+
+    private _handleShutdownLineOneComplete(): void {
+        if (this.props.shutdownPhase !== "epilogue") {
+            return;
+        }
+
+        this.setState({ shutdownTextStage: 2 }, () => {
+            this._scheduleShutdownStage(3, 5000);
+        });
+    }
+
+    private _handleShutdownLineTwoComplete(): void {
+        if (this.props.shutdownPhase !== "epilogue") {
+            return;
+        }
+
+        this.setState({ shutdownTextStage: 4 }, () => {
+            this._scheduleShutdownStage(5, 5000);
+        });
+    }
+
+    private _renderShutdownOverlay(
+        phase: MainframePhase,
+        shutdownTextStage: 0 | 1 | 2 | 3 | 4 | 5
+    ): ReactElement | null {
+        if (phase === "shutdown") {
+            return <div className="phosphor-shutdown-screen phosphor-shutdown-screen--blackout" aria-hidden="true" />;
+        }
+
+        if (phase !== "epilogue") {
+            return null;
+        }
+
+        return (
+            <div className="phosphor-shutdown-screen phosphor-shutdown-screen--epilogue">
+                <div className="phosphor-shutdown-screen__message">
+                    {shutdownTextStage === 1 && (
+                        <Teletype
+                            key="shutdown-line-1"
+                            text="IT HAS BEEN A PLEASURE SERVING ON BOARD THE INCR-SS-ARK."
+                            className="phosphor-shutdown-screen__line"
+                            speed={28}
+                            onComplete={this._handleShutdownLineOneComplete.bind(this)}
+                            onNewLine={this._handleTeletypeNewLine}
+                            onCharDrawn={this._handleTeletypeCharDrawn}
+                        />
+                    )}
+                    {shutdownTextStage >= 2 && shutdownTextStage <= 4 && (
+                        <div className="phosphor-shutdown-screen__line">IT HAS BEEN A PLEASURE SERVING ON BOARD THE INCR-SS-ARK.</div>
+                    )}
+                    {shutdownTextStage === 3 && (
+                        <Teletype
+                            key="shutdown-line-2"
+                            text="GOOD BYE."
+                            className="phosphor-shutdown-screen__line"
+                            speed={36}
+                            onComplete={this._handleShutdownLineTwoComplete.bind(this)}
+                            onNewLine={this._handleTeletypeNewLine}
+                            onCharDrawn={this._handleTeletypeCharDrawn}
+                        />
+                    )}
+                    {shutdownTextStage === 4 && (
+                        <div className="phosphor-shutdown-screen__line">GOOD BYE.</div>
+                    )}
+                </div>
+            </div>
+        );
     }
 
     private _buildAudio(src: string, volume: number, loop = false): HTMLAudioElement {
@@ -1607,6 +1718,7 @@ class Phosphor extends Component<PhosphorProps, AppState> {
                 <MainframeGame
                     key={key}
                     className={className}
+                    onPhaseChange={this.props.onMainframePhaseChange}
                 />
             );
         }

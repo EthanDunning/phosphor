@@ -1,4 +1,5 @@
 const SOUND_ENABLED_STORAGE_KEY = "phosphor:sound-enabled:v1";
+const HEADER_VISIBLE_STORAGE_KEY = "phosphor:header-visible:v1";
 const MODULES_BROWSER_VIEW_MODE_STORAGE_KEY = "phosphor:modules-browser:view-mode:v1";
 const MODULES_BROWSER_FONT_MODE_STORAGE_KEY = "phosphor:modules-browser:font-mode:v1";
 const OWN_SCRIPTS_VISIBILITY_STORAGE_KEY = "phosphor:own-scripts:visibility:v1";
@@ -23,6 +24,27 @@ export const loadPersistedSoundEnabled = (): boolean => {
 export const persistSoundEnabled = (soundEnabled: boolean): void => {
     try {
         window.localStorage.setItem(SOUND_ENABLED_STORAGE_KEY, soundEnabled ? "true" : "false");
+    } catch {
+        // ignore storage write failures
+    }
+};
+
+export const loadPersistedHeaderVisible = (): boolean => {
+    try {
+        const savedValue = window.localStorage.getItem(HEADER_VISIBLE_STORAGE_KEY);
+        if (savedValue === null) {
+            return true;
+        }
+
+        return savedValue !== "false";
+    } catch {
+        return true;
+    }
+};
+
+export const persistHeaderVisible = (headerVisible: boolean): void => {
+    try {
+        window.localStorage.setItem(HEADER_VISIBLE_STORAGE_KEY, headerVisible ? "true" : "false");
     } catch {
         // ignore storage write failures
     }

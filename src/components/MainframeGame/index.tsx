@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef } from "react";
-import type { InputDirection, RenderSnapshot, UiSnapshot, WorkerFrameMessage } from "./shared";
+import type { InputDirection, MainframePhase, RenderSnapshot, UiSnapshot, WorkerFrameMessage } from "./shared";
 import bulletSoundSrc from "../../assets/aphelion game/bullet.wav";
 import explosionSoundSrc from "../../assets/aphelion game/explosion.wav";
 import deathSoundSrc from "../../assets/aphelion game/death.wav";
@@ -26,6 +26,7 @@ import "./style.scss";
 interface MainframeGameProps {
     className?: string;
     onRendered?: () => void;
+    onPhaseChange?: (phase: MainframePhase) => void;
 }
 
 interface PlayfieldMetrics {
@@ -55,7 +56,8 @@ type WorkerControlMessage =
     | { type: "devGotoBoss" }
     | { type: "devToggleInvulnerable" }
     | { type: "devPowerUp"; kind: "dual" | "laser" | "slow" | "explosive" | "shield" | "healthpack" }
-    | { type: "devHeal" };
+    | { type: "devHeal" }
+    | { type: "devSkipCollapse" };
 
 const PLAYER_COLOR = "#d8e4ff";
 const PLAYER_DAMAGED_COLOR = "#ffb9c2";
@@ -91,6 +93,7 @@ const BOSS_ATTACK_LABELS: Record<string, string> = {
     rain: "CODE RAIN",
     sweep: "LATTICE SWEEP",
 };
+const DEFAULT_MUSIC_VOLUME = 0.2;
 
 const buildCenteredBar = (fraction: number, width: number): string => {
     const filled = Math.round(Math.max(0, Math.min(1, fraction)) * width);
@@ -156,7 +159,7 @@ const playfieldMetricsChanged = (current: PlayfieldMetrics | null, next: Playfie
         || current.dpr !== next.dpr;
 };
 
-const MainframeGame = ({ className = "", onRendered }: MainframeGameProps): React.ReactElement => {
+const MainframeGame = ({ className = "", onRendered, onPhaseChange }: MainframeGameProps): React.ReactElement => {
     const containerClassName = ["mainframe-game", className].filter(Boolean).join(" ").trim();
     const coreRows = useMemo(() => {
         const rowCount = Math.ceil(CORE_BYTE_COUNT / CORE_BYTES_PER_ROW);
@@ -199,6 +202,7 @@ const MainframeGame = ({ className = "", onRendered }: MainframeGameProps): Reac
     const overlayRef = useRef<HTMLDivElement | null>(null);
     const overlayTitleRef = useRef<HTMLDivElement | null>(null);
     const overlayCopyRef = useRef<HTMLDivElement | null>(null);
+    const reportedPhaseRef = useRef<MainframePhase | null>(null);
 
     const musicRef = useRef<HTMLAudioElement | null>(null);
     const musicFadeRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -212,6 +216,46 @@ const MainframeGame = ({ className = "", onRendered }: MainframeGameProps): Reac
 
     const sendWorkerMessage = (message: WorkerControlMessage): void => {
         workerRef.current?.postMessage(message);
+    };
+
+    const startMusicFadeOut = (durationMs = 1800): void => {
+        const music = musicRef.current;
+        if (!music || musicFadeRef.current !== null) {
+            return;
+        }
+
+        const startVolume = music.volume;
+        const startedAt = performance.now();
+        musicFadeRef.current = window.setInterval(() => {
+            const activeMusic = musicRef.current;
+            if (!activeMusic) {
+                if (musicFadeRef.current !== null) {
+                    clearInterval(musicFadeRef.current);
+                    musicFadeRef.current = null;
+                }
+                return;
+            }
+
+            const elapsed = performance.now() - startedAt;
+            const fraction = Math.max(0, 1 - (elapsed / durationMs));
+            activeMusic.volume = Math.max(0, startVolume * fraction);
+            if (fraction <= 0) {
+                activeMusic.volume = 0;
+                activeMusic.pause();
+                if (musicFadeRef.current !== null) {
+                    clearInterval(musicFadeRef.current);
+                    musicFadeRef.current = null;
+                }
+            }
+        }, 60);
+    };
+
+    const syncPhase = (phase: MainframePhase): void => {
+        if (reportedPhaseRef.current === phase) {
+            return;
+        }
+        reportedPhaseRef.current = phase;
+        onPhaseChange && onPhaseChange(phase);
     };
 
     const playOneShot = (audio: HTMLAudioElement | null): void => {
@@ -373,6 +417,22 @@ const MainframeGame = ({ className = "", onRendered }: MainframeGameProps): Reac
         context.textBaseline = "middle";
         context.font = `${metrics.fontScale}px Vga, Menlo, Monaco, Consolas, monospace`;
 
+        if (snapshot.phase === "shutdown" || snapshot.phase === "epilogue") {
+            context.fillStyle = "#010206";
+            context.fillRect(0, 0, metrics.width, metrics.height);
+            return;
+        }
+
+        if (snapshot.phase === "glitch") {
+            context.textAlign = "center";
+            const playerVisible = snapshot.player.invulnerableMs <= 0 || Math.floor(snapshot.player.invulnerableMs / 90) % 2 === 0;
+            if (playerVisible) {
+                context.fillStyle = PLAYER_COLOR;
+                context.fillText("<^>", snapshot.player.x * metrics.xScale, snapshot.player.y * metrics.yScale);
+            }
+            return;
+        }
+
         if (snapshot.laserActive && snapshot.status === "running") {
             context.strokeStyle = LASER_COLOR;
             context.lineWidth = 2;
@@ -433,7 +493,7 @@ const MainframeGame = ({ className = "", onRendered }: MainframeGameProps): Reac
             });
         });
 
-        if (snapshot.phase === "boss" && snapshot.boss) {
+        if ((snapshot.phase === "boss" || snapshot.phase === "collapse") && snapshot.boss) {
             const pixelX = snapshot.boss.x * metrics.xScale;
             const pixelY = snapshot.boss.y * metrics.yScale;
             const pixelWidth = BOSS_WIDTH * metrics.xScale;
@@ -463,7 +523,7 @@ const MainframeGame = ({ className = "", onRendered }: MainframeGameProps): Reac
             context.fillText(bossStatusLabel, pixelX + (pixelWidth * 0.5), pixelY + (pixelHeight * 0.68));
         }
 
-        if (snapshot.phase === "boss" && snapshot.boss?.firewall) {
+        if ((snapshot.phase === "boss" || snapshot.phase === "collapse") && snapshot.boss?.firewall) {
             const fw = snapshot.boss.firewall;
             context.save();
             context.globalAlpha = fw.alpha;
@@ -515,6 +575,7 @@ const MainframeGame = ({ className = "", onRendered }: MainframeGameProps): Reac
     };
 
     const applyUiSnapshot = (snapshot: UiSnapshot): void => {
+        syncPhase(snapshot.phase);
         if (snapshot.coreBytes) {
             coreBytesRef.current = [...snapshot.coreBytes];
             drawCoreMemory();
@@ -529,19 +590,18 @@ const MainframeGame = ({ className = "", onRendered }: MainframeGameProps): Reac
 
 
         if (overlayRef.current) {
-            overlayRef.current.hidden = snapshot.status === "running";
+            overlayRef.current.hidden = snapshot.status !== "defeat";
         }
         if (overlayTitleRef.current) {
-            overlayTitleRef.current.textContent = snapshot.status === "victory" ? "APHELION DOWN" : "PILOT LOST";
+            overlayTitleRef.current.textContent = "PILOT LOST";
         }
         if (overlayCopyRef.current) {
-            overlayCopyRef.current.textContent = snapshot.status === "victory"
-                ? "The memory core and final command shell have both been purged."
-                : "A hostile code shard breached the cockpit frame.";
+            overlayCopyRef.current.textContent = "A hostile code shard breached the cockpit frame.";
         }
     };
 
     const applyRenderSnapshot = (snapshot: RenderSnapshot): void => {
+        syncPhase(snapshot.phase);
         latestRenderRef.current = snapshot;
         drawScene(snapshot);
     };
@@ -557,7 +617,7 @@ const MainframeGame = ({ className = "", onRendered }: MainframeGameProps): Reac
             musicFadeRef.current = null;
         }
         if (musicRef.current) {
-            musicRef.current.volume = 0.2;
+            musicRef.current.volume = DEFAULT_MUSIC_VOLUME;
             musicRef.current.currentTime = 0;
             musicRef.current.play().catch(() => {});
         }
@@ -579,7 +639,7 @@ const MainframeGame = ({ className = "", onRendered }: MainframeGameProps): Reac
     useEffect(() => {
         const music = new Audio(gameMusicSrc);
         music.loop = true;
-        music.volume = 0.2;
+        music.volume = DEFAULT_MUSIC_VOLUME;
         musicRef.current = music;
 
         const laser = new Audio(laserSoundSrc);
@@ -733,25 +793,26 @@ const MainframeGame = ({ className = "", onRendered }: MainframeGameProps): Reac
             }
 
             if (data.gameState) {
+                syncPhase(data.gameState.phase);
                 const gameOver = data.gameState.status !== "running";
 
-                if (data.gameState.status === "victory" && musicFadeRef.current === null && musicRef.current) {
-                    musicFadeRef.current = setInterval(() => {
-                        const music = musicRef.current;
-                        if (!music) {
-                            clearInterval(musicFadeRef.current!);
-                            musicFadeRef.current = null;
-                            return;
-                        }
-                        if (music.volume > 0.008) {
-                            music.volume = Math.max(0, music.volume - 0.008);
-                        } else {
-                            music.volume = 0;
-                            music.pause();
-                            clearInterval(musicFadeRef.current!);
-                            musicFadeRef.current = null;
-                        }
-                    }, 100);
+                if (data.gameState.phase === "collapse") {
+                    startMusicFadeOut();
+                }
+
+                if (data.gameState.phase === "shutdown" || data.gameState.phase === "epilogue" || data.gameState.status === "victory") {
+                    if (musicFadeRef.current !== null) {
+                        clearInterval(musicFadeRef.current);
+                        musicFadeRef.current = null;
+                    }
+                    [musicRef.current, laserSoundRef.current, xblastSoundRef.current, bulletSfxRef.current, explosionSfxRef.current, deathSfxRef.current, pickupSfxRef.current]
+                        .forEach((audio) => {
+                            if (!audio) {
+                                return;
+                            }
+                            audio.pause();
+                            audio.currentTime = 0;
+                        });
                 }
 
                 const wantsLaser = data.gameState.laserFiring && !gameOver;
@@ -866,8 +927,10 @@ const MainframeGame = ({ className = "", onRendered }: MainframeGameProps): Reac
                     sendWorkerMessage({ type: "devPowerUp", kind: "laser" });
                 } else if (key === "b") {
                     sendWorkerMessage({ type: "devPowerUp", kind: "shield" });
-                } else if (key === "h") {
+                } else if (key === "j") {
                     sendWorkerMessage({ type: "devHeal" });
+                } else if (key === "o") {
+                    sendWorkerMessage({ type: "devSkipCollapse" });
                 }
             }
         };

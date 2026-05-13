@@ -99,7 +99,8 @@ type WorkerControlMessage =
     | { type: "devGotoBoss" }
     | { type: "devToggleInvulnerable" }
     | { type: "devPowerUp"; kind: PowerUpKind }
-    | { type: "devHeal" };
+    | { type: "devHeal" }
+    | { type: "devSkipCollapse" };
 
 interface InputState {
     up: boolean;
@@ -140,6 +141,9 @@ let bossPowerUpCooldownMs = 0;
 let bossFirewallsRemaining = 0;
 let bossPatternIndex = 0;
 let lastFirewallDirection: BossFirewallState["direction"] | "" = "";
+let collapseByteIndices: number[] = [];
+let finalGlitchRemainingMs = 0;
+let finalShutdownRemainingMs = 0;
 let renderInWorker = false;
 let renderCanvas: OffscreenCanvas | null = null;
 let renderContext: OffscreenCanvasRenderingContext2D | null = null;
@@ -154,6 +158,9 @@ const workerScope = self as unknown as WorkerScopeWithAnimationFrame;
 const MATRIX_TRAIL_CHARS = "01<>[]{}()#$%&*+-/\\|:=!?";
 const BOSS_PATTERN_ORDER: BossAttackMode[] = ["volley", "rain", "sweep"];
 const CORE_POWER_UP_DROP_MULTIPLIER = 0.55;
+const FINAL_COLLAPSE_BYTES_PER_HIT = 16;
+const FINAL_GLITCH_DURATION_MS = 5000;
+const FINAL_BLACKOUT_DURATION_MS = 2600;
 const CORE_ENEMY_UNLOCK_BYTES = {
     standard: 0,
     gunner: 96,
@@ -885,12 +892,109 @@ const startBossBattle = (): void => {
     };
 };
 
+const getPhaseProgress = (): number => {
+    if (runtime.phase === "epilogue") {
+        return 1;
+    }
+    if (runtime.phase === "shutdown") {
+        return 1 - (finalShutdownRemainingMs / FINAL_BLACKOUT_DURATION_MS);
+    }
+    if (runtime.phase === "glitch") {
+        return 1 - (finalGlitchRemainingMs / FINAL_GLITCH_DURATION_MS);
+    }
+    if (runtime.phase === "collapse") {
+        return 1 - (runtime.corruptedBytes / CORE_BYTE_COUNT);
+    }
+    return 0;
+};
+
+const startFinalGlitch = (): void => {
+    runtime.phase = "glitch";
+    runtime.boss = null;
+    runtime.enemies = [];
+    runtime.enemyShots = [];
+    runtime.powerUps = [];
+    runtime.bullets = [];
+    runtime.effects = {
+        dualMs: 0,
+        laserMs: 0,
+        slowMs: 0,
+        explosiveMs: 0,
+    };
+    runtime.wingmen.forEach((wingman) => {
+        wingman.active = false;
+        wingman.invulnerableMs = 0;
+    });
+    runtime.hostileCount = 0;
+    finalGlitchRemainingMs = FINAL_GLITCH_DURATION_MS;
+    finalShutdownRemainingMs = 0;
+};
+
+const drainCorruptedMemory = (byteCount: number): boolean => {
+    if (!collapseByteIndices.length) {
+        return false;
+    }
+
+    const clearCount = Math.min(byteCount, collapseByteIndices.length);
+    for (let index = 0; index < clearCount; index += 1) {
+        const targetPosition = randomInt(0, collapseByteIndices.length - 1);
+        const [targetIndex] = collapseByteIndices.splice(targetPosition, 1);
+        runtime.coreBytes[targetIndex] = "  ";
+        runtime.corruptedBytes = Math.max(0, runtime.corruptedBytes - 1);
+        pendingCoreUpdates.push({ index: targetIndex, value: "  " });
+    }
+
+    if (!collapseByteIndices.length) {
+        startFinalGlitch();
+    }
+
+    return true;
+};
+
+const startFinalCollapse = (): void => {
+    runtime.phase = "collapse";
+    if (runtime.boss) {
+        runtime.boss.health = 0;
+        runtime.boss.vx = 0;
+        runtime.boss.fireCooldownMs = Number.POSITIVE_INFINITY;
+        runtime.boss.summonCooldownMs = Number.POSITIVE_INFINITY;
+        runtime.boss.attackModeMs = 0;
+        runtime.boss.firewall = null;
+    }
+    runtime.enemies = [];
+    runtime.enemyShots = [];
+    runtime.powerUps = [];
+    runtime.bullets = [];
+    runtime.effects = {
+        dualMs: 0,
+        laserMs: 0,
+        slowMs: 0,
+        explosiveMs: 0,
+    };
+    runtime.wingmen.forEach((wingman) => {
+        wingman.active = false;
+        wingman.invulnerableMs = 0;
+    });
+    runtime.hostileCount = runtime.boss ? 1 : 0;
+    finalGlitchRemainingMs = 0;
+    finalShutdownRemainingMs = 0;
+    collapseByteIndices = [];
+    for (let index = 0; index < runtime.coreBytes.length; index += 1) {
+        if (runtime.coreBytes[index].trim().length) {
+            collapseByteIndices.push(index);
+        }
+    }
+};
+
 const damageBoss = (amount: number): boolean => {
     if (!runtime.boss) {
         return false;
     }
 
     runtime.hits += 1;
+    if (runtime.phase === "collapse") {
+        return drainCorruptedMemory(Math.max(1, Math.round(amount)) * FINAL_COLLAPSE_BYTES_PER_HIT);
+    }
     if (runtime.boss.bossShieldHp > 0) {
         runtime.boss.bossShieldHp = Math.max(0, runtime.boss.bossShieldHp - amount);
         if (runtime.boss.bossShieldHp <= 0) {
@@ -906,7 +1010,8 @@ const damageBoss = (amount: number): boolean => {
     }
     runtime.boss.health = Math.max(0, runtime.boss.health - amount);
     if (runtime.boss.health <= 0) {
-        runtime.status = "victory";
+        startFinalCollapse();
+        return drainCorruptedMemory(FINAL_COLLAPSE_BYTES_PER_HIT);
     }
     return true;
 };
@@ -1155,6 +1260,7 @@ const toRenderSnapshot = (): RenderSnapshot => ({
     health: runtime.health,
     maxHealth: runtime.maxHealth,
     shieldHp: runtime.shieldHp,
+    phaseProgress: getPhaseProgress(),
 });
 
 const toUiSnapshot = (forceFullCoreBytes = false): UiSnapshot => {
@@ -1207,6 +1313,7 @@ const postFrame = (includeUi = false, forceFullCoreBytes = false): void => {
     const gameState: WorkerFrameGameState = {
         laserFiring: runtime.effects.laserMs > 0 && inputState.fire,
         status: runtime.status,
+        phase: runtime.phase,
     };
     message.gameState = gameState;
     self.postMessage(message);
@@ -1222,6 +1329,22 @@ const drawScene = (): void => {
     renderContext.setTransform(renderMetrics.dpr, 0, 0, renderMetrics.dpr, 0, 0);
     renderContext.textBaseline = "middle";
     renderContext.font = `${renderMetrics.fontScale}px Vga, Menlo, Monaco, Consolas, monospace`;
+
+    if (runtime.phase === "shutdown" || runtime.phase === "epilogue") {
+        renderContext.fillStyle = "#010206";
+        renderContext.fillRect(0, 0, renderMetrics.width, renderMetrics.height);
+        return;
+    }
+
+    if (runtime.phase === "glitch") {
+        renderContext.textAlign = "center";
+        const playerVisible = runtime.player.invulnerableMs <= 0 || Math.floor(runtime.player.invulnerableMs / 90) % 2 === 0;
+        if (playerVisible) {
+            renderContext.fillStyle = "#d8e4ff";
+            renderContext.fillText("<^>", runtime.player.x * renderMetrics.xScale, runtime.player.y * renderMetrics.yScale);
+        }
+        return;
+    }
 
     if (runtime.effects.laserMs > 0 && inputState.fire && runtime.status === "running") {
         renderContext.strokeStyle = "rgba(180, 220, 255, 0.72)";
@@ -1303,7 +1426,7 @@ const drawScene = (): void => {
         });
     });
 
-    if (runtime.phase === "boss" && runtime.boss) {
+    if ((runtime.phase === "boss" || runtime.phase === "collapse") && runtime.boss) {
         const pixelX = runtime.boss.x * renderMetrics.xScale;
         const pixelY = runtime.boss.y * renderMetrics.yScale;
         const pixelWidth = BOSS_WIDTH * renderMetrics.xScale;
@@ -1324,7 +1447,9 @@ const drawScene = (): void => {
             renderContext.fillRect(pixelX - 4, pixelY - 4, pixelWidth + 8, pixelHeight + 8);
         }
 
-        const bossStatusLabel = runtime.boss.bossShieldHp > 0
+        const bossStatusLabel = runtime.phase === "collapse"
+            ? "CORE PURGE"
+            : runtime.boss.bossShieldHp > 0
             ? `${getBossAttackLabel(runtime.boss.attackMode)} // BARRIER ${String(runtime.boss.bossShieldHp).padStart(3, "0")}`
             : `${getBossAttackLabel(runtime.boss.attackMode)} // HP ${String(runtime.boss.health).padStart(3, "0")}`;
         renderContext.fillStyle = "#ffd6de";
@@ -1333,7 +1458,7 @@ const drawScene = (): void => {
         renderContext.fillText(bossStatusLabel, pixelX + (pixelWidth * 0.5), pixelY + (pixelHeight * 0.68));
     }
 
-    if (runtime.phase === "boss" && runtime.boss?.firewall) {
+    if ((runtime.phase === "boss" || runtime.phase === "collapse") && runtime.boss?.firewall) {
         const fw = runtime.boss.firewall;
         renderContext.save();
         renderContext.globalAlpha = fw.alpha;
@@ -1421,6 +1546,24 @@ const stepSimulation = (): boolean => {
         shipAnchors = getShipAnchors(runtime.player.x, runtime.player.y, runtime);
     };
 
+    if (runtime.phase === "glitch") {
+        finalGlitchRemainingMs = Math.max(0, finalGlitchRemainingMs - FIXED_DT_MS);
+        if (finalGlitchRemainingMs <= 0) {
+            runtime.phase = "shutdown";
+            finalShutdownRemainingMs = FINAL_BLACKOUT_DURATION_MS;
+        }
+        return true;
+    }
+
+    if (runtime.phase === "shutdown") {
+        finalShutdownRemainingMs = Math.max(0, finalShutdownRemainingMs - FIXED_DT_MS);
+        if (finalShutdownRemainingMs <= 0) {
+            runtime.phase = "epilogue";
+            runtime.status = "victory";
+        }
+        return true;
+    }
+
     const damageEnemyAt = (enemyIndex: number, instantKill = false): void => {
         const currentEnemy = runtime.enemies[enemyIndex];
         if (!currentEnemy) {
@@ -1503,7 +1646,7 @@ const stepSimulation = (): boolean => {
         let bossDamaged = false;
         for (let emitterIndex = 0; emitterIndex < shipAnchors.length; emitterIndex += 1) {
             const emitterX = shipAnchors[emitterIndex].x;
-            if (runtime.phase === "boss" && runtime.boss) {
+            if ((runtime.phase === "boss" || runtime.phase === "collapse") && runtime.boss) {
                 const bossHit = emitterX >= runtime.boss.x && emitterX <= runtime.boss.x + BOSS_WIDTH;
                 if (bossHit) {
                     damageBoss(2);
@@ -1809,8 +1952,10 @@ const stepSimulation = (): boolean => {
             uiDirty = true;
         }
 
-        bossPowerUpCooldownMs = Math.max(0, bossPowerUpCooldownMs - FIXED_DT_MS);
-        if (bossPowerUpCooldownMs <= 0) {
+        if (runtime.phase === "boss") {
+            bossPowerUpCooldownMs = Math.max(0, bossPowerUpCooldownMs - FIXED_DT_MS);
+        }
+        if (runtime.phase === "boss" && bossPowerUpCooldownMs <= 0) {
             const kindRoll = Math.random();
             const bossDropKind: PowerUpKind = kindRoll < 0.20 ? "dual" : kindRoll < 0.40 ? "laser" : kindRoll < 0.58 ? "slow" : kindRoll < 0.76 ? "explosive" : kindRoll < 0.88 ? "shield" : "healthpack";
             runtime.powerUps.push({ id: powerUpId++, x: randomFloat(10, PLAYFIELD_WIDTH - 10), y: runtime.boss.y + BOSS_HEIGHT + 2, kind: bossDropKind });
@@ -1849,7 +1994,7 @@ const stepSimulation = (): boolean => {
             const bulletRadiusY = bullet.kind === "explosive" ? 1.4 : 0.65;
             let hitsBoss = false;
             let closestImpactY = Number.NEGATIVE_INFINITY;
-            if (runtime.phase === "boss" && runtime.boss) {
+            if ((runtime.phase === "boss" || runtime.phase === "collapse") && runtime.boss) {
                 hitsBoss = verticalSegmentHitsRect(
                     bullet.x,
                     previousBulletY,
@@ -2004,6 +2149,9 @@ const resetRuntime = (): void => {
     bossFirewallsRemaining = 0;
     bossPatternIndex = 0;
     lastFirewallDirection = "";
+    collapseByteIndices = [];
+    finalGlitchRemainingMs = 0;
+    finalShutdownRemainingMs = 0;
     accumulator = 0;
     lastFrameAt = 0;
     lastUiSyncAt = performance.now();
@@ -2105,6 +2253,19 @@ self.addEventListener("message", (event: MessageEvent<WorkerControlMessage>) => 
         runtime.health = runtime.maxHealth;
         runtime.shieldHp = 0;
         postFrame(true, false);
+        return;
+    }
+
+    if (message.type === "devSkipCollapse") {
+        if (runtime.phase === "collapse" || runtime.phase === "glitch" || runtime.phase === "shutdown") {
+            collapseByteIndices = [];
+            runtime.corruptedBytes = 0;
+            runtime.phase = "epilogue";
+            finalGlitchRemainingMs = 0;
+            finalShutdownRemainingMs = 0;
+            runtime.status = "victory";
+            postFrame(true, true);
+        }
         return;
     }
 });

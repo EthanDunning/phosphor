@@ -39,6 +39,106 @@ body {
     padding-right: max(env(safe-area-inset-right),$lineheight);
 }
 
+.phosphor-shutdown-screen {
+    position: fixed;
+    inset: 0;
+    z-index: 2147483646;
+    background-color: var(--bg);
+    background-image: var(--bg-gradient);
+    pointer-events: none;
+    overflow: hidden;
+}
+
+.phosphor-shutdown-screen--glitch {
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0)),
+        var(--bg-gradient);
+    background-color: var(--bg);
+    animation: phosphor-shutdown-flicker 420ms steps(2, end) infinite;
+}
+
+.phosphor-shutdown-screen__glitch-band,
+.phosphor-shutdown-screen__glitch-noise {
+    position: absolute;
+    inset: 0;
+}
+
+.phosphor-shutdown-screen__glitch-band--a {
+    background:
+        repeating-linear-gradient(
+            180deg,
+            transparent 0,
+            transparent 8%,
+            rgba(255, 255, 255, 0.06) 8.5%,
+            transparent 11%
+    );
+    mix-blend-mode: screen;
+    opacity: 0.32;
+    animation: phosphor-shutdown-drift-a 1400ms steps(3, end) infinite;
+}
+
+.phosphor-shutdown-screen__glitch-band--b {
+    background:
+        linear-gradient(90deg, rgba(255, 40, 60, 0.08), transparent 24%, transparent 76%, rgba(120, 210, 255, 0.08));
+    opacity: 0.34;
+    animation: phosphor-shutdown-drift-b 900ms steps(2, end) infinite;
+}
+
+.phosphor-shutdown-screen__glitch-noise {
+    background:
+        repeating-linear-gradient(
+            0deg,
+            rgba(255, 255, 255, 0.028) 0,
+            rgba(255, 255, 255, 0.028) 1px,
+            transparent 1px,
+            transparent 3px
+        );
+    opacity: 0.36;
+    animation: phosphor-shutdown-noise 680ms steps(2, end) infinite;
+}
+
+.phosphor-shutdown-screen--blackout,
+.phosphor-shutdown-screen--epilogue {
+    background-color: var(--bg);
+    background-image: var(--bg-gradient);
+}
+
+.phosphor-shutdown-screen__message {
+    position: absolute;
+    left: 50%;
+    top: 56%;
+    transform: translate(-50%, -50%);
+    width: min(92vw, 52rem);
+    color: #f4f6fb;
+    text-shadow: 0 0 5px rgba(244, 246, 251, 0.3);
+}
+
+.phosphor-shutdown-screen__line {
+    margin: 0 0 1.35rem;
+    text-align: center;
+    letter-spacing: 0.08em;
+}
+
+@keyframes phosphor-shutdown-flicker {
+    0% { opacity: 0.92; }
+    100% { opacity: 1; }
+}
+
+@keyframes phosphor-shutdown-drift-a {
+    0% { transform: translate3d(0, -2%, 0); }
+    100% { transform: translate3d(0, 2%, 0); }
+}
+
+@keyframes phosphor-shutdown-drift-b {
+    0% { transform: translate3d(-0.4%, 0, 0); }
+    100% { transform: translate3d(0.4%, 0, 0); }
+}
+
+@keyframes phosphor-shutdown-noise {
+    0% { transform: translate3d(0, 0, 0); opacity: 0.42; }
+    100% { transform: translate3d(0, 1.2%, 0); opacity: 0.62; }
+}
+
 .__text__,
 .__teletype__,
 .__link__ {

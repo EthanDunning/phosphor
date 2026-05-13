@@ -40,14 +40,17 @@ import {
 } from "../../lib/modules";
 import { APP_TITLE } from "../../lib/branding";
 import {
+    loadPersistedHeaderVisible,
     loadPersistedOwnScriptsVisibility,
     loadPersistedSoundEnabled,
+    persistHeaderVisible,
     loadPersistedSubscribedScriptsVisibility,
     persistOwnScriptsVisibility,
     persistSoundEnabled,
     persistSubscribedScriptsVisibility,
 } from "../../lib/preferences";
 import { getModulesBrowserUrl, getTerminalAppUrl } from "../../lib/routes";
+import type { MainframePhase } from "../MainframeGame/shared";
 
 const CUSTOM_SCRIPTS_STORAGE_KEY = "phosphor:custom-scripts:v1";
 const ACTIVE_SCRIPT_STORAGE_KEY = "phosphor:active-script:v1";
@@ -57,6 +60,17 @@ const MODULE_QUERY_PARAM = "module";
 const BUNDLED_SUBSCRIBED_ENTRY_PREFIX = "bundled:";
 const BUNDLED_SUBSCRIBED_SCRIPT_IDS = ["ypsilon14", "sample"] as const;
 const BUNDLED_OWNER_ID_PLACEHOLDER = "00000000-0000-0000-0000-000000000000";
+const SHUTDOWN_THEME = createCustomTheme({
+    baseThemeId: "white",
+    bgHex: "#000000",
+    fgHex: "#f4f6fb",
+    textHex: "#f4f6fb",
+    alertHex: "#f4f6fb",
+    emphasisHex: "#f4f6fb",
+    noticeHex: "#f4f6fb",
+    hyperlinkHex: "#f4f6fb",
+    systemHex: "#f4f6fb",
+});
 
 interface AppState {
     activeScript: BundledScript;
@@ -67,6 +81,7 @@ interface AppState {
     customTheme: CustomThemeConfig;
     customThemeEditorOpen: boolean;
     headerOverflowLevel: number;
+    headerVisible: boolean;
     soundEnabled: boolean;
     scriptDropdownOpen: boolean;
     optionsDropdownOpen: boolean;
@@ -89,6 +104,7 @@ interface AppState {
     subscribedModules: ModuleRecord[];
     subscribedScriptsVisibilityById: Record<string, boolean>;
     activeModule: ModuleRecord | null;
+    terminalShutdownPhase: MainframePhase | null;
 }
 
 type CreatorScriptOption = BundledScript & {
@@ -107,6 +123,7 @@ class App extends Component<any, AppState> {
 
         const persistedTheme = loadPersistedTheme();
         const customTheme = loadPersistedCustomTheme();
+        const headerVisible = loadPersistedHeaderVisible();
         const soundEnabled = loadPersistedSoundEnabled();
         const ownScriptsVisibilityById = loadPersistedOwnScriptsVisibility();
         const subscribedScriptsVisibilityById = loadPersistedSubscribedScriptsVisibility();
@@ -125,6 +142,7 @@ class App extends Component<any, AppState> {
             customTheme: initialThemeState.customTheme,
             customThemeEditorOpen: false,
             headerOverflowLevel: 0,
+            headerVisible,
             soundEnabled,
             scriptDropdownOpen: false,
             optionsDropdownOpen: false,
@@ -147,6 +165,7 @@ class App extends Component<any, AppState> {
             subscribedModules: [],
             subscribedScriptsVisibilityById,
             activeModule: null,
+            terminalShutdownPhase: null,
         };
 
         this._handleScriptSelect    = this._handleScriptSelect.bind(this);
@@ -165,6 +184,7 @@ class App extends Component<any, AppState> {
         this._handleReloadCurrentScript = this._handleReloadCurrentScript.bind(this);
         this._handleClearData       = this._handleClearData.bind(this);
         this._handleSoundToggle     = this._handleSoundToggle.bind(this);
+        this._handleHeaderVisibilityToggle = this._handleHeaderVisibilityToggle.bind(this);
         this._handleCreatorOpen     = this._handleCreatorOpen.bind(this);
         this._handleCreatorClose    = this._handleCreatorClose.bind(this);
         this._handleCreatorApply    = this._handleCreatorApply.bind(this);
@@ -193,11 +213,15 @@ class App extends Component<any, AppState> {
         this._handleModuleDelete = this._handleModuleDelete.bind(this);
         this._handleToggleOwnScriptVisibility = this._handleToggleOwnScriptVisibility.bind(this);
         this._handleToggleSubscribedScriptVisibility = this._handleToggleSubscribedScriptVisibility.bind(this);
+        this._handleMainframePhaseChange = this._handleMainframePhaseChange.bind(this);
+        this._handleGlobalKeyDown = this._handleGlobalKeyDown.bind(this);
     }
 
     public componentDidMount(): void {
-        applyTheme(this.state.activeTheme);
+        applyTheme(this._isTerminalShutdownActive(this.state.terminalShutdownPhase) ? SHUTDOWN_THEME : this.state.activeTheme);
+        this._applyHeaderHeightCss(this.state.headerVisible);
         document.addEventListener("click", this._handleClickOutside);
+        document.addEventListener("keydown", this._handleGlobalKeyDown);
         window.addEventListener("resize", this._handleWindowResize);
         this._scheduleHeaderLayoutUpdate();
         void this._initializeModules();
@@ -208,10 +232,21 @@ class App extends Component<any, AppState> {
         if (prevState.activeScript.id !== this.state.activeScript.id) {
             this._persistActiveScriptId(this.state.activeScript.id);
         }
+        const prevShutdownActive = this._isTerminalShutdownActive(prevState.terminalShutdownPhase);
+        const nextShutdownActive = this._isTerminalShutdownActive(this.state.terminalShutdownPhase);
+        if (prevState.activeTheme !== this.state.activeTheme || prevShutdownActive !== nextShutdownActive) {
+            applyTheme(nextShutdownActive ? SHUTDOWN_THEME : this.state.activeTheme);
+        }
+        const prevHeaderRendered = prevState.headerVisible && !this._isTerminalShutdownActive(prevState.terminalShutdownPhase);
+        const nextHeaderRendered = this.state.headerVisible && !this._isTerminalShutdownActive(this.state.terminalShutdownPhase);
+        if (prevHeaderRendered !== nextHeaderRendered) {
+            this._applyHeaderHeightCss(nextHeaderRendered);
+        }
     }
 
     public componentWillUnmount(): void {
         document.removeEventListener("click", this._handleClickOutside);
+        document.removeEventListener("keydown", this._handleGlobalKeyDown);
         window.removeEventListener("resize", this._handleWindowResize);
         if (this._headerLayoutRafId !== null) {
             window.cancelAnimationFrame(this._headerLayoutRafId);
@@ -220,6 +255,25 @@ class App extends Component<any, AppState> {
         if (this._authSubscription) {
             this._authSubscription.unsubscribe();
             this._authSubscription = null;
+        }
+    }
+
+    private _applyHeaderHeightCss(headerVisible: boolean): void {
+        document.documentElement.style.setProperty("--header-height", headerVisible ? "50px" : "0px");
+    }
+
+    private _isTerminalShutdownActive(phase: MainframePhase | null): boolean {
+        return phase === "shutdown" || phase === "epilogue";
+    }
+
+    private _handleGlobalKeyDown(event: KeyboardEvent): void {
+        if (event.altKey || event.ctrlKey || event.metaKey) {
+            return;
+        }
+
+        if (event.shiftKey && event.key.toLowerCase() === "h") {
+            event.preventDefault();
+            this._handleHeaderVisibilityToggle();
         }
     }
 
@@ -1357,6 +1411,34 @@ class App extends Component<any, AppState> {
         });
     }
 
+    private _handleHeaderVisibilityToggle(): void {
+        this.setState((prev) => {
+            const headerVisible = !prev.headerVisible;
+            persistHeaderVisible(headerVisible);
+            return {
+                headerVisible,
+                scriptDropdownOpen: false,
+                optionsDropdownOpen: false,
+                profileDropdownOpen: false,
+                customThemeEditorOpen: false,
+                mobileMenuOpen: false,
+            };
+        });
+    }
+
+    private _handleMainframePhaseChange(phase: MainframePhase): void {
+        this.setState((prev) => {
+            const nextPhase = phase === "glitch" || phase === "shutdown" || phase === "epilogue" ? phase : null;
+            if (prev.terminalShutdownPhase === nextPhase) {
+                return null;
+            }
+
+            return {
+                terminalShutdownPhase: nextPhase,
+            };
+        });
+    }
+
     private _handleCreatorOpen(event?: React.MouseEvent<HTMLButtonElement>): void {
         const shouldPreserveSavedState = !!event?.shiftKey;
         this.setState((prev): Pick<AppState,
@@ -2377,6 +2459,7 @@ class App extends Component<any, AppState> {
             customTheme,
             customThemeEditorOpen,
             headerOverflowLevel,
+            headerVisible,
             soundEnabled,
             scriptDropdownOpen,
             optionsDropdownOpen,
@@ -2399,7 +2482,10 @@ class App extends Component<any, AppState> {
             subscribedModules,
             subscribedScriptsVisibilityById,
             activeModule,
+            terminalShutdownPhase,
         } = this.state;
+        const shutdownActive = this._isTerminalShutdownActive(terminalShutdownPhase);
+        const renderHeader = headerVisible && !shutdownActive;
         const sessionEmail = authSession?.user?.email || null;
         const sessionUserId = authSession?.user?.id || null;
         const ownedActiveModule = this._getOwnedActiveModule(sessionUserId);
@@ -2449,13 +2535,14 @@ class App extends Component<any, AppState> {
 
         return (
             <>
-                <header
-                    ref={this._headerRef}
-                    className={
-                        "phosphor-header" +
-                        (headerOverflowLevel > 0 ? ` phosphor-header--compact phosphor-header--overflow-${headerOverflowLevel}` : "")
-                    }
-                >
+                {renderHeader && (
+                    <header
+                        ref={this._headerRef}
+                        className={
+                            "phosphor-header" +
+                            (headerOverflowLevel > 0 ? ` phosphor-header--compact phosphor-header--overflow-${headerOverflowLevel}` : "")
+                        }
+                    >
                     <a
                         ref={this._titleRef}
                         className="phosphor-header__title"
@@ -2583,6 +2670,15 @@ class App extends Component<any, AppState> {
                                         title="Toggle sound effects and ambient audio"
                                     >
                                         [SOUND:{soundEnabled ? "ON" : "OFF"}]
+                                    </button>
+
+                                    <button
+                                        className="phosphor-header__dropdown-item"
+                                        role="menuitem"
+                                        onClick={this._handleHeaderVisibilityToggle}
+                                        title="Toggle the terminal header (Shift+H)"
+                                    >
+                                        [HEADER:{headerVisible ? "ON" : "OFF"}]
                                     </button>
 
                                     {!previewMode && (
@@ -2840,6 +2936,15 @@ class App extends Component<any, AppState> {
                                                         title="Toggle sound effects and ambient audio"
                                                     >
                                                         [SOUND:{soundEnabled ? "ON" : "OFF"}]
+                                                    </button>
+
+                                                    <button
+                                                        className="phosphor-header__dropdown-item"
+                                                        role="menuitem"
+                                                        onClick={this._handleHeaderVisibilityToggle}
+                                                        title="Toggle the terminal header (Shift+H)"
+                                                    >
+                                                        [HEADER:{headerVisible ? "ON" : "OFF"}]
                                                     </button>
 
                                                     {!previewMode && (
@@ -3160,7 +3265,8 @@ class App extends Component<any, AppState> {
                             )}
                         </div>
                     </div>
-                </header>
+                    </header>
+                )}
 
                 <Phosphor
                     key={`${activeScript.id}:${activeScriptRevision}`}
@@ -3168,6 +3274,8 @@ class App extends Component<any, AppState> {
                     defaultTextSpeed={this._getScriptDefaultTextSpeed(activeScript.json)}
                     soundEnabled={soundEnabled}
                     onScreenChanged={this._handlePhosphorScreenChanged}
+                    onMainframePhaseChange={this._handleMainframePhaseChange}
+                    shutdownPhase={terminalShutdownPhase}
                 />
 
                 <ScriptCreator

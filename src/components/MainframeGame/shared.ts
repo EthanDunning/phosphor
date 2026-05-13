@@ -3,6 +3,7 @@ export type EnemyKind = "standard" | "fast" | "block" | "gunner" | "comet" | "sn
 export type EnemyLane = "standard" | "special";
 export type PowerUpKind = "dual" | "laser" | "slow" | "explosive" | "shield" | "healthpack";
 export type BossAttackMode = "firewall" | "volley" | "rain" | "sweep";
+export type MainframePhase = "core" | "boss" | "collapse" | "glitch" | "shutdown" | "epilogue";
 
 export interface BossFirewallState {
     direction: "top" | "bottom" | "left" | "right";
@@ -94,7 +95,7 @@ export interface RuntimeSnapshot {
     enemies: EnemyState[];
     boss: BossState | null;
     effects: EffectState;
-    phase: "core" | "boss";
+    phase: MainframePhase;
     coreBytes: string[];
     uncorruptedByteIndices: number[];
     corruptedBytes: number;
@@ -127,7 +128,7 @@ export interface UiSnapshot {
     powerUpCount: number;
     hostileCount: number;
     effects: EffectState;
-    phase: "core" | "boss";
+    phase: MainframePhase;
     coreStage: number;
     coreStageCount: number;
     bossHealth: number;
@@ -146,12 +147,13 @@ export interface RenderSnapshot {
     enemies: EnemyState[];
     boss: BossState | null;
     effects: EffectState;
-    phase: "core" | "boss";
+    phase: MainframePhase;
     laserActive: boolean;
     status: "running" | "victory" | "defeat";
     health: number;
     maxHealth: number;
     shieldHp: number;
+    phaseProgress: number;
 }
 
 export type SoundEvent = "bullet" | "explosion" | "death" | "pickuppowerup" | "xblast";
@@ -159,6 +161,7 @@ export type SoundEvent = "bullet" | "explosion" | "death" | "pickuppowerup" | "x
 export interface WorkerFrameGameState {
     laserFiring: boolean;
     status: "running" | "victory" | "defeat";
+    phase: MainframePhase;
 }
 
 export interface WorkerFrameMessage {
