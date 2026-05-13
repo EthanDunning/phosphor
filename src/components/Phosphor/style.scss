@@ -32,7 +32,6 @@ body {
 
 .phosphor {
     position: relative;
-    isolation: isolate;
     color: var(--theme-fg, var(--fg));
     text-shadow: var(--theme-fg-glow, var(--fg-glow));
     padding-top: calc(max(env(safe-area-inset-top), #{$lineheight}) + var(--header-height, 0px));
