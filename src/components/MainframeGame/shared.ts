@@ -1,7 +1,7 @@
 export type InputDirection = "up" | "down" | "left" | "right";
-export type EnemyKind = "standard" | "fast" | "block" | "gunner" | "comet";
+export type EnemyKind = "standard" | "fast" | "block" | "gunner" | "comet" | "sniper";
 export type EnemyLane = "standard" | "special";
-export type PowerUpKind = "dual" | "laser" | "slow" | "explosive";
+export type PowerUpKind = "dual" | "laser" | "slow" | "explosive" | "shield" | "healthpack";
 export type BossAttackMode = "volley" | "rain" | "sweep";
 
 export interface PlayerState {
@@ -30,6 +30,7 @@ export interface EnemyProjectileState {
     y: number;
     vx: number;
     vy: number;
+    char?: string;
 }
 
 export interface PowerUpState {
@@ -90,7 +91,9 @@ export interface RuntimeSnapshot {
     shots: number;
     hits: number;
     purged: number;
-    lives: number;
+    health: number;
+    maxHealth: number;
+    shieldHp: number;
     hostileCount: number;
     status: "running" | "victory" | "defeat";
 }
@@ -107,7 +110,9 @@ export interface UiSnapshot {
     shots: number;
     hits: number;
     purged: number;
-    lives: number;
+    health: number;
+    maxHealth: number;
+    shieldHp: number;
     enemyShotCount: number;
     powerUpCount: number;
     hostileCount: number;
@@ -134,6 +139,9 @@ export interface RenderSnapshot {
     phase: "core" | "boss";
     laserActive: boolean;
     status: "running" | "victory" | "defeat";
+    health: number;
+    maxHealth: number;
+    shieldHp: number;
 }
 
 export type SoundEvent = "bullet" | "explosion" | "death" | "pickuppowerup" | "xblast";
@@ -186,7 +194,13 @@ export const ENEMY_PLAYER_COLLISION_INSET_X = 2.15;
 export const ENEMY_PLAYER_COLLISION_INSET_Y = 1.05;
 export const BOSS_PLAYER_COLLISION_INSET_X = 3.5;
 export const BOSS_PLAYER_COLLISION_INSET_Y = 1.35;
-export const PLAYER_START_LIVES = 3;
+export const PLAYER_MAX_HEALTH = 100;
+export const HIT_DAMAGE = 25;
+export const SHIELD_MAX_HP = 100;
+export const SHIELD_RESPITE_MS = 500;
+export const HEALTH_PACK_RESTORE = 40;
+export const COMET_STEP_MS = 95;
+export const COMET_CHAR_HEIGHT = 1.95;
 export const PLAYER_RESPITE_MS = 1200;
 export const PLAYER_WING_OFFSET = 7;
 export const PLAYER_BULLET_EMIT_OFFSET_X = 0.05;
@@ -224,4 +238,6 @@ export const POWER_UP_LABELS: Record<PowerUpKind, string> = {
     laser: "[L]",
     slow: "[S]",
     explosive: "[X]",
+    shield: "[B]",
+    healthpack: "[+]",
 };

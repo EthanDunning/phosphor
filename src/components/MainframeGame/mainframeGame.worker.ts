@@ -14,7 +14,6 @@ import type {
     RuntimeSnapshot,
     SoundEvent,
     UiSnapshot,
-    WingmanState,
     WorkerFrameGameState,
     WorkerFrameMessage,
 } from "./shared";
@@ -25,8 +24,6 @@ import {
     BOSS_HEIGHT,
     BOSS_PLAYER_COLLISION_INSET_X,
     BOSS_PLAYER_COLLISION_INSET_Y,
-    BOSS_PLAYER_COLLISION_RADIUS_X,
-    BOSS_PLAYER_COLLISION_RADIUS_Y,
     BOSS_SUMMON_COOLDOWN_MS,
     BOSS_WIDTH,
     BULLET_SPEED,
@@ -59,9 +56,14 @@ import {
     PLAYER_COLLISION_RADIUS_Y,
     PLAYER_PROJECTILE_COLLISION_RADIUS_X,
     PLAYER_PROJECTILE_COLLISION_RADIUS_Y,
+    PLAYER_MAX_HEALTH,
+    HIT_DAMAGE,
+    SHIELD_MAX_HP,
+    SHIELD_RESPITE_MS,
+    HEALTH_PACK_RESTORE,
+    COMET_CHAR_HEIGHT,
     PLAYER_RESPITE_MS,
     PLAYER_SPEED,
-    PLAYER_START_LIVES,
     PLAYER_WING_OFFSET,
     PLAYFIELD_HEIGHT,
     PLAYFIELD_WIDTH,
@@ -84,7 +86,11 @@ type WorkerControlMessage =
     | { type: "dispose" }
     | { type: "pulseFire" }
     | { type: "setFire"; active: boolean }
-    | { type: "setDirection"; direction: InputDirection; active: boolean };
+    | { type: "setDirection"; direction: InputDirection; active: boolean }
+    | { type: "devGotoBoss" }
+    | { type: "devToggleInvulnerable" }
+    | { type: "devPowerUp"; kind: PowerUpKind }
+    | { type: "devHeal" };
 
 interface InputState {
     up: boolean;
@@ -120,6 +126,7 @@ let fireBufferCount = 0;
 let pendingCoreUpdates: CoreByteUpdate[] = [];
 let pendingSounds: SoundEvent[] = [];
 let terminalUiPosted = false;
+let devInvulnerable = false;
 let renderInWorker = false;
 let renderCanvas: OffscreenCanvas | null = null;
 let renderContext: OffscreenCanvasRenderingContext2D | null = null;
@@ -132,6 +139,19 @@ type WorkerScopeWithAnimationFrame = DedicatedWorkerGlobalScope & {
 
 const workerScope = self as unknown as WorkerScopeWithAnimationFrame;
 const MATRIX_TRAIL_CHARS = "01<>[]{}()#$%&*+-/\\|:=!?";
+
+const buildCenteredBar = (fraction: number, width: number): string => {
+    const filled = Math.round(Math.max(0, Math.min(1, fraction)) * width);
+    const pad = Math.floor((width - filled) / 2);
+    return " ".repeat(pad) + "=".repeat(filled) + " ".repeat(width - filled - pad);
+};
+
+const getProjectileChar = (vx: number, vy: number): string => {
+    if (Math.abs(vy) >= Math.abs(vx)) {
+        return vy >= 0 ? "v" : "^";
+    }
+    return vx >= 0 ? ">" : "<";
+};
 const CORE_STAGE_THREE_START = 128;
 
 const BOSS_ATTACK_LABELS: Record<BossAttackMode, string> = {
@@ -274,40 +294,46 @@ const chooseEnemyKind = (corruptedBytes: number, lane: EnemyLane): EnemyKind => 
         return "comet";
     }
     if (coreStage === 3) {
-        if (roll < 0.28) {
+        if (roll < 0.26) {
             return "fast";
         }
-        if (roll < 0.54) {
+        if (roll < 0.50) {
             return "block";
         }
-        if (roll < 0.82) {
+        if (roll < 0.74) {
             return "comet";
         }
-        return "gunner";
+        if (roll < 0.90) {
+            return "gunner";
+        }
+        return "sniper";
     }
-    if (roll < 0.22) {
+    if (roll < 0.20) {
         return "fast";
     }
-    if (roll < 0.42) {
+    if (roll < 0.38) {
         return "block";
     }
-    if (roll < 0.76) {
+    if (roll < 0.62) {
         return "comet";
     }
-    return "gunner";
+    if (roll < 0.80) {
+        return "gunner";
+    }
+    return "sniper";
 };
 
 const generateEnemyBody = (kind: EnemyKind): string => {
     if (kind === "comet") {
-        return randomMatrixTrail(randomInt(7, 11));
+        return randomMatrixTrail(randomInt(14, 22));
     }
 
     const byteCount = kind === "block"
         ? randomInt(8, 12)
-        : kind === "gunner"
+        : kind === "gunner" || kind === "sniper"
             ? randomInt(4, 7)
             : kind === "fast"
-                ? randomInt(3, 5)
+                ? 1
                 : randomInt(3, 6);
     return Array.from({ length: byteCount }, () => randomHexByte()).join("");
 };
@@ -383,15 +409,18 @@ const buildEnemy = (
         fireCooldownMs: 0,
     });
     const spawnWidth = Math.max(0, PLAYFIELD_WIDTH - prototypeEnemy.width);
+    const cometStepMs = randomFloat(80, 105);
     const speedProfile = kind === "fast"
-        ? { vx: randomFloat(-8.5, 8.5), vy: randomFloat(17, 23.5) }
+        ? { vx: randomFloat(-28, 28), vy: randomFloat(34, 47) }
         : kind === "block"
             ? { vx: randomFloat(-2.8, 2.8), vy: randomFloat(5.7, 8.8) }
             : kind === "gunner"
                 ? { vx: randomFloat(-4.4, 4.4), vy: randomFloat(8.8, 12.8) }
-                : kind === "comet"
-                    ? { vx: 0, vy: randomFloat(18.5, 24.5) }
-                    : { vx: randomFloat(-5.5, 5.5), vy: randomFloat(9, 15.5) };
+                : kind === "sniper"
+                    ? { vx: randomFloat(-2.2, 2.2), vy: randomFloat(4.5, 7.2) }
+                    : kind === "comet"
+                        ? { vx: 0, vy: cometStepMs }
+                        : { vx: randomFloat(-5.5, 5.5), vy: randomFloat(9, 15.5) };
     return {
         ...prototypeEnemy,
         x: kind === "comet"
@@ -400,7 +429,7 @@ const buildEnemy = (
         y: spawnFromTop ? randomFloat(kind === "comet" ? -20 : -12, 4) : randomFloat(10, 64),
         vx: speedProfile.vx,
         vy: speedProfile.vy,
-        fireCooldownMs: kind === "gunner" ? randomInt(700, 1500) : 0,
+        fireCooldownMs: kind === "gunner" ? randomInt(700, 1500) : kind === "sniper" ? randomInt(1800, 3200) : kind === "comet" ? cometStepMs : 0,
     };
 };
 
@@ -434,7 +463,9 @@ function createInitialRuntime(): RuntimeSnapshot {
         shots: 0,
         hits: 0,
         purged: 0,
-        lives: PLAYER_START_LIVES,
+        health: PLAYER_MAX_HEALTH,
+        maxHealth: PLAYER_MAX_HEALTH,
+        shieldHp: 0,
         hostileCount: startingStandardCount,
         status: "running",
     };
@@ -474,20 +505,6 @@ const spawnEnemy = (
     return buildEnemy(id, spawnFromTop, lane, forcedKind, corruptedBytes);
 };
 
-const animateCometTrail = (enemy: EnemyState): void => {
-    if (enemy.kind !== "comet") {
-        return;
-    }
-
-    const nextLength = enemy.body.length;
-    if (!nextLength) {
-        enemy.body = randomMatrixTrail(8);
-    } else {
-        enemy.body = `@${Array.from({ length: Math.max(0, nextLength - 1) }, () => randomMatrixTrailChar()).join("")}`;
-    }
-    enemy.label = enemy.body;
-    enemy.lines = enemy.body.split("");
-};
 
 const getEffectDurationFor = (kind: PowerUpKind): number => {
     if (kind === "dual") {
@@ -509,13 +526,17 @@ const spawnPowerUpDrop = (x: number, y: number): void => {
     }
 
     const kindRoll = Math.random();
-    const kind: PowerUpKind = kindRoll < 0.25
+    const kind: PowerUpKind = kindRoll < 0.20
         ? "dual"
-        : kindRoll < 0.5
+        : kindRoll < 0.40
             ? "laser"
-            : kindRoll < 0.75
+            : kindRoll < 0.58
                 ? "slow"
-                : "explosive";
+                : kindRoll < 0.76
+                    ? "explosive"
+                    : kindRoll < 0.88
+                        ? "shield"
+                        : "healthpack";
     runtime.powerUps.push({
         id: powerUpId++,
         x,
@@ -537,13 +558,23 @@ const applyPowerUp = (kind: PowerUpKind): void => {
     }
     if (kind === "laser") {
         runtime.effects.laserMs = Math.max(runtime.effects.laserMs, duration);
+        runtime.effects.explosiveMs = 0;
         return;
     }
     if (kind === "slow") {
         runtime.effects.slowMs = Math.max(runtime.effects.slowMs, duration);
         return;
     }
+    if (kind === "shield") {
+        runtime.shieldHp = SHIELD_MAX_HP;
+        return;
+    }
+    if (kind === "healthpack") {
+        runtime.health = Math.min(runtime.maxHealth, runtime.health + HEALTH_PACK_RESTORE);
+        return;
+    }
     runtime.effects.explosiveMs = Math.max(runtime.effects.explosiveMs, duration);
+    runtime.effects.laserMs = 0;
 };
 
 const spawnEnemyProjectile = (x: number, y: number, targetX: number, speedMultiplier = 1): void => {
@@ -554,6 +585,23 @@ const spawnEnemyProjectile = (x: number, y: number, targetX: number, speedMultip
         y,
         vx: dx * 0.55,
         vy: ENEMY_PROJECTILE_SPEED * speedMultiplier,
+    });
+};
+
+const spawnSniperProjectile = (x: number, y: number): void => {
+    const dx = runtime.player.x - x;
+    const dy = runtime.player.y - y;
+    const dist = Math.max(0.1, Math.sqrt(dx * dx + dy * dy));
+    const speed = ENEMY_PROJECTILE_SPEED * 1.18;
+    const vx = (dx / dist) * speed;
+    const vy = (dy / dist) * speed;
+    runtime.enemyShots.push({
+        id: enemyShotId++,
+        x,
+        y,
+        vx,
+        vy,
+        char: getProjectileChar(vx, vy),
     });
 };
 
@@ -620,13 +668,23 @@ const damageShipAt = (shipKey: string): boolean => {
         return false;
     }
 
+    if (devInvulnerable) {
+        return false;
+    }
+
     if (shipKey === "player") {
         if (runtime.player.invulnerableMs > 0) {
             return false;
         }
-        runtime.lives = Math.max(0, runtime.lives - 1);
+        if (runtime.shieldHp > 0) {
+            runtime.shieldHp = Math.max(0, runtime.shieldHp - HIT_DAMAGE);
+            runtime.player.invulnerableMs = SHIELD_RESPITE_MS;
+            pendingSounds.push("death");
+            return true;
+        }
+        runtime.health = Math.max(0, runtime.health - HIT_DAMAGE);
         runtime.player.invulnerableMs = PLAYER_RESPITE_MS;
-        if (runtime.lives <= 0) {
+        if (runtime.health <= 0) {
             runtime.status = "defeat";
         }
         pendingSounds.push("death");
@@ -706,7 +764,9 @@ const spawnBossEscort = (): void => {
     escort.y = boss.y + BOSS_HEIGHT + randomFloat(-1.5, 1.5);
     if (escort.kind === "comet") {
         escort.vx = 0;
-        escort.vy = randomFloat(20, 26);
+        const stepMs = randomFloat(80, 105);
+        escort.vy = stepMs;
+        escort.fireCooldownMs = stepMs;
     } else if (escort.kind === "gunner") {
         escort.vx = randomFloat(-3.4, 3.4);
         escort.vy = randomFloat(8.5, 11.5);
@@ -831,6 +891,9 @@ const toRenderSnapshot = (): RenderSnapshot => ({
     phase: runtime.phase,
     laserActive: runtime.effects.laserMs > 0 && inputState.fire,
     status: runtime.status,
+    health: runtime.health,
+    maxHealth: runtime.maxHealth,
+    shieldHp: runtime.shieldHp,
 });
 
 const toUiSnapshot = (forceFullCoreBytes = false): UiSnapshot => {
@@ -840,7 +903,9 @@ const toUiSnapshot = (forceFullCoreBytes = false): UiSnapshot => {
         shots: runtime.shots,
         hits: runtime.hits,
         purged: runtime.purged,
-        lives: runtime.lives,
+        health: runtime.health,
+        maxHealth: runtime.maxHealth,
+        shieldHp: runtime.shieldHp,
         enemyShotCount: runtime.enemyShots.length,
         powerUpCount: runtime.powerUps.length,
         hostileCount: runtime.hostileCount,
@@ -918,7 +983,7 @@ const drawScene = (): void => {
     const playerVisible = runtime.player.invulnerableMs <= 0 || Math.floor(runtime.player.invulnerableMs / 90) % 2 === 0;
     if (playerVisible) {
         renderContext.fillStyle = "#d8e4ff";
-        renderContext.fillText("<^>", runtime.player.x * renderMetrics.xScale, runtime.player.y * renderMetrics.yScale);
+        renderContext.fillText(runtime.shieldHp > 0 ? "(<^>)" : "<^>", runtime.player.x * renderMetrics.xScale, runtime.player.y * renderMetrics.yScale);
     }
 
     runtime.wingmen.forEach((wingman) => {
@@ -944,7 +1009,7 @@ const drawScene = (): void => {
 
     renderContext.fillStyle = "#ffad77";
     runtime.enemyShots.forEach((shot) => {
-        renderContext.fillText("v", shot.x * renderMetrics.xScale, shot.y * renderMetrics.yScale);
+        renderContext.fillText(shot.char ?? "v", shot.x * renderMetrics.xScale, shot.y * renderMetrics.yScale);
     });
 
     runtime.powerUps.forEach((powerUp) => {
@@ -964,11 +1029,13 @@ const drawScene = (): void => {
             ? "#7edcff"
             : enemy.kind === "comet"
                 ? "#7dff95"
-            : enemy.kind === "block"
-                ? "#ffbe7d"
-                : enemy.kind === "gunner"
-                    ? "#ff8f9d"
-                    : "#ff7d89";
+                : enemy.kind === "block"
+                    ? "#ffbe7d"
+                    : enemy.kind === "gunner"
+                        ? "#ff8f9d"
+                        : enemy.kind === "sniper"
+                            ? "#f6c5ff"
+                            : "#ff7d89";
         enemy.lines.forEach((line, index) => {
             const lineY = enemy.y + ((enemy.height / enemy.lines.length) * (index + 0.5));
             renderContext.fillText(line, enemy.x * renderMetrics.xScale, lineY * renderMetrics.yScale);
@@ -994,6 +1061,25 @@ const drawScene = (): void => {
             pixelX + (pixelWidth * 0.5),
             pixelY + (pixelHeight * 0.68)
         );
+    }
+
+    const barFontSize = Math.max(18, Math.min(renderMetrics.height * 0.065, 36));
+    renderContext.font = `${barFontSize}px Vga, Menlo, Monaco, Consolas, monospace`;
+    renderContext.textBaseline = "alphabetic";
+    renderContext.textAlign = "center";
+    const eqMeasure = renderContext.measureText("=");
+    const eqWidth = eqMeasure.width;
+    const barCount = Math.max(4, Math.floor(renderMetrics.width / eqWidth));
+    const glyphAscent = eqMeasure.actualBoundingBoxAscent ?? (barFontSize * 0.7);
+    const glyphDescent = eqMeasure.actualBoundingBoxDescent ?? 0;
+    const glyphHeight = glyphAscent + glyphDescent;
+    const hpBaseline = renderMetrics.height - glyphDescent - 6;
+    const barCenterX = renderMetrics.width / 2;
+    renderContext.fillStyle = "#d8e4ff";
+    renderContext.fillText(buildCenteredBar(runtime.health / runtime.maxHealth, barCount), barCenterX, hpBaseline);
+    if (runtime.shieldHp > 0) {
+        renderContext.fillStyle = "#7efff4";
+        renderContext.fillText(buildCenteredBar(runtime.shieldHp / SHIELD_MAX_HP, barCount), barCenterX, hpBaseline - glyphHeight - 6);
     }
 };
 
@@ -1062,10 +1148,11 @@ const stepSimulation = (): boolean => {
 
             pendingSounds.push("explosion");
             currentEnemy.body = currentEnemy.body.slice(0, -trimSize);
-            currentEnemy.vy = Math.min(currentEnemy.vy + 0.45, currentEnemy.kind === "comet" ? 30 : currentEnemy.kind === "fast" ? 26 : 18);
             if (currentEnemy.kind === "comet") {
-                animateCometTrail(currentEnemy);
+                currentEnemy.lines = currentEnemy.body.split("");
+                currentEnemy.height = Math.max(8.8, currentEnemy.lines.length * COMET_CHAR_HEIGHT);
             } else {
+                currentEnemy.vy = Math.min(currentEnemy.vy + 0.45, currentEnemy.kind === "fast" ? 26 : 18);
                 hydrateEnemyGeometry(currentEnemy);
             }
             return;
@@ -1096,10 +1183,11 @@ const stepSimulation = (): boolean => {
 
         pendingSounds.push("explosion");
         currentEnemy.body = currentEnemy.body.slice(0, -trimSize);
-        currentEnemy.vy = Math.min(currentEnemy.vy + 0.35, currentEnemy.kind === "comet" ? 28 : currentEnemy.kind === "fast" ? 26 : 18);
         if (currentEnemy.kind === "comet") {
-            animateCometTrail(currentEnemy);
+            currentEnemy.lines = currentEnemy.body.split("");
+            currentEnemy.height = Math.max(8.8, currentEnemy.lines.length * COMET_CHAR_HEIGHT);
         } else {
+            currentEnemy.vy = Math.min(currentEnemy.vy + 0.35, currentEnemy.kind === "fast" ? 26 : 18);
             hydrateEnemyGeometry(currentEnemy);
         }
     };
@@ -1245,16 +1333,16 @@ const stepSimulation = (): boolean => {
     for (let index = 0; index < runtime.enemies.length;) {
         const enemy = runtime.enemies[index];
         if (enemy.kind === "comet") {
-            animateCometTrail(enemy);
-            enemy.vx = 0;
-        }
-
-        let nextEnemyX = enemy.kind === "comet"
-            ? enemy.x
-            : enemy.x + (enemy.vx * dtSeconds * slowMultiplier * hostileSpeedMultiplier);
-        let nextEnemyVx = enemy.vx;
-
-        if (enemy.kind !== "comet") {
+            enemy.fireCooldownMs -= FIXED_DT_MS * slowMultiplier * hostileSpeedMultiplier;
+            if (enemy.fireCooldownMs <= 0) {
+                enemy.y += COMET_CHAR_HEIGHT;
+                enemy.body = enemy.body.slice(1) + randomMatrixTrailChar();
+                enemy.lines = enemy.body.split("");
+                enemy.fireCooldownMs += enemy.vy;
+            }
+        } else {
+            let nextEnemyX = enemy.x + (enemy.vx * dtSeconds * slowMultiplier * hostileSpeedMultiplier);
+            let nextEnemyVx = enemy.vx;
             if (nextEnemyX <= 1) {
                 nextEnemyX = 1;
                 nextEnemyVx = Math.abs(nextEnemyVx);
@@ -1263,17 +1351,21 @@ const stepSimulation = (): boolean => {
                 nextEnemyX = PLAYFIELD_WIDTH - enemy.width - 1;
                 nextEnemyVx = -Math.abs(nextEnemyVx);
             }
+            enemy.x = nextEnemyX;
+            enemy.y += enemy.vy * dtSeconds * slowMultiplier * hostileSpeedMultiplier;
+            enemy.vx = nextEnemyVx;
         }
 
-        enemy.x = nextEnemyX;
-        enemy.y += enemy.vy * dtSeconds * slowMultiplier * hostileSpeedMultiplier;
-        enemy.vx = nextEnemyVx;
-
-        if (enemy.kind === "gunner") {
+        if (enemy.kind === "gunner" || enemy.kind === "sniper") {
             enemy.fireCooldownMs = Math.max(0, enemy.fireCooldownMs - (FIXED_DT_MS * hostileSpeedMultiplier));
             if (enemy.fireCooldownMs <= 0 && enemy.y > 10) {
-                spawnEnemyProjectile(enemy.x + (enemy.width * 0.5), enemy.y + enemy.height, runtime.player.x, slowMultiplier * Math.max(1, hostileSpeedMultiplier));
-                enemy.fireCooldownMs = runtime.phase === "boss" ? randomInt(520, 940) : randomInt(720, 1450);
+                if (enemy.kind === "sniper") {
+                    spawnSniperProjectile(enemy.x + (enemy.width * 0.5), enemy.y + enemy.height);
+                    enemy.fireCooldownMs = runtime.phase === "boss" ? randomInt(1100, 1800) : randomInt(1800, 3200);
+                } else {
+                    spawnEnemyProjectile(enemy.x + (enemy.width * 0.5), enemy.y + enemy.height, runtime.player.x, slowMultiplier * Math.max(1, hostileSpeedMultiplier));
+                    enemy.fireCooldownMs = runtime.phase === "boss" ? randomInt(520, 940) : randomInt(720, 1450);
+                }
                 uiDirty = true;
             }
         }
@@ -1539,6 +1631,7 @@ const resetRuntime = (): void => {
     pendingCoreUpdates = [];
     pendingSounds = [];
     terminalUiPosted = false;
+    devInvulnerable = false;
     accumulator = 0;
     lastFrameAt = 0;
     lastUiSyncAt = performance.now();
@@ -1615,5 +1708,31 @@ self.addEventListener("message", (event: MessageEvent<WorkerControlMessage>) => 
 
     if (message.type === "setDirection") {
         inputState[message.direction] = message.active;
+    }
+
+    if (message.type === "devGotoBoss") {
+        if (runtime.status === "running" && runtime.phase !== "boss") {
+            startBossBattle();
+            postFrame(true, false);
+        }
+        return;
+    }
+
+    if (message.type === "devToggleInvulnerable") {
+        devInvulnerable = !devInvulnerable;
+        return;
+    }
+
+    if (message.type === "devPowerUp") {
+        applyPowerUp(message.kind);
+        postFrame(true, false);
+        return;
+    }
+
+    if (message.type === "devHeal") {
+        runtime.health = runtime.maxHealth;
+        runtime.shieldHp = 0;
+        postFrame(true, false);
+        return;
     }
 });

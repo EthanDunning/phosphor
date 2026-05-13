@@ -16,7 +16,7 @@ import {
     HEX_BYTE_PATTERN,
     PLAYFIELD_HEIGHT,
     PLAYFIELD_WIDTH,
-    PLAYER_START_LIVES,
+    SHIELD_MAX_HP,
     PLAYER_WING_OFFSET,
     POWER_UP_LABELS,
 } from "./shared";
@@ -50,7 +50,11 @@ type WorkerControlMessage =
     | { type: "dispose" }
     | { type: "pulseFire" }
     | { type: "setFire"; active: boolean }
-    | { type: "setDirection"; direction: InputDirection; active: boolean };
+    | { type: "setDirection"; direction: InputDirection; active: boolean }
+    | { type: "devGotoBoss" }
+    | { type: "devToggleInvulnerable" }
+    | { type: "devPowerUp"; kind: "dual" | "laser" | "slow" | "explosive" | "shield" | "healthpack" }
+    | { type: "devHeal" };
 
 const PLAYER_COLOR = "#d8e4ff";
 const PLAYER_DAMAGED_COLOR = "#ffb9c2";
@@ -63,6 +67,7 @@ const FAST_ENEMY_COLOR = "#7edcff";
 const COMET_ENEMY_COLOR = "#7dff95";
 const BLOCK_ENEMY_COLOR = "#ffbe7d";
 const GUNNER_ENEMY_COLOR = "#ff8f9d";
+const SNIPER_ENEMY_COLOR = "#f6c5ff";
 const BOSS_OUTLINE_COLOR = "#ff8aa0";
 const BOSS_FILL_COLOR = "rgba(255, 90, 116, 0.12)";
 const BOSS_TEXT_COLOR = "#ffd6de";
@@ -75,19 +80,21 @@ const POWER_UP_COLORS: Record<keyof typeof POWER_UP_LABELS, string> = {
     laser: "#9fd4ff",
     slow: "#9ff3c1",
     explosive: "#ffd27d",
+    shield: "#7efff4",
+    healthpack: "#ff7878",
 };
 const HEX_DIGITS = "0123456789abcdef";
-const CORE_STAGE_LABELS = [
-    "SCAN DRIFT",
-    "BREACH CURRENT",
-    "FIREWALL FALL",
-    "PURGE VECTOR",
-] as const;
 const BOSS_ATTACK_LABELS = {
     volley: "VOLLEY",
     rain: "CODE RAIN",
     sweep: "LATTICE SWEEP",
 } as const;
+
+const buildCenteredBar = (fraction: number, width: number): string => {
+    const filled = Math.round(Math.max(0, Math.min(1, fraction)) * width);
+    const pad = Math.floor((width - filled) / 2);
+    return " ".repeat(pad) + "=".repeat(filled) + " ".repeat(width - filled - pad);
+};
 
 const randomHexByte = (): string => {
     const left = HEX_DIGITS[Math.floor(Math.random() * HEX_DIGITS.length)];
@@ -133,6 +140,9 @@ const getEnemyFill = (kind: RenderSnapshot["enemies"][number]["kind"]): string =
     }
     if (kind === "gunner") {
         return GUNNER_ENEMY_COLOR;
+    }
+    if (kind === "sniper") {
+        return SNIPER_ENEMY_COLOR;
     }
     return STANDARD_ENEMY_COLOR;
 };
@@ -184,11 +194,6 @@ const MainframeGame = ({ className = "", onRendered }: MainframeGameProps): Reac
     const coreBytePositionsRef = useRef<Array<CoreGlyphPosition | null>>([]);
     const coreOffsetPositionsRef = useRef<Array<CoreGlyphPosition | null>>([]);
 
-    const phaseLabelRef = useRef<HTMLSpanElement | null>(null);
-    const integrityLabelRef = useRef<HTMLSpanElement | null>(null);
-    const livesLabelRef = useRef<HTMLSpanElement | null>(null);
-    const bottomStatusRef = useRef<HTMLSpanElement | null>(null);
-    const bottomObjectiveRef = useRef<HTMLSpanElement | null>(null);
     const overlayRef = useRef<HTMLDivElement | null>(null);
     const overlayTitleRef = useRef<HTMLDivElement | null>(null);
     const overlayCopyRef = useRef<HTMLDivElement | null>(null);
@@ -386,7 +391,7 @@ const MainframeGame = ({ className = "", onRendered }: MainframeGameProps): Reac
         const playerVisible = snapshot.player.invulnerableMs <= 0 || Math.floor(snapshot.player.invulnerableMs / 90) % 2 === 0;
         if (playerVisible) {
             context.fillStyle = PLAYER_COLOR;
-            context.fillText("<^>", snapshot.player.x * metrics.xScale, snapshot.player.y * metrics.yScale);
+            context.fillText(snapshot.shieldHp > 0 ? "(<^>)" : "<^>", snapshot.player.x * metrics.xScale, snapshot.player.y * metrics.yScale);
         }
 
         snapshot.wingmen.forEach((wingman) => {
@@ -408,7 +413,7 @@ const MainframeGame = ({ className = "", onRendered }: MainframeGameProps): Reac
 
         context.fillStyle = ENEMY_SHOT_COLOR;
         snapshot.enemyShots.forEach((shot) => {
-            context.fillText("v", shot.x * metrics.xScale, shot.y * metrics.yScale);
+            context.fillText(shot.char ?? "v", shot.x * metrics.xScale, shot.y * metrics.yScale);
         });
 
         snapshot.powerUps.forEach((powerUp) => {
@@ -446,6 +451,25 @@ const MainframeGame = ({ className = "", onRendered }: MainframeGameProps): Reac
                 pixelY + (pixelHeight * 0.68)
             );
         }
+
+        const barFontSize = Math.max(18, Math.min(metrics.height * 0.065, 36));
+        context.font = `${barFontSize}px Vga, Menlo, Monaco, Consolas, monospace`;
+        context.textBaseline = "alphabetic";
+        context.textAlign = "center";
+        const eqMeasure = context.measureText("=");
+        const eqWidth = eqMeasure.width;
+        const barCount = Math.max(4, Math.floor(metrics.width / eqWidth));
+        const glyphAscent = eqMeasure.actualBoundingBoxAscent ?? (barFontSize * 0.7);
+        const glyphDescent = eqMeasure.actualBoundingBoxDescent ?? 0;
+        const glyphHeight = glyphAscent + glyphDescent;
+        const hpBaseline = metrics.height - glyphDescent;
+        const barCenterX = metrics.width / 2;
+        context.fillStyle = "#d8e4ff";
+        context.fillText(buildCenteredBar(snapshot.health / snapshot.maxHealth, barCount), barCenterX, hpBaseline);
+        if (snapshot.shieldHp > 0) {
+            context.fillStyle = "#7efff4";
+            context.fillText(buildCenteredBar(snapshot.shieldHp / SHIELD_MAX_HP, barCount), barCenterX, hpBaseline - glyphHeight);
+        }
     };
 
     const applyUiSnapshot = (snapshot: UiSnapshot): void => {
@@ -461,39 +485,6 @@ const MainframeGame = ({ className = "", onRendered }: MainframeGameProps): Reac
             }
         }
 
-        const integrityPercent = Math.max(0, Math.round(((CORE_BYTE_COUNT - snapshot.corruptedBytes) / CORE_BYTE_COUNT) * 100));
-        const bossIntegrityPercent = snapshot.bossMaxHealth > 0
-            ? Math.max(0, Math.round((snapshot.bossHealth / snapshot.bossMaxHealth) * 100))
-            : 0;
-        const wingStatus = snapshot.wingmanHealths.some((health) => health > 0)
-            ? `[WINGS ${snapshot.wingmanHealths.map((health, index) => `${index === 0 ? "L" : "R"}:${health}`).join(" ")}]`
-            : "[WINGS OFFLINE]";
-        const coreStageLabel = CORE_STAGE_LABELS[Math.max(0, Math.min(CORE_STAGE_LABELS.length - 1, snapshot.coreStage - 1))];
-        const bossAttackLabel = snapshot.bossAttackMode ? BOSS_ATTACK_LABELS[snapshot.bossAttackMode] : null;
-        const activeEffects = [
-            snapshot.effects.dualMs > 0 ? `DUAL ${Math.ceil(snapshot.effects.dualMs / 1000)}S` : null,
-            snapshot.effects.laserMs > 0 ? `LASER ${Math.ceil(snapshot.effects.laserMs / 1000)}S` : null,
-            snapshot.effects.slowMs > 0 ? `SLOW ${Math.ceil(snapshot.effects.slowMs / 1000)}S` : null,
-            snapshot.effects.explosiveMs > 0 ? `BURST ${Math.ceil(snapshot.effects.explosiveMs / 1000)}S` : null,
-        ].filter(Boolean).join(" | ");
-
-        phaseLabelRef.current && (phaseLabelRef.current.textContent = snapshot.phase === "boss"
-            ? "[APHELION_MAINFRAME//FINAL SHELL]"
-            : `[APHELION_MAINFRAME//STAGE ${snapshot.coreStage}/${snapshot.coreStageCount} ${coreStageLabel}]`);
-        integrityLabelRef.current && (integrityLabelRef.current.textContent = snapshot.phase === "boss"
-            ? `[BOSS SHELL ${String(bossIntegrityPercent).padStart(3, "0")}%]`
-            : `[HOSTILE CORE INTEGRITY ${String(integrityPercent).padStart(3, "0")}%]`);
-        livesLabelRef.current && (livesLabelRef.current.textContent = `[LIVES ${String(snapshot.lives).padStart(2, "0")}/03]`);
-        bottomStatusRef.current && (bottomStatusRef.current.textContent = activeEffects
-            ? `[POWERUPS ${activeEffects}] ${wingStatus}`
-            : snapshot.phase === "boss"
-                ? `[BOSS PATTERN ${bossAttackLabel || "VOLLEY"}] ${wingStatus}`
-                : `[CORE STAGE ${snapshot.coreStage}/${snapshot.coreStageCount} ${coreStageLabel}]`);
-        bottomObjectiveRef.current && (bottomObjectiveRef.current.textContent = snapshot.phase === "boss"
-            ? `[SURVIVE ${bossAttackLabel || "VOLLEY"} // BURN DOWN ${String(snapshot.bossMaxHealth).padStart(3, "0")} HP]`
-            : snapshot.coreStage < snapshot.coreStageCount
-                ? `[ESCALATE TO STAGE ${snapshot.coreStage + 1} TO UNLOCK NEW HOSTILES]`
-                : "[DEPLETING THE CORE SUMMONS APHELION PRIME]");
 
         if (overlayRef.current) {
             overlayRef.current.hidden = snapshot.status === "running";
@@ -789,6 +780,26 @@ const MainframeGame = ({ className = "", onRendered }: MainframeGameProps): Reac
             if (key === "r") {
                 handleReset();
             }
+
+            if (event.shiftKey) {
+                if (key === "k") {
+                    sendWorkerMessage({ type: "devGotoBoss" });
+                } else if (key === "i") {
+                    sendWorkerMessage({ type: "devToggleInvulnerable" });
+                } else if (key === "x") {
+                    sendWorkerMessage({ type: "devPowerUp", kind: "explosive" });
+                } else if (key === "d") {
+                    sendWorkerMessage({ type: "devPowerUp", kind: "dual" });
+                } else if (key === "s") {
+                    sendWorkerMessage({ type: "devPowerUp", kind: "slow" });
+                } else if (key === "l") {
+                    sendWorkerMessage({ type: "devPowerUp", kind: "laser" });
+                } else if (key === "b") {
+                    sendWorkerMessage({ type: "devPowerUp", kind: "shield" });
+                } else if (key === "h") {
+                    sendWorkerMessage({ type: "devHeal" });
+                }
+            }
         };
 
         const handleKeyUp = (event: KeyboardEvent): void => {
@@ -821,12 +832,6 @@ const MainframeGame = ({ className = "", onRendered }: MainframeGameProps): Reac
 
     return (
         <div className={containerClassName}>
-            <div className="mainframe-game__topline">
-                <span ref={phaseLabelRef}>[APHELION_MAINFRAME//FIXED PROCESS]</span>
-                <span ref={integrityLabelRef}>[HOSTILE CORE INTEGRITY 100%]</span>
-                <span ref={livesLabelRef}>[LIVES {String(PLAYER_START_LIVES).padStart(2, "0")}/03]</span>
-            </div>
-
             <div className="mainframe-game__layout">
                 <section className="mainframe-game__panel mainframe-game__panel--playfield">
                     <header className="mainframe-game__panel-header">
@@ -902,8 +907,6 @@ const MainframeGame = ({ className = "", onRendered }: MainframeGameProps): Reac
             </div>
 
             <div className="mainframe-game__bottomline">
-                <span ref={bottomStatusRef}>[SALVAGE POWERUPS TO STACK ADVANTAGES]</span>
-                <span ref={bottomObjectiveRef}>[DEPLETING THE CORE SUMMONS THE BOSS SHELL]</span>
                 <button type="button" className="mainframe-game__button mainframe-game__button--secondary" onClick={handleReset}>
                     RESET
                 </button>
