@@ -789,6 +789,7 @@ class Phosphor extends Component<PhosphorProps, AppState> {
             id,
             type,
             content,
+            showActions: src?.showActions === true,
             actions: Array.isArray(src?.actions)
                 ? src.actions
                     .filter((action: any) => action && typeof action === "object")
@@ -2456,13 +2457,23 @@ class Phosphor extends Component<PhosphorProps, AppState> {
                 this._changeScreen(action.target);
             }
         };
+        const handleDialogPromptCommand = (command: string, action: any) => {
+            this._toggleDialog();
+            if (action && typeof action === "object") {
+                this._handlePromptCommand(command, action);
+            }
+        };
 
         return (
             <Modal
                 text={dialog.content}
                 onClose={handleClose}
-                actions={Array.isArray((dialog as any).actions) ? (dialog as any).actions : undefined}
+                actions={(dialog as any).showActions === true && Array.isArray((dialog as any).actions)
+                    ? (dialog as any).actions
+                    : undefined}
                 onAction={handleAction}
+                onCommand={handleDialogPromptCommand}
+                onPromptEnter={this._handlePromptEnter}
             />
         );
     }

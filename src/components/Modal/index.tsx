@@ -1,5 +1,6 @@
 import React, { FC, useEffect, useCallback } from "react";
 import { renderMarkdown } from "../../utils/markdown";
+import Prompt from "../Prompt";
 
 import "./style.scss";
 
@@ -17,7 +18,18 @@ interface ModalBitmapEntry {
     scale?: number;
 }
 
-type ModalContentEntry = string | ModalTextEntry | ModalBitmapEntry;
+interface ModalPromptEntry {
+    type: "prompt";
+    prompt: string;
+    commands?: any[];
+    className?: string;
+    caseSensitive?: boolean;
+    cursor?: boolean;
+    allowFreeInput?: boolean;
+    inputAction?: any;
+}
+
+type ModalContentEntry = string | ModalTextEntry | ModalBitmapEntry | ModalPromptEntry;
 
 export interface ModalAction {
     label: string;
@@ -29,17 +41,22 @@ export interface ModalProps {
     onClose: () => void;
     actions?: ModalAction[];
     onAction?: (actionIndex: number) => void;
+    onCommand?: (command: string, action: any) => void;
+    onPromptEnter?: () => void;
 }
 
 const Modal: FC<ModalProps> = (props) => {
-    const { text, className, onClose, actions, onAction } = props;
+    const { text, className, onClose, actions, onAction, onCommand, onPromptEnter } = props;
     const css = [
         "__modal__",
         className ? className : null,
     ].join(" ").trim();
+    const content = (typeof text === "string") ? [text] : text;
+    const hasInteractiveContent = content.some((element) => {
+        return !!element && typeof element === "object" && (element as ModalPromptEntry).type === "prompt";
+    }) || !!(actions && actions.length);
 
     const renderContent = () => {
-        const content = (typeof text === "string") ? [text] : text;
         return content.map((element, index) => {
             if (typeof element === "string") {
                 return (
@@ -50,6 +67,24 @@ const Modal: FC<ModalProps> = (props) => {
             }
 
             if (element && typeof element === "object") {
+                if ((element as ModalPromptEntry).type === "prompt") {
+                    const promptEntry = element as ModalPromptEntry;
+                    return (
+                        <Prompt
+                            key={index}
+                            className={promptEntry.className || ""}
+                            prompt={promptEntry.prompt}
+                            commands={promptEntry.commands}
+                            caseSensitive={promptEntry.caseSensitive}
+                            cursor={promptEntry.cursor}
+                            allowFreeInput={promptEntry.allowFreeInput}
+                            inputAction={promptEntry.inputAction}
+                            onCommand={onCommand}
+                            onEnter={onPromptEnter}
+                        />
+                    );
+                }
+
                 if ((element as ModalBitmapEntry).type === "bitmap" && (element as ModalBitmapEntry).src) {
                     const bitmap = element as ModalBitmapEntry;
                     const style: React.CSSProperties = {};
@@ -95,15 +130,20 @@ const Modal: FC<ModalProps> = (props) => {
         const key = e.key.toLowerCase();
 
         switch (key) {
-            case "enter":
             case "escape":
                 onClose && onClose();
+                break;
+
+            case "enter":
+                if (!hasInteractiveContent) {
+                    onClose && onClose();
+                }
                 break;
 
             default:
                 break;
         }
-    }, [onClose]);
+    }, [onClose, hasInteractiveContent]);
 
     useEffect(() => {
         // mount

@@ -5600,6 +5600,20 @@ const ScriptCreator: FC<ScriptCreatorProps> = ({
                                     </label>
                                 </div>
 
+                                <div className="script-creator__row">
+                                    <label className="script-creator__field">
+                                        <span>Action Buttons</span>
+                                        <label style={{ display: "flex", alignItems: "center", gap: "0.45rem" }}>
+                                            <input
+                                                type="checkbox"
+                                                checked={selectedDialog.showActions === true}
+                                                onChange={(e) => updateDialog({ showActions: e.target.checked })}
+                                            />
+                                            <span>{selectedDialog.showActions === true ? "Enabled" : "Disabled"}</span>
+                                        </label>
+                                    </label>
+                                </div>
+
                                 <div className="script-creator__list-header">
                                     <span>Dialog Content</span>
                                     <div className="script-creator__actions">

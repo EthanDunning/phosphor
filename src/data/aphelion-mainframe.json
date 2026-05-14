@@ -819,49 +819,10 @@
                     "type": "link",
                     "text": "> SHUT DOWN APHELION 9000 SYSTEM",
                     "className": "alert",
-                    "target": "shutdownConfirm"
-                },
-                "",
-                "======",
-                {
-                    "type": "link",
-                    "text": "< BACK",
-                    "target": "coreAccess"
-                }
-            ]
-        },
-        {
-            "id": "shutdownConfirm",
-            "type": "screen",
-            "content": [
-                "SYSTEM SHUTDOWN CONFIRMATION",
-                "============================\n",
-                {
-                    "type": "text",
-                    "className": "alert",
-                    "text": "This procedure will shut down all ship systems and may cause danger or death to all onboard."
-                },
-                "",
-                "Proceed?\n",
-                {
-                    "type": "prompt",
-                    "prompt": "confirm> ",
-                    "cursor": true,
-                    "caseSensitive": false,
-                    "commands": [
+                    "target": [
                         {
-                            "command": "yes",
-                            "action": {
-                                "type": "link",
-                                "target": "shutdownBridge1"
-                            }
-                        },
-                        {
-                            "command": "no",
-                            "action": {
-                                "type": "link",
-                                "target": "coreControls"
-                            }
+                            "type": "dialog",
+                            "target": "aphelionShutdownWarning"
                         }
                     ]
                 },
@@ -870,7 +831,7 @@
                 {
                     "type": "link",
                     "text": "< BACK",
-                    "target": "coreControls"
+                    "target": "coreAccess"
                 }
             ]
         },
@@ -1017,6 +978,37 @@
             "content": [
                 "AUTHENTICATION FAILED\n",
                 "Credential pair not present in local legacy table."
+            ]
+        },
+        {
+            "id": "aphelionShutdownWarning",
+            "type": "alert",
+            "content": [
+                {
+                    "type": "text",
+                    "className": "alert",
+                    "text": "This procedure will shut down all ship systems and may cause danger or death to all onboard."
+                },
+                "",
+                "Type YES to proceed or NO to abort.\n",
+                {
+                    "type": "prompt",
+                    "prompt": "confirm> ",
+                    "cursor": true,
+                    "caseSensitive": false,
+                    "commands": [
+                        {
+                            "command": "yes",
+                            "action": {
+                                "type": "link",
+                                "target": "shutdownBridge1"
+                            }
+                        },
+                        {
+                            "command": "no"
+                        }
+                    ]
+                }
             ]
         }
     ]
