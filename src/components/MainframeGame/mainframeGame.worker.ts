@@ -1501,11 +1501,11 @@ const drawScene = (): void => {
         const bossStatusLabel = runtime.phase === "collapse"
             ? "CORE PURGE"
             : runtime.boss.bossShieldHp > 0
-            ? `${getBossAttackLabel(runtime.boss.attackMode)} // BARRIER ${String(runtime.boss.bossShieldHp).padStart(3, "0")}`
-            : `${getBossAttackLabel(runtime.boss.attackMode)} // HP ${String(runtime.boss.health).padStart(3, "0")}`;
+            ? `${getBossAttackLabel(runtime.boss.attackMode)} // DMZ ${String(runtime.boss.bossShieldHp).padStart(3, "0")}`
+            : `${getBossAttackLabel(runtime.boss.attackMode)} // ROOT ${String(runtime.boss.health).padStart(3, "0")}`;
         renderContext.fillStyle = "#ffd6de";
         renderContext.textAlign = "center";
-        renderContext.fillText("APHELION PRIME", pixelX + (pixelWidth * 0.5), pixelY + (pixelHeight * 0.33));
+        renderContext.fillText("APHELION SYSTEM DAEMON", pixelX + (pixelWidth * 0.5), pixelY + (pixelHeight * 0.33));
         renderContext.fillText(bossStatusLabel, pixelX + (pixelWidth * 0.5), pixelY + (pixelHeight * 0.68));
     }
 
