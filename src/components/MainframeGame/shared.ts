@@ -161,6 +161,9 @@ export interface RenderSnapshot {
     maxHealth: number;
     shieldHp: number;
     phaseProgress: number;
+    introActive: boolean;
+    introRevealProgress: number;
+    introCountdown: number | null;
 }
 
 export type SoundEvent = "bullet" | "explosion" | "death" | "pickuppowerup" | "xblast";
@@ -169,6 +172,9 @@ export interface WorkerFrameGameState {
     laserFiring: boolean;
     status: "running" | "victory" | "defeat";
     phase: MainframePhase;
+    introActive: boolean;
+    introRevealProgress: number;
+    introCountdown: number | null;
 }
 
 export interface WorkerFrameMessage {

@@ -146,6 +146,8 @@ let lastFirewallDirection: BossFirewallState["direction"] | "" = "";
 let collapseByteIndices: number[] = [];
 let finalGlitchRemainingMs = 0;
 let finalShutdownRemainingMs = 0;
+let introRevealRemainingMs = 0;
+let introCountdownRemainingMs = 0;
 let renderInWorker = false;
 let renderCanvas: OffscreenCanvas | null = null;
 let renderContext: OffscreenCanvasRenderingContext2D | null = null;
@@ -163,6 +165,9 @@ const CORE_POWER_UP_DROP_MULTIPLIER = 0.55;
 const FINAL_COLLAPSE_BYTES_PER_HIT = 16;
 const FINAL_GLITCH_DURATION_MS = 5000;
 const FINAL_BLACKOUT_DURATION_MS = 2600;
+const INTRO_REVEAL_DURATION_MS = 720;
+const INTRO_COUNTDOWN_STEP_MS = 480;
+const INTRO_COUNTDOWN_DURATION_MS = INTRO_COUNTDOWN_STEP_MS * 3;
 const CORE_ENEMY_UNLOCK_BYTES = {
     standard: 0,
     comet: 32,
@@ -273,6 +278,35 @@ const getCoreStage = (corruptedBytes: number): number => {
 
 const getBossAttackLabel = (attackMode: BossAttackMode | null): string => {
     return attackMode ? BOSS_ATTACK_LABELS[attackMode] : "";
+};
+
+const isIntroActive = (): boolean => {
+    return introRevealRemainingMs > 0 || introCountdownRemainingMs > 0;
+};
+
+const getIntroRevealProgress = (): number => {
+    if (introRevealRemainingMs <= 0) {
+        return 1;
+    }
+    return clamp(1 - (introRevealRemainingMs / INTRO_REVEAL_DURATION_MS), 0, 1);
+};
+
+const getIntroCountdownValue = (): number | null => {
+    if (introCountdownRemainingMs <= 0) {
+        return null;
+    }
+    return Math.max(1, Math.ceil(introCountdownRemainingMs / INTRO_COUNTDOWN_STEP_MS));
+};
+
+const stepIntro = (): void => {
+    if (introRevealRemainingMs > 0) {
+        introRevealRemainingMs = Math.max(0, introRevealRemainingMs - FIXED_DT_MS);
+        return;
+    }
+
+    if (introCountdownRemainingMs > 0) {
+        introCountdownRemainingMs = Math.max(0, introCountdownRemainingMs - FIXED_DT_MS);
+    }
 };
 
 const getFirewallAxisPosition = (firewall: BossFirewallState): number => {
@@ -1272,6 +1306,9 @@ const toRenderSnapshot = (): RenderSnapshot => ({
     maxHealth: runtime.maxHealth,
     shieldHp: runtime.shieldHp,
     phaseProgress: getPhaseProgress(),
+    introActive: isIntroActive(),
+    introRevealProgress: getIntroRevealProgress(),
+    introCountdown: getIntroCountdownValue(),
 });
 
 const toUiSnapshot = (forceFullCoreBytes = false): UiSnapshot => {
@@ -1325,6 +1362,9 @@ const postFrame = (includeUi = false, forceFullCoreBytes = false): void => {
         laserFiring: runtime.effects.laserMs > 0 && inputState.fire,
         status: runtime.status,
         phase: runtime.phase,
+        introActive: isIntroActive(),
+        introRevealProgress: getIntroRevealProgress(),
+        introCountdown: getIntroCountdownValue(),
     };
     message.gameState = gameState;
     self.postMessage(message);
@@ -1516,6 +1556,23 @@ const drawScene = (): void => {
     if (runtime.shieldHp > 0) {
         renderContext.fillStyle = "#7efff4";
         renderContext.fillText(buildCenteredBar(runtime.shieldHp / SHIELD_MAX_HP, barCount), barCenterX, hpBaseline - glyphHeight - 6);
+    }
+
+    if (isIntroActive()) {
+        renderContext.save();
+        renderContext.fillStyle = `rgba(4, 8, 20, ${0.72 - (getIntroRevealProgress() * 0.28)})`;
+        renderContext.fillRect(0, 0, renderMetrics.width, renderMetrics.height);
+        renderContext.textAlign = "center";
+        renderContext.fillStyle = "rgba(185, 200, 235, 0.94)";
+        renderContext.font = `${Math.max(16, renderMetrics.fontScale * 0.95)}px Vga, Menlo, Monaco, Consolas, monospace`;
+        renderContext.fillText("SUPPRESSION BRIDGE SYNC", renderMetrics.width * 0.5, renderMetrics.height * 0.44);
+        const introCountdown = getIntroCountdownValue();
+        if (typeof introCountdown === "number") {
+            renderContext.fillStyle = "#ffd7dd";
+            renderContext.font = `${Math.max(36, renderMetrics.fontScale * 2.9)}px Vga, Menlo, Monaco, Consolas, monospace`;
+            renderContext.fillText(String(introCountdown), renderMetrics.width * 0.5, renderMetrics.height * 0.56);
+        }
+        renderContext.restore();
     }
 };
 
@@ -2133,7 +2190,11 @@ const tick = (now = performance.now()): void => {
     if (runtime.status === "running") {
         while (accumulator >= FIXED_DT_MS) {
             accumulator -= FIXED_DT_MS;
-            stepSimulation();
+            if (isIntroActive()) {
+                stepIntro();
+            } else {
+                stepSimulation();
+            }
         }
     } else {
         accumulator = 0;
@@ -2168,6 +2229,11 @@ const tick = (now = performance.now()): void => {
 
 const resetRuntime = (): void => {
     runtime = createInitialRuntime();
+    inputState.up = false;
+    inputState.down = false;
+    inputState.left = false;
+    inputState.right = false;
+    inputState.fire = false;
     shotCooldownRemainingMs = 0;
     bulletId = 0;
     standardEnemyId = STANDARD_ENEMY_COUNT;
@@ -2188,6 +2254,8 @@ const resetRuntime = (): void => {
     collapseByteIndices = [];
     finalGlitchRemainingMs = 0;
     finalShutdownRemainingMs = 0;
+    introRevealRemainingMs = INTRO_REVEAL_DURATION_MS;
+    introCountdownRemainingMs = INTRO_COUNTDOWN_DURATION_MS;
     accumulator = 0;
     lastFrameAt = 0;
     lastUiSyncAt = performance.now();

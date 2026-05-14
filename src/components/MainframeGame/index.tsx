@@ -185,6 +185,7 @@ const MainframeGame = ({ className = "", onRendered, onPhaseChange }: MainframeG
     }, [coreRows]);
 
     const workerRef = useRef<Worker | null>(null);
+    const containerRef = useRef<HTMLDivElement | null>(null);
     const canvasRef = useRef<HTMLCanvasElement | null>(null);
     const canvasContextRef = useRef<CanvasRenderingContext2D | null>(null);
     const playfieldRef = useRef<HTMLDivElement | null>(null);
@@ -203,6 +204,8 @@ const MainframeGame = ({ className = "", onRendered, onPhaseChange }: MainframeG
     const overlayRef = useRef<HTMLDivElement | null>(null);
     const overlayTitleRef = useRef<HTMLDivElement | null>(null);
     const overlayCopyRef = useRef<HTMLDivElement | null>(null);
+    const startupOverlayRef = useRef<HTMLDivElement | null>(null);
+    const startupCountdownRef = useRef<HTMLDivElement | null>(null);
     const reportedPhaseRef = useRef<MainframePhase | null>(null);
 
     const musicRef = useRef<HTMLAudioElement | null>(null);
@@ -265,6 +268,26 @@ const MainframeGame = ({ className = "", onRendered, onPhaseChange }: MainframeG
         }
         audio.currentTime = 0;
         audio.play().catch(() => {});
+    };
+
+    const syncStartupOverlay = (state: WorkerFrameMessage["gameState"]): void => {
+        const container = containerRef.current;
+        const overlay = startupOverlayRef.current;
+        const countdown = startupCountdownRef.current;
+        if (!container || !overlay || !countdown || !state) {
+            return;
+        }
+
+        const reveal = Number.isFinite(state.introRevealProgress) ? Math.max(0, Math.min(1, state.introRevealProgress)) : 1;
+        container.style.setProperty("--mainframe-boot-reveal", reveal.toFixed(3));
+
+        overlay.hidden = !state.introActive;
+        if (!state.introActive) {
+            countdown.textContent = "";
+            return;
+        }
+
+        countdown.textContent = typeof state.introCountdown === "number" ? String(state.introCountdown) : "";
     };
 
     const applyCoreByteToElement = (element: HTMLSpanElement, value: string): void => {
@@ -573,6 +596,22 @@ const MainframeGame = ({ className = "", onRendered, onPhaseChange }: MainframeG
             context.fillStyle = "#7efff4";
             context.fillText(buildCenteredBar(snapshot.shieldHp / SHIELD_MAX_HP, barCount), barCenterX, hpBaseline - glyphHeight);
         }
+
+        if (snapshot.introActive) {
+            context.save();
+            context.fillStyle = `rgba(4, 8, 20, ${0.72 - (snapshot.introRevealProgress * 0.28)})`;
+            context.fillRect(0, 0, metrics.width, metrics.height);
+            context.textAlign = "center";
+            context.fillStyle = "rgba(185, 200, 235, 0.94)";
+            context.font = `${Math.max(16, metrics.fontScale * 0.95)}px Vga, Menlo, Monaco, Consolas, monospace`;
+            context.fillText("SUPPRESSION BRIDGE SYNC", metrics.width * 0.5, metrics.height * 0.44);
+            if (typeof snapshot.introCountdown === "number") {
+                context.fillStyle = "#ffd7dd";
+                context.font = `${Math.max(36, metrics.fontScale * 2.9)}px Vga, Menlo, Monaco, Consolas, monospace`;
+                context.fillText(String(snapshot.introCountdown), metrics.width * 0.5, metrics.height * 0.56);
+            }
+            context.restore();
+        }
     };
 
     const applyUiSnapshot = (snapshot: UiSnapshot): void => {
@@ -593,7 +632,6 @@ const MainframeGame = ({ className = "", onRendered, onPhaseChange }: MainframeG
         if (overlayRef.current) {
             overlayRef.current.hidden = snapshot.status !== "defeat";
         }
-       
     };
 
     const applyRenderSnapshot = (snapshot: RenderSnapshot): void => {
@@ -789,6 +827,7 @@ const MainframeGame = ({ className = "", onRendered, onPhaseChange }: MainframeG
             }
 
             if (data.gameState) {
+                syncStartupOverlay(data.gameState);
                 syncPhase(data.gameState.phase);
                 const gameOver = data.gameState.status !== "running";
 
@@ -960,12 +999,19 @@ const MainframeGame = ({ className = "", onRendered, onPhaseChange }: MainframeG
     }, []);
 
     return (
-        <div className={containerClassName}>
+        <div ref={containerRef} className={containerClassName}>
             <div className="mainframe-game__layout">
                 <section className="mainframe-game__panel mainframe-game__panel--playfield">
 
                     <div ref={playfieldRef} className="mainframe-game__playfield">
                         <canvas ref={canvasRef} className="mainframe-game__canvas" aria-label="Aphelion mainframe combat area" />
+
+                        <div ref={startupOverlayRef} className="mainframe-game__startup-overlay">
+                            <div className="mainframe-game__startup-box">
+                                <div className="mainframe-game__startup-label">SUPPRESSION BRIDGE SYNC</div>
+                                <div ref={startupCountdownRef} className="mainframe-game__startup-countdown" />
+                            </div>
+                        </div>
 
                         <div ref={overlayRef} className="mainframe-game__overlay" hidden>
                             <div className="mainframe-game__overlay-box">

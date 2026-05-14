@@ -789,6 +789,14 @@ class Phosphor extends Component<PhosphorProps, AppState> {
             id,
             type,
             content,
+            actions: Array.isArray(src?.actions)
+                ? src.actions
+                    .filter((action: any) => action && typeof action === "object")
+                    .map((action: any) => ({
+                        label: typeof action.label === "string" ? action.label : "",
+                        target: typeof action.target === "string" ? action.target : undefined,
+                    }))
+                : undefined,
         };
     }
 
@@ -2435,11 +2443,26 @@ class Phosphor extends Component<PhosphorProps, AppState> {
         }
 
         const handleClose = () => this._toggleDialog();
+        const handleAction = (actionIndex: number) => {
+            const actions = Array.isArray((dialog as any).actions) ? (dialog as any).actions : [];
+            const action = actions[actionIndex];
+            this._toggleDialog();
+
+            if (!action || typeof action !== "object") {
+                return;
+            }
+
+            if (typeof action.target === "string" && action.target.length) {
+                this._changeScreen(action.target);
+            }
+        };
 
         return (
             <Modal
                 text={dialog.content}
                 onClose={handleClose}
+                actions={Array.isArray((dialog as any).actions) ? (dialog as any).actions : undefined}
+                onAction={handleAction}
             />
         );
     }

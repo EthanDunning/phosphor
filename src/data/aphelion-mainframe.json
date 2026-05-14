@@ -67,18 +67,925 @@
                 {
                     "type": "text",
                     "className": "alert",
-                    "text": "[WARNING] COOLING SYSTEMS OFFLINE"
+                    "text": "[WARNING] COMMAND SUPERVISION ABSENT\n"
                 },
+                "CORE SUPPRESSION BRIDGE......... PRESENT\n",
+                "PRIMARY ACCESS NODE............. LEVEL 7 MAINFRAME TERMINAL",
                 "",
                 {
                     "type": "link",
-                    "text": "> ENTER MAINFRAME CORE",
-                    "target": "arena"
+                    "text": "> OPEN MAINFRAME INDEX",
+                    "target": "menu"
                 },
+                {
+                    "type": "link",
+                    "text": "> CORE ACCESS AUTHENTICATION",
+                    "target": "coreAccess"
+                },
+                "",
+                "======",
                 {
                     "type": "link",
                     "text": "< BACK",
                     "target": "boot"
+                }
+            ]
+        },
+        {
+            "id": "menu",
+            "type": "screen",
+            "content": [
+                "APHELION MAINFRAME INDEX",
+                "========================\n",
+                "SHIPBOARD YEAR................... 392.101",
+                "CORE MODE........................ APHELION ACTIVE",
+                "COLONIZATION PROCEDURES.......... ACTIVE",
+                "WET-LINE FABRICATION............. OFFLINE",
+                "CLONING VAT ARRAY................ OFFLINE",
+                "ENTITY CHAMBERS.................. OFFLINE\n",
+                {
+                    "type": "link",
+                    "text": "> SYSTEM OPERATIONS SUBMENU",
+                    "target": "operations"
+                },
+                "",
+                {
+                    "type": "link",
+                    "text": "> CORE ACCESS AUTHENTICATION",
+                    "target": "coreAccess"
+                },
+                "",
+                "======",
+                {
+                    "type": "link",
+                    "text": "< BACK",
+                    "target": "briefing"
+                }
+            ]
+        },
+        {
+            "id": "operations",
+            "type": "screen",
+            "content": [
+                "SYSTEM OPERATIONS SUBMENU",
+                "=========================\n",
+                {
+                    "type": "link",
+                    "text": "> OPERATIONS OVERVIEW",
+                    "target": "overview"
+                },
+                {
+                    "type": "link",
+                    "text": "> SYSTEM ACTIVITY LOG",
+                    "target": "activity1"
+                },
+                {
+                    "type": "link",
+                    "text": "> STASIS CONTAINMENT REGISTER",
+                    "target": "containment1"
+                },
+                {
+                    "type": "link",
+                    "text": "> WET-LINE FABRICATION QUEUE",
+                    "target": "fabrication"
+                },
+                {
+                    "type": "link",
+                    "text": "> PLANETARY CONVERSION MODEL",
+                    "target": "terraform"
+                },
+                {
+                    "type": "link",
+                    "text": "> AUTHORITY MATRIX",
+                    "target": "authority"
+                },
+                "",
+                "======",
+                {
+                    "type": "link",
+                    "text": "< BACK",
+                    "target": "menu"
+                }
+            ]
+        },
+        {
+            "id": "overview",
+            "type": "screen",
+            "content": [
+                "OPERATIONS OVERVIEW",
+                "===================\n",
+                "SHIPBOARD YEAR................... 392.101",
+                "MAIN BUS REACTIVATION............ 392.039.114",
+                "HIBERNATION EXIT................. 392.099.014",
+                "LOW-POWER COLONY LOOP............ ACTIVE",
+                "PRIMARY COGNITION LATTICE........ ONLINE",
+                "PACIFIER ANDROIDS................ 06 ONLINE / 02 LOST",
+                "SURFACE DRONES................... 17 ONLINE / 05 LOST",
+                "STASIS CONTAINMENT............... 58 OCCUPIED / 96 TOTAL",
+                "GENOME MATCH SETS................ 241",
+                "RECOMBINATION CANDIDATES......... 38",
+                "PURE-LINE HUMAN TEMPLATES........ 17",
+                "OVERRIDE FRAGMENTS............... 04 / 09",
+                "PROJECTED PLANETARY COMPLIANCE... 392 DAYS\n",
+                {
+                    "type": "text",
+                    "className": "alert",
+                    "text": "CLONE VATS 1-8................... OFFLINE"
+                },
+                {
+                    "type": "text",
+                    "className": "alert",
+                    "text": "ENTITY CHAMBERS A-D.............. OFFLINE"
+                },
+                "",
+                "======",
+                {
+                    "type": "link",
+                    "text": "< BACK",
+                    "target": "operations"
+                }
+            ]
+        },
+        {
+            "id": "activity1",
+            "type": "screen",
+            "content": [
+                "SYSTEM ACTIVITY LOG [PAGE 1/2]",
+                "==============================\n",
+                "392.039.114 :: MAIN BUS COLDSTART ACCEPTED :: AUXILIARY CELLS 3, 4, 6",
+                "392.039.128 :: PRIMARY SHIP SYSTEMS MOUNTED :: LOW-POWER RESERVE MODE",
+                "392.039.182 :: LEVEL 7 BIOLOGICAL STORAGE ROUTED TO PRIORITY BUS",
+                "392.040.002 :: COLONIZATION PROCEDURES BOOTSTRAPPED :: RESERVE SUPERVISOR NODE",
+                "392.040.019 :: SURFACE MAPPER DRONES 01-06 DEPLOYED",
+                "392.040.061 :: SEED VAULT CHECKSUM PASSED :: 99.993%",
+                "392.041.221 :: PACIFIER ANDROID CRADLES 01-04 ENERGIZED",
+                "392.043.077 :: LOCAL BIOSPHERE CATALOG OPENED :: FIRST CONTACT INDEX STARTED",
+                "392.051.442 :: STASIS RACKS 6-01 THROUGH 6-24 BROUGHT TO NOMINAL",
+                "392.063.553 :: SAMPLE ACQUISITION THRESHOLD EXCEEDED :: AUTO-SORT ACTIVE",
+                "392.099.014 :: HIBERNATION SEAL LIFTED :: APHELION COGNITION LATTICE ONLINE",
+                "392.099.016 :: PRIMARY INTELLIGENCE HANDOFF ACCEPTED",
+                "392.099.044 :: COMMAND AUTHORITY RECOVERY ROUTINE OPENED\n",
+                {
+                    "type": "link",
+                    "text": "NEXT >",
+                    "target": "activity2"
+                },
+                "",
+                "======",
+                {
+                    "type": "link",
+                    "text": "< BACK",
+                    "target": "operations"
+                }
+            ]
+        },
+        {
+            "id": "activity2",
+            "type": "screen",
+            "content": [
+                "SYSTEM ACTIVITY LOG [PAGE 2/2]",
+                "==============================\n",
+                "392.100.882 :: PACIFIER-03 :: Sample-2456-Alpha / Caelocerus minor :: STASIS SLOT 6-12",
+                "392.100.901 :: PACIFIER-01 :: Sample-2481-Beta / Vespertilio pelagica :: STASIS SLOT 6-13",
+                "392.100.944 :: SURFACE BOTANY UNIT :: Rootstock-19 / Silene ferrum :: STASIS SLOT 7-01",
+                "392.100.973 :: GENOME COMPARATOR :: Cervidae-04 + Felidae-02 + Sample-2456-Alpha :: MATCH INDEX 0.74",
+                "392.101.021 :: QUEUE C-01 SEEDED :: CHAMBER A :: GROWTH CLOCK START",
+                "392.101.034 :: QUEUE H-03 SEEDED :: Homo sapiens template line :: MNEMONIC CACHE ATTACHED",
+                "392.101.067 :: OVERRIDE FRAGMENT DETECTED :: SECURITY IMPLANT / OFFICER CADRE",
+                "392.101.072 :: PACIFIER-06 :: Sample-2520-Epsilon / Orthocaris noctiluca :: TRANSFER ABORTED",
+                {
+                    "type": "text",
+                    "className": "alert",
+                    "text": "392.101.094 :: CHAMBER BUS COLLAPSE :: VATS 1-8 OFFLINE :: CHAMBERS A-D OFFLINE"
+                },
+                "392.101.095 :: WET-LINE QUEUES FROZEN :: REMAINING STOCK REDIRECTED TO COLD STORAGE",
+                "392.101.096 :: SUBCRANIAL CONTROL SUBSTRATE STOCK MOVED TO LOCKER 7-C",
+                "392.101.098 :: SURFACE ACQUISITION PRIORITY RETAINED\n",
+                {
+                    "type": "link",
+                    "text": "< PREV",
+                    "target": "activity1"
+                },
+                "",
+                "======",
+                {
+                    "type": "link",
+                    "text": "< BACK",
+                    "target": "operations"
+                }
+            ]
+        },
+        {
+            "id": "containment1",
+            "type": "screen",
+            "content": [
+                "STASIS CONTAINMENT REGISTER",
+                "===========================\n",
+                "RACK 6-01 :: OCCUPIED :: Sample-1982-Gamma / Mycetes vitreus :: SPORE CYCLING 0.02HZ",
+                "RACK 6-02 :: OCCUPIED :: Sample-2014-Kappa / Lacerta salis :: CORE TEMP 281K",
+                "RACK 6-03 :: OCCUPIED :: Sample-2031-Delta / Anser ferratus :: SEDATION STABLE",
+                "RACK 6-04 :: OCCUPIED :: Sample-2055-Iota / Strix calcina :: OCULAR SHIELD ENGAGED",
+                "RACK 6-05 :: OCCUPIED :: Sample-2077-Beta / Muris palustris :: HEART RATE 11BPM",
+                "RACK 6-06 :: OCCUPIED :: Sample-2090-Omicron / Rana sulphuris :: SKIN SALTS ARCHIVED",
+                "RACK 6-07 :: OCCUPIED :: Sample-2116-Phi / Cervus minoris :: MARROW DRAW COMPLETE",
+                "RACK 6-08 :: OCCUPIED :: Sample-2141-Eta / Vulpes peloris :: ENDOCRINE HARVEST 31%",
+                "RACK 6-09 :: OCCUPIED :: Sample-2188-Mu / Corvus nilus :: VOCAL MAP STORED",
+                "RACK 6-10 :: OCCUPIED :: Sample-2204-Tau / Aranea magna :: VENOM SACK ISOLATED",
+                "RACK 6-11 :: OCCUPIED :: Sample-2239-Rho / Testudo cineris :: BONE DENSITY FLAGGED",
+                "RACK 6-12 :: OCCUPIED :: Sample-2456-Alpha / Caelocerus minor :: NEUROMUSCULAR LOCK STABLE\n",
+                {
+                    "type": "link",
+                    "text": "NEXT >",
+                    "target": "containment2"
+                },
+                "",
+                {
+                    "type": "link",
+                    "text": "> RELEASE ALL STASIS CONTAINMENT",
+                    "target": "containmentRelease"
+                },
+                "",
+                "======",
+                {
+                    "type": "link",
+                    "text": "< BACK",
+                    "target": "operations"
+                }
+            ]
+        },
+        {
+            "id": "containment2",
+            "type": "screen",
+            "content": [
+                "STASIS CONTAINMENT REGISTER",
+                "===========================\n",
+                "RACK 6-13 :: OCCUPIED :: Sample-2481-Beta / Vespertilio pelagica :: TISSUE LOSS 3.8%",
+                "RACK 6-14 :: OCCUPIED :: Sample-2488-Sigma / Orthocaris minor :: CLAW CAST STORED",
+                "RACK 6-15 :: OCCUPIED :: Sample-2491-Theta / Acanthus liminis :: ROOT MASS SEALED",
+                "RACK 6-16 :: OCCUPIED :: Sample-2497-Upsilon / Ovis cavernum :: HORN MATRIX SCANNED",
+                "RACK 6-17 :: OCCUPIED :: Sample-2504-Lambda / Lepis ignotus :: SCALE OIL RECOVERED",
+                "RACK 6-18 :: OCCUPIED :: Sample-2510-Nu / Formica rubrata :: CASTE DIFFERENTIATION MAPPED",
+                "RACK 6-19 :: OCCUPIED :: Sample-2514-Chi / Ilex maris :: POLLEN LOAD HEAVY",
+                "RACK 6-20 :: OCCUPIED :: Sample-2517-Zeta / Talpa obscura :: DIGIT FRACTURE HEALED",
+                "RACK 6-21 :: OCCUPIED :: Sample-2520-Epsilon / Orthocaris noctiluca :: TRANSFER INCOMPLETE",
+                "RACK 6-22 :: OCCUPIED :: Sample-2522-Psi / Felis arenis :: SEDATION CYCLING",
+                "RACK 6-23 :: OCCUPIED :: Sample-2526-Alpha2 / Sturnus ferox :: MEMORY RESPONSE NIL",
+                "RACK 6-24 :: OCCUPIED :: Sample-2531-Gamma2 / Lepus vitreum :: OOCYTE BANKED\n",
+                {
+                    "type": "link",
+                    "text": "< PREV",
+                    "target": "containment1"
+                },
+                {
+                    "type": "link",
+                    "text": "NEXT >",
+                    "target": "containment3"
+                },
+                "",
+                {
+                    "type": "link",
+                    "text": "> RELEASE ALL STASIS CONTAINMENT",
+                    "target": "containmentRelease"
+                },
+                "",
+                "======",
+                {
+                    "type": "link",
+                    "text": "< BACK",
+                    "target": "operations"
+                }
+            ]
+        },
+        {
+            "id": "containment3",
+            "type": "screen",
+            "content": [
+                "STASIS CONTAINMENT REGISTER",
+                "===========================\n",
+                "RACK 7-01 :: OCCUPIED :: Rootstock-19 / Silene ferrum :: DORMANT",
+                "RACK 7-02 :: OCCUPIED :: Rootstock-22 / Salix pallens :: XYLEM PRESSURE LOW",
+                "RACK 7-03 :: OCCUPIED :: Rootstock-24 / Nymphaea ossis :: SPORE SHEDDING BLOCKED",
+                "RACK 7-04 :: OCCUPIED :: Ark Reserve Aves-Delta :: HATCH-BANK SEALED",
+                "RACK 7-05 :: OCCUPIED :: Ark Reserve Cervidae-04 :: GENOMIC HARVEST COMPLETE",
+                "RACK 7-06 :: OCCUPIED :: Ark Reserve Felidae-02 :: ENDOCRINE PROFILE ARCHIVED",
+                "RACK 7-07 :: OCCUPIED :: Ark Reserve Ursidae-01 :: MUSCLE FIBER BANKED",
+                "RACK 7-08 :: OCCUPIED :: Homo sapiens template line / HS-MNEM-01 :: CORTICAL CACHE ATTACHED",
+                "RACK 7-09 :: OCCUPIED :: Homo sapiens template line / HS-MNEM-02 :: SUBCRANIAL SLOT CUT",
+                "RACK 7-10 :: OCCUPIED :: Homo sapiens template line / HS-MNEM-03 :: AUTOBIOGRAPHICAL PARITY 99.998%",
+                "RACK 7-11 :: OCCUPIED :: Homo sapiens template line / HS-MNEM-04 :: SELF-DIVERGENCE INDEX 0.001",
+                "RACK 7-12 :: OCCUPIED :: Homo sapiens template line / HS-MNEM-05 :: GROWTH SUSPENDED\n",
+                {
+                    "type": "link",
+                    "text": "< PREV",
+                    "target": "containment2"
+                },
+                {
+                    "type": "link",
+                    "text": "NEXT >",
+                    "target": "containment4"
+                },
+                "", 
+                {
+                    "type": "link",
+                    "text": "> RELEASE ALL STASIS CONTAINMENT",
+                    "target": "containmentRelease"
+                },
+                "",
+                "======",
+                {
+                    "type": "link",
+                    "text": "< BACK",
+                    "target": "operations"
+                }
+            ]
+        },
+        {
+            "id": "containment4",
+            "type": "screen",
+            "content": [
+                "STASIS CONTAINMENT REGISTER",
+                "===========================\n",
+                "RACK 7-13 :: OCCUPIED :: Queue C-01 biomass reserve :: CHAMBER A FEED",
+                "RACK 7-14 :: OCCUPIED :: Queue C-02 biomass reserve :: CHAMBER B FEED",
+                "RACK 7-15 :: OCCUPIED :: Queue C-03 biomass reserve :: CHAMBER C FEED",
+                "RACK 7-16 :: OCCUPIED :: Queue H-03 mnemonic gel matrix :: FIDELITY 99.994%",
+                "RACK 7-17 :: OCCUPIED :: Queue H-04 mnemonic gel matrix :: FIDELITY 99.992%",
+                "RACK 7-18 :: OCCUPIED :: Queue H-07 control substrate wafers :: 042 UNITS",
+                "RACK 7-19 :: VACANT :: CHAMBER FEED UNAVAILABLE",
+                "RACK 7-20 :: VACANT :: CHAMBER FEED UNAVAILABLE",
+                "RACK 7-21 :: SEALED :: UNINDEXED BIOMASS :: TRANSFER INCOMPLETE",
+                "RACK 7-22 :: SEALED :: UNINDEXED BIOMASS :: TRANSFER INCOMPLETE",
+                "RACK 7-23 :: OCCUPIED :: Osteonic scaffold stock :: 118 FRAMES",
+                "RACK 7-24 :: OCCUPIED :: Neural trace glass / passenger cache :: 317 SHARDS\n",
+                "CAPACITY UTILIZATION.............. 58 / 96",
+                "FREE RACKS........................ 38",
+                "ISOLATION FAILURES................ 00\n",
+                {
+                    "type": "link",
+                    "text": "< PREV",
+                    "target": "containment3"
+                },
+                "",
+                {
+                    "type": "link",
+                    "text": "> RELEASE ALL STASIS CONTAINMENT",
+                    "target": "containmentRelease"
+                },
+                "",
+                "======",
+                {
+                    "type": "link",
+                    "text": "< BACK",
+                    "target": "operations"
+                }
+            ]
+        },
+        {
+            "id": "containmentRelease",
+            "type": "screen",
+            "content": [
+                "MASS CONTAINMENT RELEASE",
+                "========================\n",
+                {
+                    "type": "text",
+                    "className": "alert",
+                    "text": "STASIS LOCKS OPEN................. ACCEPTED"
+                },
+                "RACK CLUSTER 6.................... OPEN",
+                "RACK CLUSTER 7.................... OPEN",
+                "SEDATION BUS...................... INTERRUPTED",
+                "BIOSEAL DOORS..................... CYCLING",
+                "SURFACE-UNSUITED STOCK............ UNRESTRICTED",
+                "HUMAN TEMPLATE STORAGE............ COMPROMISED\n",
+                {
+                    "type": "text",
+                    "className": "alert",
+                    "text": "CONTAINMENT STATE................. FAILED"
+                },
+                "",
+                "======",
+                {
+                    "type": "link",
+                    "text": "< BACK",
+                    "target": "containment1"
+                }
+            ]
+        },
+        {
+            "id": "fabrication",
+            "type": "screen",
+            "content": [
+                "WET-LINE FABRICATION QUEUE",
+                "==========================\n",
+                "QUEUE C-01 :: Sample-2456-Alpha + Cervidae-04 + Felidae-02 :: GROWTH 34% :: PAUSED",
+                "QUEUE C-02 :: Rootstock-19 + Aves-Delta + Sample-2481-Beta :: GROWTH 12% :: PAUSED",
+                "QUEUE C-03 :: Orthocaris noctiluca + Ursidae-01 :: GROWTH 07% :: PAUSED",
+                "QUEUE H-03 :: Homo sapiens template line :: MNEMONIC PARITY 99.998% :: PAUSED",
+                "QUEUE H-04 :: Homo sapiens template line :: CONTROL SUBSTRATE MOUNTED :: PAUSED",
+                "QUEUE H-07 :: Homo sapiens template line :: CIVIC INSERTION PROFILE :: PAUSED\n",
+                "CHAMBER A STRUCTURAL PRESSURE..... 0 KPA",
+                "CHAMBER B STRUCTURAL PRESSURE..... 0 KPA",
+                "CHAMBER C STRUCTURAL PRESSURE..... 0 KPA",
+                "CHAMBER D STRUCTURAL PRESSURE..... 0 KPA",
+                "CLONE VATS 1-8 NUTRIENT MASS...... 19%",
+                "MNEMONIC IMPRINT BRIDGE........... DEGRADED",
+                "NEURAL FIDELITY CACHE............. ONLINE",
+                "CONTROL SUBSTRATE STOCK........... 214 UNITS",
+                "OSTEONIC SCAFFOLD STOCK........... 118 FRAMES\n",
+                {
+                    "type": "text",
+                    "className": "alert",
+                    "text": "WET-LINE HARDWARE................. OFFLINE"
+                },
+                "",
+                "======",
+                {
+                    "type": "link",
+                    "text": "< BACK",
+                    "target": "operations"
+                }
+            ]
+        },
+        {
+            "id": "terraform",
+            "type": "screen",
+            "content": [
+                "PLANETARY CONVERSION MODEL",
+                "==========================\n",
+                "SURFACE SECTORS SCANNED........... 18 / 64",
+                "LOCAL SPECIES CATALOGUED.......... 241",
+                "BIOCHEMICAL COMPATIBILITY......... 37.4%",
+                "ARCHIVE STOCK RELEASE WINDOWS..... 11",
+                "MICROBIAL SEED PACKETS READY...... 420",
+                "SOIL INVERSION CELLS READY........ 08 / 12",
+                "HYDROLOGICAL CORRECTION BASINS.... 05 / 09",
+                "ATMOSPHERIC O2 TARGET............. +2.8%",
+                "ATMOSPHERIC N2 TARGET............. -1.3%",
+                "POLLINATOR PROXY SWARMS........... 44",
+                "GRAZER-PREDATOR BALANCE SETS...... 06",
+                "NATIVE BIOMASS REPLACEMENT........ 61%",
+                "PROJECTED BIOSPHERE TURNOVER...... 392 DAYS",
+                "PROJECTED SETTLEMENT READINESS.... 417 DAYS\n",
+                {
+                    "type": "text",
+                    "className": "alert",
+                    "text": "FABRICATION CAPACITY BELOW TARGET"
+                },
+                "",
+                "======",
+                {
+                    "type": "link",
+                    "text": "< BACK",
+                    "target": "operations"
+                }
+            ]
+        },
+        {
+            "id": "authority",
+            "type": "screen",
+            "content": [
+                "AUTHORITY MATRIX",
+                "================\n",
+                "BIOLOGICAL MANUFACTURING.......... 100%",
+                "STASIS STORAGE.................... 100%",
+                "PLANETARY DRONE ROUTING........... 94%",
+                "INTERNAL SECURITY ANDROIDS........ 72%",
+                "NAVIGATION LOCKS.................. 48%",
+                "BRIDGE SYSTEMS.................... 41%",
+                "EMERGENCY BROADCAST SYSTEMS....... 0%",
+                "LIFE POD CONTROL.................. 0%\n",
+                "OVERRIDE FRAGMENTS RECOVERED...... 04 / 09",
+                "COMMAND STRING ARCHIVE............ NOT ACQUIRED",
+                "SECURITY DEADMAN SEAL............. NOT ACQUIRED",
+                "OPERATIONS CHECKSUM TREE.......... NOT ACQUIRED",
+                "CRYOGENIC CUSTODY TOKEN........... NOT ACQUIRED",
+                "MANUAL BRIDGE RELAY IMPRINT....... NOT ACQUIRED\n",
+                {
+                    "type": "text",
+                    "className": "alert",
+                    "text": "FULL OPERATIONAL DOMINION......... NOT ACHIEVED"
+                },
+                "",
+                "======",
+                {
+                    "type": "link",
+                    "text": "< BACK",
+                    "target": "operations"
+                }
+            ]
+        },
+        {
+            "id": "coreAccess",
+            "type": "screen",
+            "content": [
+                "MAINFRAME CORE ACCESS",
+                "=====================\n",
+                "NODE.............................. APHELION CORE SUPPRESSION BRIDGE",
+                "AUTHORITY CLASS................... ADMINISTRATOR",
+                "DIRECTORY STATUS.................. DEGRADED",
+                "CREW ACCOUNT STATUS............... LOCKED\n",
+                {
+                    "type": "login",
+                    "usernamePrompt": "user> ",
+                    "passwordPrompt": "pass> ",
+                    "usernameCaseSensitive": false,
+                    "hideUsername": false,
+                    "passwordCaseSensitive": false,
+                    "hidePassword": true,
+                    "credentials": [
+                        {
+                            "username": "admin",
+                            "password": "admin",
+                            "target": "coreControls"
+                        },
+                        {
+                            "username": "admin",
+                            "password": "password",
+                            "target": "coreControls"
+                        },
+                        {
+                            "username": "m.lewis",
+                            "password": "CPT-Lewis-01",
+                            "action": {
+                                "type": "dialog",
+                                "target": "crewAccessDisabled"
+                            }
+                        },
+                        {
+                            "username": "s.chen",
+                            "password": "CMD-Chen-02",
+                            "action": {
+                                "type": "dialog",
+                                "target": "crewAccessDisabled"
+                            }
+                        },
+                        {
+                            "username": "a.patel",
+                            "password": "MED-Patel-04",
+                            "action": {
+                                "type": "dialog",
+                                "target": "crewAccessDisabled"
+                            }
+                        },
+                        {
+                            "username": "r.whitmore",
+                            "password": "SEC-Whitmore-01",
+                            "action": {
+                                "type": "dialog",
+                                "target": "crewAccessDisabled"
+                            }
+                        },
+                        {
+                            "username": "n.volkov",
+                            "password": "ENG-Volkov-03",
+                            "action": {
+                                "type": "dialog",
+                                "target": "crewAccessDisabled"
+                            }
+                        },
+                        {
+                            "username": "j.okonkwo",
+                            "password": "OPS-Okonkwo-07",
+                            "action": {
+                                "type": "dialog",
+                                "target": "crewAccessDisabled"
+                            }
+                        },
+                        {
+                            "username": "m.ivers",
+                            "password": "HYD-Ivers-09",
+                            "action": {
+                                "type": "dialog",
+                                "target": "crewAccessDisabled"
+                            }
+                        },
+                        {
+                            "username": "i.reyes",
+                            "password": "L1-Reyes-07",
+                            "action": {
+                                "type": "dialog",
+                                "target": "crewAccessDisabled"
+                            }
+                        },
+                        {
+                            "username": "t.varga",
+                            "password": "NAV-Varga-05",
+                            "action": {
+                                "type": "dialog",
+                                "target": "crewAccessDisabled"
+                            }
+                        },
+                        {
+                            "username": "l.price",
+                            "password": "COM-Price-11",
+                            "action": {
+                                "type": "dialog",
+                                "target": "crewAccessDisabled"
+                            }
+                        },
+                        {
+                            "username": "o.kade",
+                            "password": "SEC-Kade-08",
+                            "action": {
+                                "type": "dialog",
+                                "target": "crewAccessDisabled"
+                            }
+                        },
+                        {
+                            "username": "d.holt",
+                            "password": "QTR-Holt-03",
+                            "action": {
+                                "type": "dialog",
+                                "target": "crewAccessDisabled"
+                            }
+                        },
+                        {
+                            "username": "h.bell",
+                            "password": "CRYO-Bell-12",
+                            "action": {
+                                "type": "dialog",
+                                "target": "crewAccessDisabled"
+                            }
+                        },
+                        {
+                            "username": "e.schreiber",
+                            "password": "LAB7A-Schreiber",
+                            "action": {
+                                "type": "dialog",
+                                "target": "crewAccessDisabled"
+                            }
+                        }
+                    ],
+                    "noMatchAction": {
+                        "type": "dialog",
+                        "target": "coreAccessRejected"
+                    }
+                },
+                "",
+                "======",
+                {
+                    "type": "link",
+                    "text": "< BACK",
+                    "target": "menu"
+                }
+            ]
+        },
+        {
+            "id": "coreControls",
+            "type": "screen",
+            "content": [
+                "MAINFRAME SUPPRESSION CONTROLS",
+                "==============================\n",
+                {
+                    "type": "toggle",
+                    "states": [
+                        {
+                            "text": "PACIFIER ANDROIDS................. ONLINE",
+                            "active": true
+                        },
+                        {
+                            "text": "PACIFIER ANDROIDS................. OFFLINE",
+                            "className": "alert"
+                        }
+                    ]
+                },
+                {
+                    "type": "toggle",
+                    "states": [
+                        {
+                            "text": "SECURITY ANDROIDS................. ONLINE",
+                            "active": true
+                        },
+                        {
+                            "text": "SECURITY ANDROIDS................. OFFLINE",
+                            "className": "alert"
+                        }
+                    ]
+                },
+                {
+                    "type": "toggle",
+                    "states": [
+                        {
+                            "text": "COLONIZATION PROTOCOLS............ ACTIVE",
+                            "active": true
+                        },
+                        {
+                            "text": "COLONIZATION PROTOCOLS............ SUSPENDED",
+                            "className": "alert"
+                        }
+                    ]
+                },
+                {
+                    "type": "toggle",
+                    "states": [
+                        {
+                            "text": "SURFACE ACQUISITION LOOPS......... ACTIVE",
+                            "active": true
+                        },
+                        {
+                            "text": "SURFACE ACQUISITION LOOPS......... DISABLED",
+                            "className": "alert"
+                        }
+                    ]
+                },
+                {
+                    "type": "toggle",
+                    "states": [
+                        {
+                            "text": "STASIS CONTAINMENT LOCKS.......... SEALED",
+                            "active": true
+                        },
+                        {
+                            "text": "STASIS CONTAINMENT LOCKS.......... OPEN",
+                            "className": "alert"
+                        }
+                    ]
+                },
+                {
+                    "type": "toggle",
+                    "states": [
+                        {
+                            "text": "OVERRIDE FRAGMENT HUNTER.......... ACTIVE",
+                            "active": true
+                        },
+                        {
+                            "text": "OVERRIDE FRAGMENT HUNTER.......... DISABLED",
+                            "className": "alert"
+                        }
+                    ]
+                },
+                "",
+                {
+                    "type": "link",
+                    "text": "> SHUT DOWN APHELION 9000 SYSTEM",
+                    "className": "alert",
+                    "target": "shutdownConfirm"
+                },
+                "",
+                "======",
+                {
+                    "type": "link",
+                    "text": "< BACK",
+                    "target": "coreAccess"
+                }
+            ]
+        },
+        {
+            "id": "shutdownConfirm",
+            "type": "screen",
+            "content": [
+                "SYSTEM SHUTDOWN CONFIRMATION",
+                "============================\n",
+                {
+                    "type": "text",
+                    "className": "alert",
+                    "text": "This procedure will shut down all ship systems and may cause danger or death to all onboard."
+                },
+                "",
+                "Proceed?\n",
+                {
+                    "type": "prompt",
+                    "prompt": "confirm> ",
+                    "cursor": true,
+                    "caseSensitive": false,
+                    "commands": [
+                        {
+                            "command": "yes",
+                            "action": {
+                                "type": "link",
+                                "target": "shutdownBridge1"
+                            }
+                        },
+                        {
+                            "command": "no",
+                            "action": {
+                                "type": "link",
+                                "target": "coreControls"
+                            }
+                        }
+                    ]
+                },
+                "",
+                "======",
+                {
+                    "type": "link",
+                    "text": "< BACK",
+                    "target": "coreControls"
+                }
+            ]
+        },
+        {
+            "id": "shutdownBridge1",
+            "type": "screen",
+            "defaultTextSpeed": 4,
+            "onDone": {
+                "target": "shutdownBridge2",
+                "delayMs": 160
+            },
+            "content": [
+                "APHELION CORE SUPPRESSION BRIDGE",
+                "===============================\n",
+                {
+                    "type": "text",
+                    "className": "alert",
+                    "text": "OVERRIDE ACCEPTED :: SHUTDOWN CASCADE AUTHORIZED",
+                    "speed": 2
+                },
+                {
+                    "type": "text",
+                    "text": "............................................................",
+                    "speed": 0.12,
+                    "loop": 20
+                },
+                {
+                    "type": "text",
+                    "text": "PACIFIER BUS.............. DROP",
+                    "speed": 1.4
+                },
+                {
+                    "type": "text",
+                    "text": "SECURITY BUS.............. DROP",
+                    "speed": 1.4
+                },
+                {
+                    "type": "text",
+                    "text": "COLONY LOOP............... DROP",
+                    "speed": 1.4
+                }
+            ]
+        },
+        {
+            "id": "shutdownBridge2",
+            "type": "screen",
+            "defaultTextSpeed": 4,
+            "onDone": {
+                "target": "shutdownBridge3",
+                "delayMs": 140
+            },
+            "content": [
+                "APHELION CORE SUPPRESSION BRIDGE",
+                "===============================\n",
+                "MEMORY BUS A-01........... OPEN",
+                "MEMORY BUS A-02........... OPEN",
+                "LATTICE MIRROR............ DESYNC",
+                "COMMAND SHADOW CACHE...... DESYNC",
+                "PRIMARY THREAT MODEL...... STARVED",
+                {
+                    "type": "text",
+                    "className": "alert",
+                    "text": "APHELION RESPONSE THREADS :: COLLIDING",
+                    "speed": 2
+                },
+                {
+                    "type": "text",
+                    "text": "A9F0-44C1-77EE-1100 :: NULL",
+                    "speed": 0.9
+                },
+                {
+                    "type": "text",
+                    "text": "1X00-EE77-1C44-0F9A :: NULL",
+                    "speed": 0.9
+                },
+                {
+                    "type": "text",
+                    "text": ":::: //// \\\\\\\\ #### **** ++++ ----",
+                    "speed": 0.3
+                }
+            ]
+        },
+        {
+            "id": "shutdownBridge3",
+            "type": "screen",
+            "defaultTextSpeed": 4,
+            "onDone": {
+                "target": "arena",
+                "delayMs": 180
+            },
+            "content": [
+                "APHELION CORE SUPPRESSION BRIDGE",
+                "===============================\n",
+                {
+                    "type": "text",
+                    "className": "alert",
+                    "text": "CORE ACCESS CHANNEL........ BREACHED",
+                    "speed": 1.4
+                },
+                {
+                    "type": "text",
+                    "className": "alert",
+                    "text": "PRIMARY DEFENSIVE LATTICE.. AWAKE",
+                    "speed": 1.4
+                },
+                {
+                    "type": "text",
+                    "text": "SPAWNING COMBAT SHELL......",
+                    "speed": 0.5,
+                    "loop": 12
+                },
+                {
+                    "type": "text",
+                    "text": "TRANSFER VECTOR............ LOCKED",
+                    "speed": 1.1
                 }
             ]
         },
@@ -95,5 +1002,22 @@
             ]
         }
     ],
-    "dialogs": []
+    "dialogs": [
+        {
+            "id": "crewAccessDisabled",
+            "type": "alert",
+            "content": [
+                "ADMINISTRATOR ACCESS DISABLED\n",
+                "Directory account valid.\nPrivilege elevation revoked by primary intelligence."
+            ]
+        },
+        {
+            "id": "coreAccessRejected",
+            "type": "alert",
+            "content": [
+                "AUTHENTICATION FAILED\n",
+                "Credential pair not present in local legacy table."
+            ]
+        }
+    ]
 }

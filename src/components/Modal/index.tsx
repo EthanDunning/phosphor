@@ -19,14 +19,20 @@ interface ModalBitmapEntry {
 
 type ModalContentEntry = string | ModalTextEntry | ModalBitmapEntry;
 
+export interface ModalAction {
+    label: string;
+}
+
 export interface ModalProps {
     text: string | ModalContentEntry[];
     className?: string;
     onClose: () => void;
+    actions?: ModalAction[];
+    onAction?: (actionIndex: number) => void;
 }
 
 const Modal: FC<ModalProps> = (props) => {
-    const { text, className, onClose } = props;
+    const { text, className, onClose, actions, onAction } = props;
     const css = [
         "__modal__",
         className ? className : null,
@@ -113,8 +119,24 @@ const Modal: FC<ModalProps> = (props) => {
 
     return (
         <section className={css} onClick={onClose}>
-            <div className="content">
+            <div className="content" onClick={(e) => e.stopPropagation()}>
                 {renderContent()}
+                {actions && actions.length > 0 && (
+                    <div className="actions">
+                        {actions.map((action, index) => (
+                            <button
+                                key={`${action.label}-${index}`}
+                                type="button"
+                                className="action"
+                                onClick={() => {
+                                    onAction && onAction(index);
+                                }}
+                            >
+                                {action.label}
+                            </button>
+                        ))}
+                    </div>
+                )}
             </div>
         </section>
     );

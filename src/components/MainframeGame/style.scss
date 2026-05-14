@@ -6,6 +6,7 @@
     --aphelion-panel: rgba(7, 12, 28, 0.88);
     --aphelion-border: rgba(132, 153, 221, 0.42);
     --aphelion-core-bg: rgba(23, 7, 15, 0.92);
+    --mainframe-boot-reveal: 0;
     box-sizing: border-box;
     width: min(calc(100% - 12px), 1680px);
     position: relative;
@@ -71,11 +72,15 @@
     display: flex;
     flex-direction: column;
     min-width: 0;
+    opacity: calc(0.08 + (var(--mainframe-boot-reveal) * 0.92));
+    filter: blur(calc((1 - var(--mainframe-boot-reveal)) * 10px)) brightness(calc(0.35 + (var(--mainframe-boot-reveal) * 0.65)));
+    clip-path: inset(calc((1 - var(--mainframe-boot-reveal)) * 100%) 0 0 0);
     border: 1px solid rgba(132, 153, 221, 0.28);
     background:
         linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0)),
         var(--aphelion-panel);
     box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.025);
+    transition: opacity 110ms linear, filter 110ms linear, clip-path 110ms linear;
 }
 
 .mainframe-game__panel--core {
@@ -163,6 +168,52 @@
     justify-content: center;
     background: rgba(5, 8, 20, 0.72);
     z-index: 4;
+}
+
+.mainframe-game__startup-overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background:
+        repeating-linear-gradient(
+            180deg,
+            rgba(150, 176, 255, 0.11) 0,
+            rgba(150, 176, 255, 0.11) 2px,
+            transparent 2px,
+            transparent 7px
+        ),
+        linear-gradient(180deg, rgba(4, 8, 20, 0.96), rgba(7, 14, 31, 0.82));
+    z-index: 3;
+}
+
+.mainframe-game__startup-overlay[hidden] {
+    display: none;
+}
+
+.mainframe-game__startup-box {
+    min-width: min(92%, 12rem);
+    padding: 0.45rem 0.7rem;
+    text-align: center;
+    border: 1px solid rgba(132, 153, 221, 0.36);
+    background: rgba(6, 11, 28, 0.86);
+    box-shadow: 0 0 28px rgba(127, 149, 209, 0.18);
+}
+
+.mainframe-game__startup-label {
+    color: rgba(185, 200, 235, 0.92);
+    font-size: 0.48rem;
+    letter-spacing: 0.12em;
+}
+
+.mainframe-game__startup-countdown {
+    min-height: 1.2rem;
+    margin-top: 0.18rem;
+    color: #ffd7dd;
+    font-size: 1rem;
+    line-height: 1;
+    text-shadow: 0 0 16px rgba(255, 125, 137, 0.5);
 }
 
 .mainframe-game__overlay[hidden] {
