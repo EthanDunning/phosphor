@@ -797,6 +797,13 @@ const TEXT_LINE_STYLE_OPTIONS: CreatorSelectOption[] = [
         .map((option) => ({ value: option, label: option })),
 ];
 
+const TEXT_ALIGN_OPTIONS: CreatorSelectOption[] = [
+    { value: "left", label: "Left (default)" },
+    { value: "center", label: "Center" },
+    { value: "right", label: "Right" },
+    { value: "justify", label: "Justify" },
+];
+
 const createDefaultScript = (): {
     config: { name: string; author: string };
     screens: Array<{ id: string; type: string; content: any[] }>;
@@ -3449,6 +3456,23 @@ const ScriptCreator: FC<ScriptCreatorProps> = ({
         updateScreen({ content: nextContent });
     };
 
+    // Set (or clear, when "left") the text alignment of the selected object
+    // element. Plain string elements are converted to a text object first via
+    // their own control, so this only handles object elements.
+    const updateElementAlign = (nextAlign: string) => {
+        if (!selectedElement || typeof selectedElement !== "object") {
+            return;
+        }
+
+        const nextElement: any = { ...selectedElement };
+        if (!nextAlign || nextAlign === "left") {
+            delete nextElement.align;
+        } else {
+            nextElement.align = nextAlign;
+        }
+        updateElement(nextElement);
+    };
+
     const updateElementTextSpeed = (nextSpeedRaw: string) => {
         if (!selectedElementSupportsTextSpeed || selectedElement === undefined || selectedElement === null) {
             return;
@@ -4838,6 +4862,26 @@ const ScriptCreator: FC<ScriptCreatorProps> = ({
                                                                 }}
                                                             />
                                                         </label>
+
+                                                        <label className="script-creator__field">
+                                                            <span>Text Align</span>
+                                                            <CreatorSelect
+                                                                value="left"
+                                                                options={TEXT_ALIGN_OPTIONS}
+                                                                onChange={(nextAlign) => {
+                                                                    if (!nextAlign || nextAlign === "left") {
+                                                                        return;
+                                                                    }
+                                                                    // A plain string can't hold an align property,
+                                                                    // so promote it to a text object (same as styling).
+                                                                    updateElement({
+                                                                        type: "text",
+                                                                        text: selectedElement,
+                                                                        align: nextAlign,
+                                                                    });
+                                                                }}
+                                                            />
+                                                        </label>
                                                     </>
                                                 )}
 
@@ -5945,6 +5989,17 @@ const ScriptCreator: FC<ScriptCreatorProps> = ({
                                                                     className: nextValue,
                                                                 });
                                                             }}
+                                                        />
+                                                    </label>
+                                                )}
+
+                                                {selectedElement && typeof selectedElement === "object" && (
+                                                    <label className="script-creator__field">
+                                                        <span>Text Align</span>
+                                                        <CreatorSelect
+                                                            value={selectedElement.align || "left"}
+                                                            options={TEXT_ALIGN_OPTIONS}
+                                                            onChange={updateElementAlign}
                                                         />
                                                     </label>
                                                 )}
