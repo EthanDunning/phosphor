@@ -21,6 +21,7 @@ The original project loaded a single hardcoded JSON file (sample.json by default
 
 **New element types**
 - **`list`** — a multi-state cycling element similar to `toggle` but designed for ordered item selection.
+- **`dropdown`** — a multi-state element similar to `toggle`, but clicking it expands an inline list of all states so one can be picked directly instead of cycling through them.
 - **`reportcomposer`** — a freeform text input that saves entries to localStorage and renders them as links on a target screen.
 - **`href`** — a link type that opens an external URL in a new tab instead of navigating within the terminal.
 - **`loop`** — a property on any object element that repeats it N times, avoiding repetition in the JSON.

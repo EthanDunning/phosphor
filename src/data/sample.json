@@ -281,6 +281,7 @@
                 "- Login Prompt -> { \"type\": \"login\", \"usernameCaseSensitive\": true|false, \"hideUsername\": true|false, \"passwordCaseSensitive\": true|false, \"hidePassword\": true|false, \"credentials\": [...], \"noMatchAction\": {...} }",
                 "- Toggle -> { \"type\": \"toggle\", \"states\": [...] }",
                 "- List -> { \"type\": \"list\", \"states\": [...] }",
+                "- Dropdown -> { \"type\": \"dropdown\", \"states\": [...] }",
                 "- Report Composer -> { \"type\": \"reportComposer\", \"titleTemplate\": \"...\", \"template\": \"...\" }",
                 "- Report List -> { \"type\": \"reportList\", \"composerId\": \"...\" }",
                 "- Dialog Link (+ Dialog) -> link target entry { \"type\": \"dialog\", \"target\": \"dialogId\" } + dialogs[] row",
@@ -440,6 +441,29 @@
                         "LIST EXAMPLE: OPTION ONE",
                         "LIST EXAMPLE: OPTION TWO",
                         "LIST EXAMPLE: OPTION THREE"
+                    ]
+                },
+                "",
+                {
+                    "type": "text",
+                    "className": "system",
+                    "text": "[ELEMENT: DROPDOWN OBJECT]"
+                },
+                {
+                    "type": "dropdown",
+                    "states": [
+                        {
+                            "active": true,
+                            "text": "DROPDOWN EXAMPLE: OPTION A"
+                        },
+                        {
+                            "active": false,
+                            "text": "DROPDOWN EXAMPLE: OPTION B"
+                        },
+                        {
+                            "active": false,
+                            "text": "DROPDOWN EXAMPLE: OPTION C"
+                        }
                     ]
                 },
                 "",

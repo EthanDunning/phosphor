@@ -15,6 +15,7 @@ import Prompt, { PROMPT_DEFAULT } from "../Prompt";
 import LoginPrompt from "../LoginPrompt";
 import Toggle from "../Toggle";
 import List from "../List";
+import Dropdown from "../Dropdown";
 import ReportComposer from "../ReportComposer";
 import MainframeGame from "../MainframeGame";
 import type { MainframePhase } from "../MainframeGame/shared";
@@ -92,6 +93,7 @@ enum ScreenDataType {
     ReportList,
     MainframeGame,
     Href,
+    Dropdown,
 }
 
 enum ScreenDataState {
@@ -1398,6 +1400,17 @@ class Phosphor extends Component<PhosphorProps, AppState> {
                     state,
                 };
 
+            case "dropdown":
+                return {
+                    id,
+                    type: ScreenDataType.Dropdown,
+                    scriptId: element.scriptId,
+                    states: element.states,
+                    className: element.className,
+                    speed: element.speed,
+                    state,
+                };
+
             case "reportcomposer":
                 return {
                     id,
@@ -1567,6 +1580,26 @@ class Phosphor extends Component<PhosphorProps, AppState> {
             );
         }
 
+        // the dropdown, like the toggle, gets its text from the states array
+        if (type === ScreenDataType.Dropdown) {
+            const text = this._getCyclerText(element.states);
+            const className = this._getCyclerClassName(element.className, element.states);
+            const speed = this._getResolvedTextSpeed(element, screen);
+            const handleRendered = () => this._activateNextScreenData();
+            return (
+                <Teletype
+                    key={key}
+                    text={text}
+                    onComplete={handleRendered}
+                    onNewLine={this._handleTeletypeNewLine}
+                    onCharDrawn={this._handleTeletypeCharDrawn}
+                    autocomplete={this.state.skipTextAnimation}
+                    className={className}
+                    speed={speed}
+                />
+            );
+        }
+
         if (type === ScreenDataType.Bitmap) {
             const handleRendered = () => this._activateNextScreenData();
             return (
@@ -1700,6 +1733,17 @@ class Phosphor extends Component<PhosphorProps, AppState> {
         if (element.type === ScreenDataType.List) {
             return (
                 <List
+                    key={key}
+                    className={className}
+                    states={element.states}
+                    onClick={this._handleToggleClick}
+                />
+            );
+        }
+
+        if (element.type === ScreenDataType.Dropdown) {
+            return (
+                <Dropdown
                     key={key}
                     className={className}
                     states={element.states}

@@ -59,6 +59,7 @@ type AddableElementType =
     | "login"
     | "toggle"
     | "list"
+    | "dropdown"
     | "reportComposer"
     | "reportList"
     | "dialogLink";
@@ -691,6 +692,7 @@ const ADDABLE_ELEMENT_OPTIONS: AddableElementOption[] = [
     { value: "login", label: "Login Prompt" },
     { value: "toggle", label: "Toggle" },
     { value: "list", label: "List" },
+    { value: "dropdown", label: "Dropdown" },
     { value: "reportComposer", label: "Report Composer" },
     { value: "reportList", label: "Report List" },
     { value: "dialogLink", label: "Dialog Link (+ Dialog)" },
@@ -727,7 +729,7 @@ const PROMPT_CLASSNAME_OPTIONS = [
     "script-hidden",
 ];
 
-const TOGGLE_LIST_CLASSNAME_OPTIONS = [
+const CYCLER_CLASSNAME_OPTIONS = [
     "",
     "alert",
     "notice",
@@ -1045,7 +1047,7 @@ const readScreenTargetsFromElement = (element: any): string[] => {
         });
     }
 
-    if (elementType === "toggle" || elementType === "list") {
+    if (elementType === "toggle" || elementType === "list" || elementType === "dropdown") {
         if (!Array.isArray(element.states)) {
             return [];
         }
@@ -1260,7 +1262,8 @@ const getClassNameOptionsForElementType = (elementType: string): string[] => {
 
         case "toggle":
         case "list":
-            return TOGGLE_LIST_CLASSNAME_OPTIONS;
+        case "dropdown":
+            return CYCLER_CLASSNAME_OPTIONS;
 
         case "bitmap":
         case "image":
@@ -1390,7 +1393,7 @@ const getElementListLabel = (entry: any): string => {
 
     const type = (typeof entry.type === "string" ? entry.type : "object").toLowerCase();
     const cyclerPreviewText = ((): string => {
-        if (type !== "toggle" && type !== "list") {
+        if (type !== "toggle" && type !== "list" && type !== "dropdown") {
             return "";
         }
 
@@ -1426,7 +1429,7 @@ const getElementListLabel = (entry: any): string => {
         return `${className} text: ${headline}`;
     }
 
-    if ((type === "link" || type === "href" || type === "prompt" || type === "login" || type === "toggle" || type === "list" || type === "bitmap" || type === "image")
+    if ((type === "link" || type === "href" || type === "prompt" || type === "login" || type === "toggle" || type === "list" || type === "dropdown" || type === "bitmap" || type === "image")
         && className.length) {
         return `${className} ${type}: ${headline}`;
     }
@@ -1925,7 +1928,7 @@ const ScriptCreator: FC<ScriptCreatorProps> = ({
 
         return next;
     }, [selectedElement, selectedElementIsLogin]);
-    const selectedElementIsCycler = selectedElementType === "toggle" || selectedElementType === "list";
+    const selectedElementIsCycler = selectedElementType === "toggle" || selectedElementType === "list" || selectedElementType === "dropdown";
     const selectedCyclerStates = useMemo(() => {
         if (!selectedElementIsCycler) {
             return [];
@@ -1961,7 +1964,7 @@ const ScriptCreator: FC<ScriptCreatorProps> = ({
         return toCreatorSelectOptions(classNameOptions, "(none)");
     }, [classNameOptions]);
     const cyclerStateClassNameSelectOptions = useMemo(() => {
-        return toCreatorSelectOptions(TOGGLE_LIST_CLASSNAME_OPTIONS, "(none)");
+        return toCreatorSelectOptions(CYCLER_CLASSNAME_OPTIONS, "(none)");
     }, []);
     const schemaRootSelectOptions = useMemo(() => {
         return schemaData.screenIds.map((id) => ({ value: id, label: id }));
@@ -3050,6 +3053,16 @@ const ScriptCreator: FC<ScriptCreatorProps> = ({
                 };
                 break;
 
+            case "dropdown":
+                element = {
+                    type: "dropdown",
+                    states: [
+                        { active: true, text: "OPTION 1" },
+                        { active: false, text: "OPTION 2" },
+                    ],
+                };
+                break;
+
             case "reportComposer":
                 element = {
                     type: "reportComposer",
@@ -3383,12 +3396,14 @@ const ScriptCreator: FC<ScriptCreatorProps> = ({
 
     const addCyclerState = () => {
         const label = selectedElementType === "list" ? "ITEM" : "OPTION";
+        // dropdowns render each option on its own line, so they skip the "> " prompt prefix
+        const prefix = selectedElementType === "dropdown" ? "" : "> ";
         updateCyclerStates((prevStates) => {
             const nextIndex = prevStates.length + 1;
             return [
                 ...prevStates,
                 {
-                    text: `> ${label} ${nextIndex}`,
+                    text: `${prefix}${label} ${nextIndex}`,
                     active: false,
                 },
             ];
@@ -5091,7 +5106,7 @@ const ScriptCreator: FC<ScriptCreatorProps> = ({
                                                     </label>
                                                 )}
 
-                                                {selectedElement && typeof selectedElement === "object" && (selectedElement.type === "toggle" || selectedElement.type === "list") && (
+                                                {selectedElement && typeof selectedElement === "object" && (selectedElement.type === "toggle" || selectedElement.type === "list" || selectedElement.type === "dropdown") && (
                                                     <div className="script-creator__cycler">
                                                         <div className="script-creator__list-header">
                                                             <span>States</span>
@@ -5767,7 +5782,7 @@ const ScriptCreator: FC<ScriptCreatorProps> = ({
                                     />
                                 </label>
                                 <span className="script-creator__schema-hint">
-                                    Tree is built from screen links, dialog links, prompts, toggles/lists, and screen onDone targets.
+                                    Tree is built from screen links, dialog links, prompts, toggles/lists/dropdowns, and screen onDone targets.
                                 </span>
                             </div>
 

@@ -1,0 +1,92 @@
+@use "../../assets/sass/fonts" as *;
+@use "../../assets/sass/colors" as *;
+
+.__dropdown__ {
+    display: block;
+    position: relative;
+}
+
+.__dropdown__trigger {
+    display: block;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    border: none;
+    background: none;
+    font: inherit;
+    color: inherit;
+    text-shadow: inherit;
+    text-align: left;
+    cursor: pointer;
+
+    &:hover,
+    &:active {
+        color: var(--bg);
+        background: var(--fg);
+        text-shadow: var(--bg-glow);
+        box-shadow: var(--fg-glow);
+        transition: background 50ms, foreground 150ms;
+    }
+
+    &:hover {
+        opacity: 1;
+        transition: background 50ms, foreground 150ms;
+    }
+
+    &:active {
+        opacity: 0.5;
+        transition: opacity 50ms;
+    }
+}
+
+.__dropdown__label {
+    white-space: pre-wrap;
+}
+
+.__dropdown__caret {
+    display: inline-block;
+    margin-left: 0.5em;
+}
+
+.__dropdown__menu {
+    display: block;
+    margin: 0 0 0 1em;
+    padding: 0 0 0 0.5em;
+    border-left: 1px dashed var(--fg);
+}
+
+.__dropdown__option {
+    display: block;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    border: none;
+    background: none;
+    font: inherit;
+    color: inherit;
+    text-shadow: inherit;
+    text-align: left;
+    cursor: pointer;
+    opacity: 1;
+    white-space: pre-wrap;
+
+    &:hover,
+    &:active {
+        color: var(--bg);
+        background: var(--fg);
+        text-shadow: var(--bg-glow);
+        box-shadow: var(--fg-glow);
+    }
+
+    &:hover {
+        opacity: 1;
+    }
+
+    &:active {
+        opacity: 0.5;
+    }
+}
+
+.__dropdown__option--active {
+    opacity: 0.6;
+}
