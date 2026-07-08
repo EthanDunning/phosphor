@@ -1,4 +1,5 @@
 import React, { Component, ReactElement } from "react";
+import { createPortal } from "react-dom";
 import type { Session } from "@supabase/supabase-js";
 import "./style.scss";
 
@@ -60,6 +61,55 @@ const MODULE_QUERY_PARAM = "module";
 const BUNDLED_SUBSCRIBED_ENTRY_PREFIX = "bundled:";
 const BUNDLED_SUBSCRIBED_SCRIPT_IDS = ["ypsilon14", "sample"] as const;
 const BUNDLED_OWNER_ID_PLACEHOLDER = "00000000-0000-0000-0000-000000000000";
+const PRINT_OPTIONS_STORAGE_KEY = "phosphor:print-options:v1";
+
+// One element of a printed hardcopy: either a line of text or a captured graphic.
+type PrintoutItem =
+    | { type: "text"; text: string }
+    | { type: "image"; src: string; width: number };
+
+interface PrintOptions {
+    header: boolean;
+    footer: boolean;
+    zebra: boolean;
+    terminalFont: boolean;
+    lineNumbers: boolean;
+}
+
+const DEFAULT_PRINT_OPTIONS: PrintOptions = {
+    header: true,
+    footer: true,
+    zebra: true,
+    terminalFont: true,
+    lineNumbers: false,
+};
+
+const loadPrintOptions = (): PrintOptions => {
+    try {
+        const raw = window.localStorage.getItem(PRINT_OPTIONS_STORAGE_KEY);
+        if (!raw) {
+            return { ...DEFAULT_PRINT_OPTIONS };
+        }
+        const parsed = JSON.parse(raw);
+        return {
+            header: parsed.header !== false,
+            footer: parsed.footer !== false,
+            zebra: parsed.zebra !== false,
+            terminalFont: parsed.terminalFont !== false,
+            lineNumbers: parsed.lineNumbers === true,
+        };
+    } catch {
+        return { ...DEFAULT_PRINT_OPTIONS };
+    }
+};
+
+const persistPrintOptions = (options: PrintOptions): void => {
+    try {
+        window.localStorage.setItem(PRINT_OPTIONS_STORAGE_KEY, JSON.stringify(options));
+    } catch {
+        // ignore storage failures (private mode, quota, etc.)
+    }
+};
 const SHUTDOWN_THEME = createCustomTheme({
     baseThemeId: "white",
     bgHex: "#000000",
@@ -76,6 +126,9 @@ interface AppState {
     activeScript: BundledScript;
     activeScriptRevision: number;
     activeTerminalScreenId: string | null;
+    printPayload: { items: PrintoutItem[]; scriptName: string; screenId: string; timestamp: string } | null;
+    printOptionsOpen: boolean;
+    printOptions: PrintOptions;
     customScripts: BundledScript[];
     activeTheme: Theme;
     customTheme: CustomThemeConfig;
@@ -137,6 +190,9 @@ class App extends Component<any, AppState> {
             activeScript,
             activeScriptRevision: 0,
             activeTerminalScreenId: null,
+            printPayload: null,
+            printOptionsOpen: false,
+            printOptions: loadPrintOptions(),
             customScripts,
             activeTheme: initialThemeState.activeTheme,
             customTheme: initialThemeState.customTheme,
@@ -182,6 +238,9 @@ class App extends Component<any, AppState> {
         this._updateHeaderLayout = this._updateHeaderLayout.bind(this);
         this._handleClickOutside    = this._handleClickOutside.bind(this);
         this._handleReloadCurrentScript = this._handleReloadCurrentScript.bind(this);
+        this._handlePrint = this._handlePrint.bind(this);
+        this._openPrintOptions = this._openPrintOptions.bind(this);
+        this._closePrintOptions = this._closePrintOptions.bind(this);
         this._handleClearData       = this._handleClearData.bind(this);
         this._handleSoundToggle     = this._handleSoundToggle.bind(this);
         this._handleHeaderVisibilityToggle = this._handleHeaderVisibilityToggle.bind(this);
@@ -1409,6 +1468,163 @@ class App extends Component<any, AppState> {
                 soundEnabled,
             };
         });
+    }
+
+    // Turn a bitmap into a printer "screen dump": grayscale + inverted, so bright
+    // on-screen pixels become dark ink on white paper. Ink is carried by the alpha
+    // channel (black at variable opacity) so it prints as legible dark-on-white
+    // without needing the browser's "background graphics" option. Null if unreadable.
+    private _rasterizeScreenDumpImage(source: HTMLCanvasElement | HTMLImageElement): string | null {
+        const width = source instanceof HTMLCanvasElement ? source.width : (source.naturalWidth || source.width);
+        const height = source instanceof HTMLCanvasElement ? source.height : (source.naturalHeight || source.height);
+        if (!width || !height) {
+            return null;
+        }
+
+        const offscreen = document.createElement("canvas");
+        offscreen.width = width;
+        offscreen.height = height;
+        const ctx = offscreen.getContext("2d");
+        if (!ctx) {
+            return null;
+        }
+
+        ctx.imageSmoothingEnabled = false;
+        try {
+            ctx.drawImage(source, 0, 0, width, height);
+            const data = ctx.getImageData(0, 0, width, height);
+            const pixels = data.data;
+            for (let i = 0; i < pixels.length; i += 4) {
+                // brightness of the on-screen pixel, weighted by how opaque it was
+                const luminance = (0.299 * pixels[i] + 0.587 * pixels[i + 1] + 0.114 * pixels[i + 2]) * (pixels[i + 3] / 255);
+                // black ink whose opacity tracks that brightness => dark where bright, clear where dark
+                pixels[i] = 0;
+                pixels[i + 1] = 0;
+                pixels[i + 2] = 0;
+                pixels[i + 3] = Math.round(luminance);
+            }
+            ctx.putImageData(data, 0, 0);
+            return offscreen.toDataURL("image/png");
+        } catch {
+            // cross-origin sources taint the canvas and block getImageData/toDataURL
+            return null;
+        }
+    }
+
+    // Capture the current terminal screen as an ordered list of printable items
+    // (text lines and graphics) for a "hardcopy" the way an old line printer would.
+    private _extractCurrentScreenItems(): PrintoutItem[] {
+        const main = document.querySelector(".__main__");
+        if (!main) {
+            return [];
+        }
+
+        const items: PrintoutItem[] = [];
+        Array.from(main.children).forEach((child) => {
+            // Bitmaps render a <canvas> (static) or <img> (animated/gif).
+            const source = child.querySelector("canvas") || child.querySelector("img");
+            if (source) {
+                const width = Math.round(source.getBoundingClientRect().width);
+                let src = this._rasterizeScreenDumpImage(source as HTMLCanvasElement | HTMLImageElement);
+                if (!src && source instanceof HTMLImageElement) {
+                    // fall back to the raw (unprocessed) source if pixels can't be read
+                    src = source.currentSrc || source.src || null;
+                }
+
+                if (src) {
+                    items.push({ type: "image", src, width });
+                } else {
+                    const alt = (source.getAttribute("alt") || "").trim();
+                    items.push({ type: "text", text: alt.length ? `[ GRAPHIC: ${alt.toUpperCase()} ]` : "[ GRAPHIC OMITTED ]" });
+                }
+                return;
+            }
+
+            // strip the null char the Text element uses to keep blank lines from collapsing
+            const text = (child.textContent || "").split(String.fromCharCode(0)).join("");
+            items.push({ type: "text", text });
+        });
+
+        // trim trailing blank text lines so the printout ends where the content does
+        while (items.length) {
+            const last = items[items.length - 1];
+            if (last.type === "text" && !last.text.trim().length) {
+                items.pop();
+            } else {
+                break;
+            }
+        }
+
+        return items;
+    }
+
+    private _openPrintOptions(): void {
+        this.setState({
+            printOptionsOpen: true,
+            optionsDropdownOpen: false,
+            mobileMenuOpen: false,
+            scriptDropdownOpen: false,
+            profileDropdownOpen: false,
+        });
+    }
+
+    private _closePrintOptions(): void {
+        this.setState({ printOptionsOpen: false });
+    }
+
+    private _togglePrintOption(key: keyof PrintOptions): void {
+        this.setState((prev) => {
+            const printOptions = { ...prev.printOptions, [key]: !prev.printOptions[key] };
+            persistPrintOptions(printOptions);
+            return { printOptions };
+        });
+    }
+
+    private _handlePrint(): void {
+        const items = this._extractCurrentScreenItems();
+        if (!items.length) {
+            this.setState({ printOptionsOpen: false });
+            return;
+        }
+
+        const now = new Date();
+        const timestamp = now.toLocaleString(undefined, {
+            year: "numeric",
+            month: "2-digit",
+            day: "2-digit",
+            hour: "2-digit",
+            minute: "2-digit",
+            second: "2-digit",
+            hour12: false,
+        });
+
+        const scriptName = this.state.activeScript.label
+            || this.state.activeScript.json?.config?.name
+            || "UNTITLED SCRIPT";
+
+        this.setState(
+            {
+                printPayload: {
+                    items,
+                    scriptName,
+                    screenId: this.state.activeTerminalScreenId || "UNKNOWN",
+                    timestamp,
+                },
+                printOptionsOpen: false,
+            },
+            () => {
+                const cleanup = () => {
+                    window.removeEventListener("afterprint", cleanup);
+                    window.clearTimeout(fallbackTimer);
+                    this.setState({ printPayload: null });
+                };
+                // afterprint fires once the print dialog closes in all modern browsers;
+                // the long fallback just prevents the hidden node from lingering forever.
+                const fallbackTimer = window.setTimeout(cleanup, 60000);
+                window.addEventListener("afterprint", cleanup);
+                window.print();
+            }
+        );
     }
 
     private _handleHeaderVisibilityToggle(): void {
@@ -2831,6 +3047,14 @@ class App extends Component<any, AppState> {
                             )}
                         </div>
 
+                        <button
+                            className="phosphor-header__btn phosphor-header__hide-at-2"
+                            onClick={this._openPrintOptions}
+                            title="Print the current screen as a vintage terminal hardcopy"
+                        >
+                            [PRINT]
+                        </button>
+
                         {!previewMode && (
                             <a
                                 className="phosphor-header__btn phosphor-header__hide-at-2"
@@ -3142,6 +3366,18 @@ class App extends Component<any, AppState> {
                                         </div>
                                     )}
 
+                                    {headerOverflowLevel >= 2 && (
+                                        <>
+                                            <button
+                                                className="phosphor-header__dropdown-item"
+                                                role="menuitem"
+                                                onClick={this._openPrintOptions}
+                                            >
+                                                [PRINT]
+                                            </button>
+                                        </>
+                                    )}
+
                                     {!previewMode && headerOverflowLevel >= 2 && (
                                         <>
                                             <a
@@ -3323,6 +3559,125 @@ class App extends Component<any, AppState> {
                     onDeleteModule={this._handleModuleDelete}
                     onToggleSubscribedScriptVisibility={this._handleToggleSubscribedScriptVisibility}
                 />
+
+                {this.state.printPayload && createPortal(
+                    <div
+                        id="phosphor-printout"
+                        className={
+                            "phosphor-printout"
+                            + (this.state.printOptions.zebra ? " phosphor-printout--zebra" : "")
+                            + (this.state.printOptions.terminalFont ? "" : " phosphor-printout--printer-font")
+                        }
+                        aria-hidden="true"
+                    >
+                        {this.state.printOptions.header && (
+                        <div className="phosphor-printout__banner">
+                            <span>{this.state.printPayload.scriptName.toUpperCase()}</span>
+                            <span>
+                                SCREEN: {this.state.printPayload.screenId.toUpperCase()}
+                                {"   "}
+                                {this.state.printPayload.timestamp}
+                            </span>
+                        </div>
+                        )}
+                        <div className="phosphor-printout__body">
+                            {(() => {
+                                const items = this.state.printPayload!.items;
+                                const numbered = this.state.printOptions.lineNumbers;
+                                const width = Math.max(3, String(items.length).length);
+                                return items.map((item, index) => {
+                                    const lineNo = numbered ? (
+                                        <span className="phosphor-printout__lineno">
+                                            {String(index + 1).padStart(width, "0")}
+                                        </span>
+                                    ) : null;
+                                    return item.type === "image" ? (
+                                        <div className="phosphor-printout__image-line" key={index}>
+                                            {lineNo}
+                                            <img
+                                                src={item.src}
+                                                alt=""
+                                                style={item.width ? { width: `${item.width}px` } : undefined}
+                                            />
+                                        </div>
+                                    ) : (
+                                        <div className="phosphor-printout__line" key={index}>
+                                            {lineNo}
+                                            <span className="phosphor-printout__linetext">
+                                                {item.text.length ? item.text : " "}
+                                            </span>
+                                        </div>
+                                    );
+                                });
+                            })()}
+                        </div>
+                        {this.state.printOptions.footer && (
+                        <div className="phosphor-printout__banner phosphor-printout__banner--foot">
+                            <span>END OF HARDCOPY</span>
+                            <span>
+                                {this.state.printPayload.items.filter((item) => item.type === "text").length} LINES
+                            </span>
+                        </div>
+                        )}
+                    </div>,
+                    document.body
+                )}
+
+                {this.state.printOptionsOpen && (
+                    <div className="phosphor-print-options" onClick={this._closePrintOptions}>
+                        <div className="phosphor-print-options__box" onClick={(e) => e.stopPropagation()}>
+                            <div className="phosphor-print-options__title">[PRINT OPTIONS]</div>
+                            <label className="phosphor-print-options__row">
+                                <input
+                                    type="checkbox"
+                                    checked={this.state.printOptions.header}
+                                    onChange={() => this._togglePrintOption("header")}
+                                />
+                                <span>Header banner</span>
+                            </label>
+                            <label className="phosphor-print-options__row">
+                                <input
+                                    type="checkbox"
+                                    checked={this.state.printOptions.footer}
+                                    onChange={() => this._togglePrintOption("footer")}
+                                />
+                                <span>Footer banner</span>
+                            </label>
+                            <label className="phosphor-print-options__row">
+                                <input
+                                    type="checkbox"
+                                    checked={this.state.printOptions.zebra}
+                                    onChange={() => this._togglePrintOption("zebra")}
+                                />
+                                <span>Alternating greenbar lines</span>
+                            </label>
+                            <label className="phosphor-print-options__row">
+                                <input
+                                    type="checkbox"
+                                    checked={this.state.printOptions.terminalFont}
+                                    onChange={() => this._togglePrintOption("terminalFont")}
+                                />
+                                <span>Use terminal font (off = printer font)</span>
+                            </label>
+                            <label className="phosphor-print-options__row">
+                                <input
+                                    type="checkbox"
+                                    checked={this.state.printOptions.lineNumbers}
+                                    onChange={() => this._togglePrintOption("lineNumbers")}
+                                />
+                                <span>Line numbers</span>
+                            </label>
+                            <div className="phosphor-print-options__actions">
+                                <button className="phosphor-header__btn" onClick={this._handlePrint}>
+                                    [PRINT]
+                                </button>
+                                <button className="phosphor-header__btn" onClick={this._closePrintOptions}>
+                                    [CANCEL]
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
             </>
         );
     }
