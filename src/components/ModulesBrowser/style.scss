@@ -58,6 +58,11 @@ $browser-normal-font-stack: "Trebuchet MS", Verdana, Geneva, sans-serif;
         --browser-muted-fg: #6a6255;
         --browser-selected-bg: #2b6489;
         --browser-selected-fg: #ffffff;
+        // The shared phosphor-header reads `--theme-fg`/`--theme-fg-glow`
+        // (falling back to `--fg`), so it keeps the terminal theme color unless
+        // we pin those to the web-view ink here too.
+        --theme-fg: #181614;
+        --theme-fg-glow: none;
         color-scheme: light;
     }
 
@@ -447,6 +452,46 @@ $browser-normal-font-stack: "Trebuchet MS", Verdana, Geneva, sans-serif;
         color: currentColor;
         opacity: 0.72;
         white-space: nowrap;
+    }
+
+    // Clickable short slice of the uploader's account UUID. Rendered as a
+    // role="button" span inside the list item (which is itself a button) and as
+    // a real button in the detail pane, so reset native button chrome here.
+    &__owner-tag {
+        flex: 0 0 auto;
+        display: inline-flex;
+        align-items: baseline;
+        margin: 0;
+        padding: 0;
+        border: none;
+        background: none;
+        color: inherit;
+        font-family: inherit;
+        font-size: calc(#{$browser-meta-size} * var(--browser-size-scale));
+        line-height: 1.2;
+        letter-spacing: 0.04em;
+        white-space: nowrap;
+        text-shadow: inherit;
+        text-decoration: underline;
+        text-underline-offset: 2px;
+        opacity: 0.55;
+        cursor: pointer;
+
+        &:hover,
+        &:focus-visible {
+            opacity: 1;
+            outline: none;
+        }
+
+        &--active {
+            opacity: 1;
+            font-weight: bold;
+        }
+    }
+
+    &__owner-filter-id {
+        letter-spacing: 0.06em;
+        font-weight: bold;
     }
 
     &__detail-badges {

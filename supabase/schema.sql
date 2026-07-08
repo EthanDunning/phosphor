@@ -415,6 +415,42 @@ create policy "owners can delete their own modules"
     to authenticated
     using (auth.uid() = owner_id);
 
+drop policy if exists "admins can update all modules" on public.modules;
+create policy "admins can update all modules"
+    on public.modules
+    for update
+    to authenticated
+    using (
+        exists (
+            select 1
+            from public.profiles p
+            where p.id = auth.uid()
+              and p.role = 'admin'
+        )
+    )
+    with check (
+        exists (
+            select 1
+            from public.profiles p
+            where p.id = auth.uid()
+              and p.role = 'admin'
+        )
+    );
+
+drop policy if exists "admins can delete all modules" on public.modules;
+create policy "admins can delete all modules"
+    on public.modules
+    for delete
+    to authenticated
+    using (
+        exists (
+            select 1
+            from public.profiles p
+            where p.id = auth.uid()
+              and p.role = 'admin'
+        )
+    );
+
 drop policy if exists "users can read their own ratings" on public.module_ratings;
 create policy "users can read their own ratings"
     on public.module_ratings

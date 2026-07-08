@@ -410,6 +410,47 @@ export const searchDiscoverableModules = async (
     return sortModuleRecords(Array.from(mergedModules.values()), sort).slice(0, effectiveLimit);
 };
 
+export const searchModulesByOwner = async (
+    ownerId: string,
+    queryText: string,
+    sort: ModuleSort,
+    options?: { userId?: string | null; role?: ProfileRole; limit?: number }
+): Promise<ModuleRecord[]> => {
+    const client = requireSupabase();
+    const viewerId = options?.userId || null;
+    const role = options?.role || "user";
+    const limit = options?.limit ?? 200;
+    const isOwnerViewing = !!viewerId && viewerId === ownerId;
+    const canSeeAllOfOwner = isOwnerViewing || role === "admin";
+
+    let query = client
+        .from("modules")
+        .select(MODULE_SELECT)
+        .eq("owner_id", ownerId);
+
+    // Owners (viewing their own uploads) and admins see the full catalog for
+    // that user. Everyone else may only discover public modules: unlisted stay
+    // link-only and private stay hidden (RLS would otherwise return unlisted
+    // rows to everyone).
+    if (!canSeeAllOfOwner) {
+        query = query.eq("visibility", "public");
+    }
+
+    const trimmedQuery = queryText.trim();
+    if (trimmedQuery.length) {
+        const escapedQuery = escapeModuleQuery(trimmedQuery);
+        query = query.or(`title.ilike.%${escapedQuery}%,summary.ilike.%${escapedQuery}%`);
+    }
+
+    const { data, error } = await applyModuleSort(query, sort).limit(limit);
+
+    if (error) {
+        throw error;
+    }
+
+    return (data || []).map(normalizeModuleRecord);
+};
+
 export const fetchPublicModulesByIds = async (moduleIds: string[]): Promise<ModuleRecord[]> => {
     const client = requireSupabase();
     if (!moduleIds.length) {
@@ -635,14 +676,27 @@ export const updateModuleMetadata = async (input: UpdateModuleMetadataInput): Pr
 
 export const deleteModule = async (moduleId: string, ownerId: string): Promise<void> => {
     const client = requireSupabase();
-    const { error } = await client
+    // Return the deleted rows so we can tell a real delete apart from a
+    // row-level-security no-op: when RLS filters a DELETE, Postgres reports
+    // success with zero rows affected and no error, which would otherwise look
+    // like the delete worked when it silently did nothing.
+    const { data, error } = await client
         .from("modules")
         .delete()
         .eq("id", moduleId)
-        .eq("owner_id", ownerId);
+        .eq("owner_id", ownerId)
+        .select("id");
 
     if (error) {
         throw error;
+    }
+
+    if (!data || !data.length) {
+        throw new Error(
+            "The module was not deleted — you do not have permission to delete it. "
+            + "If you are an admin, make sure the \"admins can delete all modules\" "
+            + "row-level-security policy has been applied to your database."
+        );
     }
 };
 
