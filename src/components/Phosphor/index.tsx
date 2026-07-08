@@ -154,6 +154,21 @@ interface UserReport {
 const USER_REPORT_SCREEN_PREFIX = "userReport:";
 const DEFAULT_REPORT_COMPOSER_ID = "default";
 
+// Maps an element's optional `align` property to a text-align utility class.
+// "left" is the default, so it needs no class.
+const getTextAlignClassName = (align: any): string => {
+    switch (align) {
+        case "center":
+            return "text-align-center";
+        case "right":
+            return "text-align-right";
+        case "justify":
+            return "text-align-justify";
+        default:
+            return "";
+    }
+};
+
 interface PhosphorProps {
     json: any;
     defaultTextSpeed?: number;
@@ -1233,6 +1248,23 @@ class Phosphor extends Component<PhosphorProps, AppState> {
     }
 
     private _generateScreenData(element: any): ScreenData {
+        const data = this._generateScreenDataRaw(element);
+
+        // Fold the element's text alignment into the class name that reaches the
+        // DOM, so every rendered element type picks it up without per-type edits.
+        if (data && element && typeof element === "object") {
+            const alignClassName = getTextAlignClassName(element.align);
+            if (alignClassName) {
+                data.className = data.className
+                    ? `${data.className} ${alignClassName}`
+                    : alignClassName;
+            }
+        }
+
+        return data;
+    }
+
+    private _generateScreenDataRaw(element: any): ScreenData {
         // TODO: build the data object based on the element type
         // e.g. typeof element === "string" --> create a new ScreenData Text object
         const id = nanoid();

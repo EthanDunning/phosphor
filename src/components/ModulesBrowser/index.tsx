@@ -27,6 +27,7 @@ import {
     onAuthStateChange,
     rateModule,
     searchDiscoverableModules,
+    searchModulesByOwner,
     signInWithGoogle,
     signOut,
     subscribeToModule,
@@ -87,6 +88,7 @@ const OWNER_MENU_HEIGHT = 188;
 const SHARE_MENU_WIDTH = 224;
 const SHARE_MENU_HEIGHT = 90;
 const MAX_AUTHOR_LENGTH = 25;
+const OWNER_SHORT_ID_LENGTH = 8;
 const MAX_RATING = 5;
 const HEADER_OVERFLOW_MAX_LEVEL = 4;
 
@@ -190,6 +192,16 @@ const parseInitialSubscribedOnly = (): boolean => {
     }
 };
 
+const parseInitialOwnerFilter = (): string | null => {
+    try {
+        const params = new URLSearchParams(window.location.search);
+        const raw = params.get("owner");
+        return raw && raw.trim().length ? raw.trim() : null;
+    } catch {
+        return null;
+    }
+};
+
 const formatTimestamp = (value: string | null): string => {
     if (!value) {
         return "unknown";
@@ -219,6 +231,16 @@ const getModuleAuthor = (module: ModuleRecord): string => {
     }
 
     return "Unknown author";
+};
+
+// The uploader's account UUID is the one identity a re-uploader can't fake, so
+// we surface a short, stable slice of it next to the (self-declared) author.
+const formatOwnerShortId = (ownerId: string | null | undefined): string => {
+    if (typeof ownerId !== "string" || !ownerId.trim().length) {
+        return "unknown";
+    }
+
+    return ownerId.replace(/-/g, "").slice(0, OWNER_SHORT_ID_LENGTH);
 };
 
 const getModuleRatingAscii = (ratingAverage: number): string => {
@@ -290,6 +312,7 @@ const ModulesBrowser: FC = () => {
     const [query, setQuery] = useState<string>(parseInitialSearch);
     const [sort, setSort] = useState<ModuleSort>(parseInitialSort);
     const [subscribedOnly, setSubscribedOnly] = useState<boolean>(parseInitialSubscribedOnly);
+    const [ownerFilter, setOwnerFilter] = useState<string | null>(parseInitialOwnerFilter);
     const [sessionRole, setSessionRole] = useState<ProfileRole>("user");
     const [adminVisibilityFilter, setAdminVisibilityFilter] = useState<AdminLibraryVisibilityFilter>("all");
     const [modules, setModules] = useState<ModuleRecord[]>([]);
@@ -439,6 +462,14 @@ const ModulesBrowser: FC = () => {
     const sessionUserId = session?.user?.id || null;
     const sessionEmail = session?.user?.email || null;
     const isAdmin = !!sessionUserId && sessionRole === "admin";
+    // Admins can manage any module as if they owned it; everyone else only
+    // their own uploads.
+    const canManageModule = useCallback((module: ModuleRecord | null | undefined): boolean => {
+        if (!module || !sessionUserId) {
+            return false;
+        }
+        return module.owner_id === sessionUserId || isAdmin;
+    }, [isAdmin, sessionUserId]);
     const subscribedIdSet = useMemo(() => new Set(subscribedIds), [subscribedIds]);
     const selectedModule = useMemo(() => {
         if (!modules.length) {
@@ -581,13 +612,15 @@ const ModulesBrowser: FC = () => {
         nextQuery: string,
         nextSort: ModuleSort,
         nextSubscribedOnly: boolean,
-        nextModuleId: string | null
+        nextModuleId: string | null,
+        nextOwnerFilter: string | null
     ) => {
         const params: Record<string, string | undefined> = {
             q: nextQuery.trim() || undefined,
             sort: nextSort !== "most-subscribed" ? nextSort : undefined,
             subscribed: nextSubscribedOnly ? "1" : undefined,
             module: nextModuleId || undefined,
+            owner: nextOwnerFilter || undefined,
         };
         window.history.replaceState({}, "", getModulesBrowserUrlWithTransientAuthParams(params));
     }, []);
@@ -631,42 +664,55 @@ const ModulesBrowser: FC = () => {
             const catalogLimit: number | undefined = currentRole === "admin" && adminVisibilityFilter === "all"
                 ? undefined
                 : 80;
-            let nextModules = await searchDiscoverableModules(query, sort, {
-                userId: currentUserId,
-                role: currentRole,
-                adminVisibilityFilter: adminVisibilityFilter,
-                limit: catalogLimit,
-            });
+            let nextModules: ModuleRecord[];
 
-            if (currentUserId) {
-                const subscribedIds = currentSubscribedIds || [];
-                const [ownModules, subscribedModules] = await Promise.all([
-                    Promise.resolve(currentOwnModules ?? ownedModulesRef.current),
-                    subscribedIds.length ? fetchPublicModulesByIds(subscribedIds) : Promise.resolve([] as ModuleRecord[]),
-                ]);
-
-                const mergedModules = new Map<string, ModuleRecord>();
-                nextModules.forEach((module) => {
-                    mergedModules.set(module.id, module);
-                });
-                ownModules.forEach((module) => {
-                    mergedModules.set(module.id, module);
-                });
-                subscribedModules.forEach((module) => {
-                    mergedModules.set(module.id, module);
-                });
-                nextModules = sortModulesForBrowser(Array.from(mergedModules.values()), sort);
-            }
-
-            const requestedModuleId = initialRequestedModuleIdRef.current;
-            if (requestedModuleId && !nextModules.some((module) => module.id === requestedModuleId)) {
-                const linkedModule = await fetchAccessibleModuleById(requestedModuleId, currentUserId, {
+            if (ownerFilter) {
+                // Owner filter: show every module the given uploader has that is
+                // discoverable to this viewer, ignoring the own/subscribed merge
+                // and deep-link injection so the list stays true to that user.
+                nextModules = await searchModulesByOwner(ownerFilter, query, sort, {
+                    userId: currentUserId,
                     role: currentRole,
+                    limit: catalogLimit,
                 });
-                if (linkedModule) {
-                    nextModules = [linkedModule, ...nextModules];
-                } else {
-                    initialRequestedModuleIdRef.current = null;
+            } else {
+                nextModules = await searchDiscoverableModules(query, sort, {
+                    userId: currentUserId,
+                    role: currentRole,
+                    adminVisibilityFilter: adminVisibilityFilter,
+                    limit: catalogLimit,
+                });
+
+                if (currentUserId) {
+                    const subscribedIds = currentSubscribedIds || [];
+                    const [ownModules, subscribedModules] = await Promise.all([
+                        Promise.resolve(currentOwnModules ?? ownedModulesRef.current),
+                        subscribedIds.length ? fetchPublicModulesByIds(subscribedIds) : Promise.resolve([] as ModuleRecord[]),
+                    ]);
+
+                    const mergedModules = new Map<string, ModuleRecord>();
+                    nextModules.forEach((module) => {
+                        mergedModules.set(module.id, module);
+                    });
+                    ownModules.forEach((module) => {
+                        mergedModules.set(module.id, module);
+                    });
+                    subscribedModules.forEach((module) => {
+                        mergedModules.set(module.id, module);
+                    });
+                    nextModules = sortModulesForBrowser(Array.from(mergedModules.values()), sort);
+                }
+
+                const requestedModuleId = initialRequestedModuleIdRef.current;
+                if (requestedModuleId && !nextModules.some((module) => module.id === requestedModuleId)) {
+                    const linkedModule = await fetchAccessibleModuleById(requestedModuleId, currentUserId, {
+                        role: currentRole,
+                    });
+                    if (linkedModule) {
+                        nextModules = [linkedModule, ...nextModules];
+                    } else {
+                        initialRequestedModuleIdRef.current = null;
+                    }
                 }
             }
 
@@ -687,7 +733,21 @@ const ModulesBrowser: FC = () => {
         } finally {
             setCatalogLoading(false);
         }
-    }, [adminVisibilityFilter, query, sort, subscribedOnly, supabaseReady]);
+    }, [adminVisibilityFilter, ownerFilter, query, sort, subscribedOnly, supabaseReady]);
+
+    const handleOwnerFilterSelect = useCallback((ownerId: string | null | undefined) => {
+        if (typeof ownerId !== "string" || !ownerId.trim().length) {
+            return;
+        }
+
+        // Jump to a clean "everything by this uploader" view: drop the text
+        // query and the subscribed-only filter so nothing narrows the results.
+        setOwnerFilter(ownerId.trim());
+        setQuery("");
+        setSubscribedOnly(false);
+        setMobileMenuOpen(false);
+        playPowerOn();
+    }, [playPowerOn]);
 
     useEffect(() => {
         applyTheme(activeTheme);
@@ -964,8 +1024,8 @@ const ModulesBrowser: FC = () => {
     }, [loadPersonalState, refreshCatalog, subscribedOnly, supabaseReady]);
 
     useEffect(() => {
-        persistBrowserQuery(query, sort, subscribedOnly, selectedModuleId);
-    }, [persistBrowserQuery, query, selectedModuleId, sort, subscribedOnly]);
+        persistBrowserQuery(query, sort, subscribedOnly, selectedModuleId, ownerFilter);
+    }, [persistBrowserQuery, query, selectedModuleId, sort, subscribedOnly, ownerFilter]);
 
     useEffect(() => {
         if (authLoading || !hasCatalogBootstrappedRef.current) {
@@ -1257,8 +1317,8 @@ const ModulesBrowser: FC = () => {
     };
 
     const handleSaveOwnerEdits = async (module: ModuleRecord): Promise<void> => {
-        if (!sessionUserId || module.owner_id !== sessionUserId) {
-            setErrorMessage("Only the owner can edit this module.");
+        if (!canManageModule(module)) {
+            setErrorMessage("Only the owner or an admin can edit this module.");
             return;
         }
 
@@ -1274,7 +1334,7 @@ const ModulesBrowser: FC = () => {
         try {
             const updatedModule = await updateModuleMetadata({
                 id: module.id,
-                ownerId: sessionUserId,
+                ownerId: module.owner_id,
                 title: nextTitle,
                 summary: editSummary.trim(),
                 visibility: module.visibility,
@@ -1297,8 +1357,8 @@ const ModulesBrowser: FC = () => {
         module: ModuleRecord,
         nextVisibility: ModuleVisibility
     ): Promise<void> => {
-        if (!sessionUserId || module.owner_id !== sessionUserId) {
-            setErrorMessage("Only the owner can change module visibility.");
+        if (!canManageModule(module)) {
+            setErrorMessage("Only the owner or an admin can change module visibility.");
             return;
         }
 
@@ -1314,7 +1374,7 @@ const ModulesBrowser: FC = () => {
         try {
             const updatedModule = await updateModuleMetadata({
                 id: module.id,
-                ownerId: sessionUserId,
+                ownerId: module.owner_id,
                 title: module.title,
                 summary: module.summary,
                 visibility: nextVisibility,
@@ -1331,8 +1391,8 @@ const ModulesBrowser: FC = () => {
     };
 
     const handleDeleteOwnedModule = async (module: ModuleRecord): Promise<void> => {
-        if (!sessionUserId || module.owner_id !== sessionUserId) {
-            setErrorMessage("Only the owner can delete this module.");
+        if (!canManageModule(module)) {
+            setErrorMessage("Only the owner or an admin can delete this module.");
             return;
         }
 
@@ -1346,7 +1406,7 @@ const ModulesBrowser: FC = () => {
         setErrorMessage(null);
         setNoticeMessage(null);
         try {
-            await deleteModule(module.id, sessionUserId);
+            await deleteModule(module.id, module.owner_id);
             const personalState = await loadPersonalState(sessionUserId);
             await refreshCatalog(sessionUserId, personalState.subscribedIds, personalState.ownModules, personalState.role);
             setSelectedModuleId(null);
@@ -1552,6 +1612,11 @@ const ModulesBrowser: FC = () => {
         if (subscribedOnly && !sessionUserId) {
             return "Sign in to filter by subscriptions.";
         }
+        if (ownerFilter) {
+            return query.trim().length
+                ? "No modules by this uploader matched your search."
+                : "This uploader has no modules to show.";
+        }
         if (query.trim().length) {
             return "No modules matched your search.";
         }
@@ -1562,7 +1627,7 @@ const ModulesBrowser: FC = () => {
             return "No public modules found yet.";
         }
         return sessionUserId ? "No public modules or owned modules found yet." : "No public modules found yet.";
-    }, [adminVisibilityFilter, catalogLoading, isAdmin, query, sessionUserId, subscribedOnly]);
+    }, [adminVisibilityFilter, catalogLoading, isAdmin, ownerFilter, query, sessionUserId, subscribedOnly]);
 
     return (
         <section className={browserClassName}>
@@ -1821,6 +1886,26 @@ const ModulesBrowser: FC = () => {
                     </div>
                 </div>
 
+                {ownerFilter && (
+                    <div className="modules-browser__notice modules-browser__owner-filter-notice">
+                        <span>
+                            Showing modules by uploader{" "}
+                            <span className="modules-browser__owner-filter-id" title={ownerFilter}>
+                                #{formatOwnerShortId(ownerFilter)}
+                            </span>
+                        </span>
+                        <button
+                            type="button"
+                            className="modules-browser__notice-dismiss"
+                            onClick={() => setOwnerFilter(null)}
+                            aria-label="Clear uploader filter"
+                            title="Clear uploader filter"
+                        >
+                            X
+                        </button>
+                    </div>
+                )}
+
                 {!supabaseReady && (
                     <div className="modules-browser__notice modules-browser__notice--error">
                         Supabase is not configured in this environment. Add `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` locally.
@@ -1895,6 +1980,29 @@ const ModulesBrowser: FC = () => {
                                                     <span className="modules-browser__list-author" title={author}>
                                                         By {author}
                                                     </span>
+                                                    <span
+                                                        className={
+                                                            "modules-browser__owner-tag"
+                                                            + (ownerFilter === module.owner_id ? " modules-browser__owner-tag--active" : "")
+                                                        }
+                                                        role="button"
+                                                        tabIndex={0}
+                                                        title={`Show all modules by uploader ${module.owner_id}`}
+                                                        aria-label={`Show all modules by uploader ${formatOwnerShortId(module.owner_id)}`}
+                                                        onClick={(event) => {
+                                                            event.stopPropagation();
+                                                            handleOwnerFilterSelect(module.owner_id);
+                                                        }}
+                                                        onKeyDown={(event) => {
+                                                            if (event.key === "Enter" || event.key === " ") {
+                                                                event.preventDefault();
+                                                                event.stopPropagation();
+                                                                handleOwnerFilterSelect(module.owner_id);
+                                                            }
+                                                        }}
+                                                    >
+                                                        #{formatOwnerShortId(module.owner_id)}
+                                                    </span>
                                                 </div>
                                                 <div className="modules-browser__list-flags">
                                                     {!!visibilityFlag && (
@@ -1938,6 +2046,7 @@ const ModulesBrowser: FC = () => {
                             const isSubscribed = subscribedIdSet.has(selectedModule.id);
                             const myRating = ratingsByModuleId[selectedModule.id] || 0;
                             const isOwnModule = selectedModule.owner_id === sessionUserId;
+                            const canManage = isOwnModule || isAdmin;
                             const isBusy = actionModuleId === selectedModule.id;
                             const isEditing = editingModuleId === selectedModule.id;
                             const author = getModuleAuthor(selectedModule);
@@ -1954,6 +2063,18 @@ const ModulesBrowser: FC = () => {
                                                 <span className="modules-browser__detail-author" title={author}>
                                                     By {author}
                                                 </span>
+                                                <button
+                                                    type="button"
+                                                    className={
+                                                        "modules-browser__owner-tag"
+                                                        + (ownerFilter === selectedModule.owner_id ? " modules-browser__owner-tag--active" : "")
+                                                    }
+                                                    title={`Show all modules by uploader ${selectedModule.owner_id}`}
+                                                    aria-label={`Show all modules by uploader ${formatOwnerShortId(selectedModule.owner_id)}`}
+                                                    onClick={() => handleOwnerFilterSelect(selectedModule.owner_id)}
+                                                >
+                                                    #{formatOwnerShortId(selectedModule.owner_id)}
+                                                </button>
                                             </div>
                                             <div className="modules-browser__meta">
                                                 <span title={ratingTitle}>Rating {ratingDisplay} ({ratingNumeric})</span>
@@ -2012,7 +2133,7 @@ const ModulesBrowser: FC = () => {
                                             </button>
                                         )}
 
-                                        {isOwnModule && (
+                                        {canManage && (
                                             <div ref={ownerMenuRef} className="modules-browser__owner-menu">
                                                 <button
                                                     className="modules-browser__btn"
@@ -2021,13 +2142,13 @@ const ModulesBrowser: FC = () => {
                                                     aria-haspopup="menu"
                                                     aria-expanded={ownerMenuOpen}
                                                 >
-                                                    {ownerMenuOpen ? "Manage ▲" : "Manage ▼"}
+                                                    {!isOwnModule && isAdmin ? "Manage (Admin)" : "Manage"}{ownerMenuOpen ? " ▲" : " ▼"}
                                                 </button>
                                             </div>
                                         )}
                                     </div>
 
-                                    {isOwnModule && isEditing && (
+                                    {canManage && isEditing && (
                                         <section className="modules-browser__detail-card modules-browser__detail-card--edit">
                                             <div className="modules-browser__edit-grid">
                                                 <label className="modules-browser__field">
@@ -2127,7 +2248,7 @@ const ModulesBrowser: FC = () => {
                 </main>
             </div>
 
-            {ownerMenuOpen && !!selectedModule && selectedModule.owner_id === sessionUserId && !!ownerMenuPosition && createPortal(
+            {ownerMenuOpen && !!selectedModule && canManageModule(selectedModule) && !!ownerMenuPosition && createPortal(
                 <div
                     ref={ownerMenuDropdownRef}
                     className={
