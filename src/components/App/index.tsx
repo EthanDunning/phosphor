@@ -133,6 +133,7 @@ interface AppState {
     activeTheme: Theme;
     customTheme: CustomThemeConfig;
     customThemeEditorOpen: boolean;
+    themeSubmenuOpen: boolean;
     headerOverflowLevel: number;
     headerVisible: boolean;
     soundEnabled: boolean;
@@ -197,6 +198,7 @@ class App extends Component<any, AppState> {
             activeTheme: initialThemeState.activeTheme,
             customTheme: initialThemeState.customTheme,
             customThemeEditorOpen: false,
+            themeSubmenuOpen: false,
             headerOverflowLevel: 0,
             headerVisible,
             soundEnabled,
@@ -1163,6 +1165,7 @@ class App extends Component<any, AppState> {
             scriptDropdownOpen: false,
             profileDropdownOpen: false,
             customThemeEditorOpen: prev.optionsDropdownOpen ? false : prev.customThemeEditorOpen,
+            themeSubmenuOpen: prev.optionsDropdownOpen ? false : prev.themeSubmenuOpen,
         }));
     }
 
@@ -2674,6 +2677,7 @@ class App extends Component<any, AppState> {
             activeTheme,
             customTheme,
             customThemeEditorOpen,
+            themeSubmenuOpen,
             headerOverflowLevel,
             headerVisible,
             soundEnabled,
@@ -2897,6 +2901,15 @@ class App extends Component<any, AppState> {
                                         [HEADER:{headerVisible ? "ON" : "OFF"}]
                                     </button>
 
+                                    <button
+                                        className="phosphor-header__dropdown-item"
+                                        role="menuitem"
+                                        onClick={this._openPrintOptions}
+                                        title="Print the current screen as a vintage terminal hardcopy"
+                                    >
+                                        [PRINT]
+                                    </button>
+
                                     {!previewMode && (
                                         <button
                                             className="phosphor-header__dropdown-item"
@@ -2932,7 +2945,17 @@ class App extends Component<any, AppState> {
 
                                     <div className="phosphor-header__dropdown-item phosphor-header__dropdown-item--separator" />
 
-                                    <div className="phosphor-header__dropdown-label">[THEME]</div>
+                                    <button
+                                        className="phosphor-header__dropdown-item"
+                                        role="menuitem"
+                                        aria-expanded={themeSubmenuOpen}
+                                        onClick={() => this.setState((prev) => ({ themeSubmenuOpen: !prev.themeSubmenuOpen }))}
+                                    >
+                                        [THEME {themeSubmenuOpen ? "▲" : "▼"}]
+                                    </button>
+
+                                    {themeSubmenuOpen && (
+                                    <>
                                     {THEMES.map((theme) => (
                                         <button
                                             key={theme.id}
@@ -3043,17 +3066,11 @@ class App extends Component<any, AppState> {
                                             </label>
                                         </div>
                                     )}
+                                    </>
+                                    )}
                                 </div>
                             )}
                         </div>
-
-                        <button
-                            className="phosphor-header__btn phosphor-header__hide-at-2"
-                            onClick={this._openPrintOptions}
-                            title="Print the current screen as a vintage terminal hardcopy"
-                        >
-                            [PRINT]
-                        </button>
 
                         {!previewMode && (
                             <a
@@ -3171,6 +3188,15 @@ class App extends Component<any, AppState> {
                                                         [HEADER:{headerVisible ? "ON" : "OFF"}]
                                                     </button>
 
+                                                    <button
+                                                        className="phosphor-header__dropdown-item"
+                                                        role="menuitem"
+                                                        onClick={this._openPrintOptions}
+                                                        title="Print the current screen as a vintage terminal hardcopy"
+                                                    >
+                                                        [PRINT]
+                                                    </button>
+
                                                     {!previewMode && (
                                                         <button
                                                             className="phosphor-header__dropdown-item"
@@ -3206,7 +3232,17 @@ class App extends Component<any, AppState> {
 
                                                     <div className="phosphor-header__dropdown-item phosphor-header__dropdown-item--separator" />
 
-                                                    <div className="phosphor-header__dropdown-label">[THEME]</div>
+                                                    <button
+                                                        className="phosphor-header__dropdown-item"
+                                                        role="menuitem"
+                                                        aria-expanded={themeSubmenuOpen}
+                                                        onClick={() => this.setState((prev) => ({ themeSubmenuOpen: !prev.themeSubmenuOpen }))}
+                                                    >
+                                                        [THEME {themeSubmenuOpen ? "▲" : "▼"}]
+                                                    </button>
+
+                                                    {themeSubmenuOpen && (
+                                                    <>
                                                     {THEMES.map((theme) => (
                                                         <button
                                                             key={theme.id}
@@ -3317,6 +3353,8 @@ class App extends Component<any, AppState> {
                                                             </label>
                                                         </div>
                                                     )}
+                                                    </>
+                                                    )}
                                                 </>
                                             )}
                                         </div>
@@ -3364,18 +3402,6 @@ class App extends Component<any, AppState> {
                                                 </div>
                                             )}
                                         </div>
-                                    )}
-
-                                    {headerOverflowLevel >= 2 && (
-                                        <>
-                                            <button
-                                                className="phosphor-header__dropdown-item"
-                                                role="menuitem"
-                                                onClick={this._openPrintOptions}
-                                            >
-                                                [PRINT]
-                                            </button>
-                                        </>
                                     )}
 
                                     {!previewMode && headerOverflowLevel >= 2 && (
