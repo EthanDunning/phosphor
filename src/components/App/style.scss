@@ -406,3 +406,179 @@ $font-bump: 4pt;
     letter-spacing: 0.12em;
     line-height: 1.7;
 }
+
+// --- Vintage line-printer "hardcopy" of the current screen ---
+// Hidden on screen; only laid out when printing.
+.phosphor-printout {
+    display: none;
+}
+
+@media print {
+    // Isolate the printout: hide the live app (its sibling under <body>) and show
+    // only the hardcopy, which is portaled to be a direct child of <body> so it
+    // stays in normal flow and paginates across pages for long screens.
+    body > *:not(.phosphor-printout) {
+        display: none !important;
+    }
+
+    .phosphor-printout {
+        display: block;
+        width: 100%;
+        margin: 0;
+        padding: 0.5in 0.6in;
+        box-sizing: border-box;
+        background: #ffffff;
+        color: #111111;
+        // match the live terminal's VGA bitmap font by default
+        font-family: $font-family;
+        font-size: 11pt;
+        line-height: 1.35;
+        text-shadow: none;
+        letter-spacing: 0.02em;
+        // greenbar fanfold stripes survive only if the user allows background graphics
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+
+    // opt-in classic line-printer typeface instead of the terminal font
+    .phosphor-printout--printer-font {
+        font-family: "Courier New", Courier, monospace;
+    }
+
+    .phosphor-printout__banner {
+        display: flex;
+        justify-content: space-between;
+        gap: 1em;
+        padding-bottom: 0.35em;
+        margin-bottom: 0.5em;
+        border-bottom: 2px solid #111111;
+        // header/footer always use the classic printer typeface, never the terminal font
+        font-family: "Courier New", Courier, monospace;
+        font-weight: bold;
+        letter-spacing: 0.08em;
+    }
+
+    .phosphor-printout__banner--foot {
+        margin-top: 0.5em;
+        margin-bottom: 0;
+        padding-bottom: 0;
+        padding-top: 0.35em;
+        border-bottom: none;
+        border-top: 2px solid #111111;
+    }
+
+    // faint zebra "greenbar" banding, only when the option is enabled.
+    // shade actual rows (every 3) instead of a fixed em-grid so the bands always
+    // line up with the lines regardless of font metrics or image heights.
+    .phosphor-printout--zebra .phosphor-printout__body > :nth-child(6n + 1),
+    .phosphor-printout--zebra .phosphor-printout__body > :nth-child(6n + 2),
+    .phosphor-printout--zebra .phosphor-printout__body > :nth-child(6n + 3) {
+        background-color: rgba(120, 170, 120, 0.16);
+    }
+
+    .phosphor-printout__line {
+        display: flex;
+        align-items: baseline;
+        min-height: 1.35em;
+    }
+
+    .phosphor-printout__linetext {
+        flex: 1;
+        min-width: 0;
+        white-space: pre-wrap;
+        word-break: break-word;
+    }
+
+    // left-gutter line numbers, like an old computer printout.
+    // inherit the body font (not the banner's Courier) so the digits share the
+    // exact metrics/baseline of the text lines they number, in either font mode.
+    .phosphor-printout__lineno {
+        flex: 0 0 auto;
+        margin-right: 1em;
+        color: #888888;
+        white-space: pre;
+        user-select: none;
+    }
+
+    .phosphor-printout__image-line {
+        display: flex;
+        align-items: flex-start;
+        margin: 0.2em 0;
+    }
+
+    .phosphor-printout__image-line img {
+        display: block;
+        max-width: 100%;
+        height: auto;
+        // keep the pixelated bitmap look rather than smoothing on scale
+        image-rendering: pixelated;
+    }
+
+    // Give the page tidy default margins.
+    @page {
+        margin: 0.35in;
+    }
+}
+
+// --- On-screen print options box ---
+.phosphor-print-options {
+    position: fixed;
+    inset: 0;
+    z-index: 2147483000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+    box-sizing: border-box;
+    background: rgba(0, 0, 0, 0.6);
+}
+
+.phosphor-print-options__box {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    min-width: 11rem;
+    max-width: 92vw;
+    padding: 0.55rem 0.65rem;
+    border: 1px solid var(--fg);
+    background: var(--bg);
+    color: var(--fg);
+    font-family: $font-family;
+    // the box inherits the terminal's oversized body font; halve it so it reads as a compact dialog
+    font-size: 18px;
+    line-height: 1.3;
+    text-shadow: var(--fg-glow);
+
+    .phosphor-header__btn {
+        font-size: 0.8em;
+        padding: 0.1rem 0.3rem;
+    }
+
+    input[type="checkbox"] {
+        width: 0.9em;
+        height: 0.9em;
+        margin: 0;
+    }
+}
+
+.phosphor-print-options__title {
+    font-size: 1em;
+    letter-spacing: 0.06em;
+}
+
+.phosphor-print-options__row {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    cursor: pointer;
+
+    input {
+        cursor: pointer;
+    }
+}
+
+.phosphor-print-options__actions {
+    display: flex;
+    gap: 0.4rem;
+    margin-top: 0.3rem;
+}

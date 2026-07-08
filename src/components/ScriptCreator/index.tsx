@@ -59,6 +59,7 @@ type AddableElementType =
     | "login"
     | "toggle"
     | "list"
+    | "dropdown"
     | "reportComposer"
     | "reportList"
     | "dialogLink";
@@ -691,6 +692,7 @@ const ADDABLE_ELEMENT_OPTIONS: AddableElementOption[] = [
     { value: "login", label: "Login Prompt" },
     { value: "toggle", label: "Toggle" },
     { value: "list", label: "List" },
+    { value: "dropdown", label: "Dropdown" },
     { value: "reportComposer", label: "Report Composer" },
     { value: "reportList", label: "Report List" },
     { value: "dialogLink", label: "Dialog Link (+ Dialog)" },
@@ -727,7 +729,7 @@ const PROMPT_CLASSNAME_OPTIONS = [
     "script-hidden",
 ];
 
-const TOGGLE_LIST_CLASSNAME_OPTIONS = [
+const CYCLER_CLASSNAME_OPTIONS = [
     "",
     "alert",
     "notice",
@@ -1045,7 +1047,7 @@ const readScreenTargetsFromElement = (element: any): string[] => {
         });
     }
 
-    if (elementType === "toggle" || elementType === "list") {
+    if (elementType === "toggle" || elementType === "list" || elementType === "dropdown") {
         if (!Array.isArray(element.states)) {
             return [];
         }
@@ -1099,6 +1101,206 @@ const readScreenTargetsFromElement = (element: any): string[] => {
     }
 
     return [];
+};
+
+// --- Import helpers: remap ids so an imported script can be merged without id collisions ---
+
+// Return a unique id: baseId if free, otherwise baseId-2, baseId-3, ... skipping anything in `reserved`.
+const makeUniqueImportId = (baseId: string, reserved: Set<string>): string => {
+    if (!reserved.has(baseId)) {
+        return baseId;
+    }
+    let suffix = 2;
+    while (reserved.has(`${baseId}-${suffix}`)) {
+        suffix += 1;
+    }
+    return `${baseId}-${suffix}`;
+};
+
+const remapId = (id: any, idMap: Record<string, string>): any => {
+    return typeof id === "string" && idMap[id] ? idMap[id] : id;
+};
+
+// Remap a single target entry / action object ({ type, target }) using the id map for its type.
+const remapTargetEntry = (entry: any, screenIdMap: Record<string, string>, dialogIdMap: Record<string, string>): any => {
+    if (!entry || typeof entry !== "object" || typeof entry.target !== "string") {
+        return entry;
+    }
+    const type = typeof entry.type === "string" ? entry.type.toLowerCase() : "";
+    if (type === "dialog") {
+        return { ...entry, target: remapId(entry.target, dialogIdMap) };
+    }
+    if (type === "link" || type === "href" || type === "action") {
+        return { ...entry, target: remapId(entry.target, screenIdMap) };
+    }
+    return entry;
+};
+
+// A link/href target can be a bare screen id string or an array of target entries.
+const remapLinkTarget = (target: any, screenIdMap: Record<string, string>, dialogIdMap: Record<string, string>): any => {
+    if (typeof target === "string") {
+        return remapId(target, screenIdMap);
+    }
+    if (Array.isArray(target)) {
+        return target.map((entry) => remapTargetEntry(entry, screenIdMap, dialogIdMap));
+    }
+    return target;
+};
+
+// Remap every screen/dialog reference inside a single content element. Text-line strings pass through untouched.
+const remapElementReferences = (element: any, screenIdMap: Record<string, string>, dialogIdMap: Record<string, string>): any => {
+    if (!element || typeof element !== "object") {
+        return element;
+    }
+
+    const type = typeof element.type === "string" ? element.type.toLowerCase() : "";
+    const next = { ...element };
+
+    if (type === "link" || type === "href") {
+        next.target = remapLinkTarget(element.target, screenIdMap, dialogIdMap);
+        return next;
+    }
+
+    if (type === "toggle" || type === "list" || type === "dropdown") {
+        if (Array.isArray(element.states)) {
+            next.states = element.states.map((state: any) => {
+                if (!state || typeof state !== "object") {
+                    return state;
+                }
+                const nextState = { ...state };
+                if (typeof state.target === "string") {
+                    nextState.target = remapId(state.target, screenIdMap);
+                }
+                if (typeof state.dialog === "string") {
+                    nextState.dialog = remapId(state.dialog, dialogIdMap);
+                }
+                if (state.action && typeof state.action === "object") {
+                    nextState.action = remapTargetEntry(state.action, screenIdMap, dialogIdMap);
+                }
+                return nextState;
+            });
+        }
+        return next;
+    }
+
+    if (type === "prompt") {
+        if (element.inputAction && typeof element.inputAction === "object") {
+            next.inputAction = remapTargetEntry(element.inputAction, screenIdMap, dialogIdMap);
+        }
+        if (Array.isArray(element.commands)) {
+            next.commands = element.commands.map((command: any) => {
+                if (command && typeof command === "object" && command.action && typeof command.action === "object") {
+                    return { ...command, action: remapTargetEntry(command.action, screenIdMap, dialogIdMap) };
+                }
+                return command;
+            });
+        }
+        return next;
+    }
+
+    if (type === "login") {
+        if (Array.isArray(element.credentials)) {
+            next.credentials = element.credentials.map((entry: any) => {
+                if (!entry || typeof entry !== "object") {
+                    return entry;
+                }
+                const nextEntry = { ...entry };
+                if (typeof entry.target === "string") {
+                    nextEntry.target = remapId(entry.target, screenIdMap);
+                }
+                if (entry.action && typeof entry.action === "object") {
+                    nextEntry.action = remapTargetEntry(entry.action, screenIdMap, dialogIdMap);
+                }
+                return nextEntry;
+            });
+        }
+        if (element.noMatchAction && typeof element.noMatchAction === "object") {
+            next.noMatchAction = remapTargetEntry(element.noMatchAction, screenIdMap, dialogIdMap);
+        }
+        if (typeof element.noMatchTarget === "string") {
+            next.noMatchTarget = remapId(element.noMatchTarget, screenIdMap);
+        }
+        return next;
+    }
+
+    if (type === "reportcomposer") {
+        if (typeof element.saveTarget === "string") {
+            next.saveTarget = remapId(element.saveTarget, screenIdMap);
+        }
+        if (typeof element.cancelTarget === "string") {
+            next.cancelTarget = remapId(element.cancelTarget, screenIdMap);
+        }
+        return next;
+    }
+
+    return next;
+};
+
+const remapScreenReferences = (screen: any, screenIdMap: Record<string, string>, dialogIdMap: Record<string, string>): any => {
+    const next = { ...screen, id: remapId(screen.id, screenIdMap) };
+    if (screen.onDone && typeof screen.onDone === "object" && typeof screen.onDone.target === "string") {
+        next.onDone = { ...screen.onDone, target: remapId(screen.onDone.target, screenIdMap) };
+    }
+    if (Array.isArray(screen.content)) {
+        next.content = screen.content.map((element: any) => remapElementReferences(element, screenIdMap, dialogIdMap));
+    }
+    return next;
+};
+
+const remapDialogReferences = (dialog: any, screenIdMap: Record<string, string>, dialogIdMap: Record<string, string>): any => {
+    const next = { ...dialog, id: remapId(dialog.id, dialogIdMap) };
+    if (Array.isArray(dialog.content)) {
+        next.content = dialog.content.map((element: any) => remapElementReferences(element, screenIdMap, dialogIdMap));
+    }
+    return next;
+};
+
+// Merge the screens/dialogs of an imported script into `currentScript`, renaming any colliding ids.
+const buildScriptWithImportedScreens = (currentScript: any, importedRaw: any): {
+    script: any;
+    importedScreens: any[];
+    importedDialogs: any[];
+} => {
+    const importedScreens = Array.isArray(importedRaw?.screens)
+        ? importedRaw.screens.filter((screen: any) => screen && typeof screen === "object")
+        : [];
+    const importedDialogs = Array.isArray(importedRaw?.dialogs)
+        ? importedRaw.dialogs.filter((dialog: any) => dialog && typeof dialog === "object")
+        : [];
+
+    const screenReserved = new Set<string>((currentScript.screens || []).map((screen: any) => screen.id));
+    const dialogReserved = new Set<string>((currentScript.dialogs || []).map((dialog: any) => dialog.id));
+
+    const screenIdMap: Record<string, string> = {};
+    const normalizedScreens = importedScreens.map((screen: any, index: number) => {
+        const rawId = typeof screen.id === "string" && screen.id.trim() ? screen.id : `screen${index}`;
+        const uniqueId = makeUniqueImportId(rawId, screenReserved);
+        screenReserved.add(uniqueId);
+        screenIdMap[rawId] = uniqueId;
+        return { ...screen, id: rawId };
+    });
+
+    const dialogIdMap: Record<string, string> = {};
+    const normalizedDialogs = importedDialogs.map((dialog: any, index: number) => {
+        const rawId = typeof dialog.id === "string" && dialog.id.trim() ? dialog.id : `dialog${index}`;
+        const uniqueId = makeUniqueImportId(rawId, dialogReserved);
+        dialogReserved.add(uniqueId);
+        dialogIdMap[rawId] = uniqueId;
+        return { ...dialog, id: rawId };
+    });
+
+    const remappedScreens = normalizedScreens.map((screen: any) => remapScreenReferences(screen, screenIdMap, dialogIdMap));
+    const remappedDialogs = normalizedDialogs.map((dialog: any) => remapDialogReferences(dialog, screenIdMap, dialogIdMap));
+
+    return {
+        script: {
+            ...currentScript,
+            screens: [...(currentScript.screens || []), ...remappedScreens],
+            dialogs: [...(currentScript.dialogs || []), ...remappedDialogs],
+        },
+        importedScreens: remappedScreens,
+        importedDialogs: remappedDialogs,
+    };
 };
 
 const buildScreenConnectionMap = (script: any): {
@@ -1260,7 +1462,8 @@ const getClassNameOptionsForElementType = (elementType: string): string[] => {
 
         case "toggle":
         case "list":
-            return TOGGLE_LIST_CLASSNAME_OPTIONS;
+        case "dropdown":
+            return CYCLER_CLASSNAME_OPTIONS;
 
         case "bitmap":
         case "image":
@@ -1390,7 +1593,7 @@ const getElementListLabel = (entry: any): string => {
 
     const type = (typeof entry.type === "string" ? entry.type : "object").toLowerCase();
     const cyclerPreviewText = ((): string => {
-        if (type !== "toggle" && type !== "list") {
+        if (type !== "toggle" && type !== "list" && type !== "dropdown") {
             return "";
         }
 
@@ -1426,12 +1629,70 @@ const getElementListLabel = (entry: any): string => {
         return `${className} text: ${headline}`;
     }
 
-    if ((type === "link" || type === "href" || type === "prompt" || type === "login" || type === "toggle" || type === "list" || type === "bitmap" || type === "image")
+    if ((type === "link" || type === "href" || type === "prompt" || type === "login" || type === "toggle" || type === "list" || type === "dropdown" || type === "bitmap" || type === "image")
         && className.length) {
         return `${className} ${type}: ${headline}`;
     }
 
     return `${type}: ${headline}`;
+};
+
+// Build a plain-text, one-line-per-element preview of a screen's content (used by the import picker).
+const getScreenPreviewLines = (screen: any): string[] => {
+    const content = Array.isArray(screen?.content) ? screen.content : [];
+    if (!content.length) {
+        return ["(no content)"];
+    }
+
+    return content.map((entry: any) => {
+        if (typeof entry === "string") {
+            return entry;
+        }
+        if (!entry || typeof entry !== "object") {
+            return "(invalid element)";
+        }
+
+        const type = (typeof entry.type === "string" ? entry.type : "object").toLowerCase();
+        const cyclerText = ((): string => {
+            if (type !== "toggle" && type !== "list" && type !== "dropdown") {
+                return "";
+            }
+            const states = Array.isArray(entry.states) ? entry.states : [];
+            const active = states.find((state: any) => state && typeof state === "object" && state.active === true);
+            const candidate = active || states[0];
+            if (typeof candidate === "string") {
+                return candidate;
+            }
+            return candidate && typeof candidate.text === "string" ? candidate.text : "";
+        })();
+        const text = (cyclerText || entry.text || entry.prompt || entry.usernamePrompt || "").toString();
+
+        switch (type) {
+            case "text":
+            case "link":
+            case "href":
+                return text;
+            case "toggle":
+            case "list":
+            case "dropdown":
+                return `${text} ▼`;
+            case "prompt":
+                return text || "> ";
+            case "login":
+                return text || "username> ";
+            case "bitmap":
+            case "image":
+                return `[IMAGE${entry.src ? `: ${entry.src}` : ""}]`;
+            case "reportcomposer":
+                return "[REPORT COMPOSER]";
+            case "reportlist":
+                return "[REPORT LIST]";
+            case "mainframegame":
+                return "[MAINFRAME GAME]";
+            default:
+                return `[${type.toUpperCase()}]`;
+        }
+    });
 };
 
 const getDialogContentListLabel = (entry: any, index: number): string => {
@@ -1662,6 +1923,13 @@ const ScriptCreator: FC<ScriptCreatorProps> = ({
     const [visibleSearchOccurrenceCount, setVisibleSearchOccurrenceCount] = useState<number>(0);
     const [searchFocusRequestId, setSearchFocusRequestId] = useState<number>(0);
     const [moduleSaveState, setModuleSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
+    const [importStatus, setImportStatus] = useState<{ tone: "success" | "error"; text: string } | null>(null);
+    const [importPickerOpen, setImportPickerOpen] = useState<boolean>(false);
+    const [importCandidate, setImportCandidate] = useState<{ raw: any; screens: any[]; dialogs: any[] } | null>(null);
+    const [importSelectedIndices, setImportSelectedIndices] = useState<Set<number>>(() => new Set());
+    const [importSelectedDialogIndices, setImportSelectedDialogIndices] = useState<Set<number>>(() => new Set());
+    const [importPreview, setImportPreview] = useState<{ kind: "screen" | "dialog"; index: number } | null>(null);
+    const importFileInputRef = useRef<HTMLInputElement | null>(null);
     const bodyRef = useRef<HTMLDivElement | null>(null);
     const editorRef = useRef<HTMLElement | null>(null);
     const resizePointerIdRef = useRef<number | null>(null);
@@ -1678,6 +1946,14 @@ const ScriptCreator: FC<ScriptCreatorProps> = ({
 
         setModuleSaveState("idle");
     }, [script]);
+
+    useEffect(() => {
+        if (!importStatus) {
+            return;
+        }
+        const timer = window.setTimeout(() => setImportStatus(null), 6000);
+        return () => window.clearTimeout(timer);
+    }, [importStatus]);
 
     const handleEditorMarkdownShortcut = (event: React.KeyboardEvent<HTMLElement>): void => {
         const nativeEvent = event.nativeEvent as KeyboardEvent & { isComposing?: boolean };
@@ -1925,7 +2201,7 @@ const ScriptCreator: FC<ScriptCreatorProps> = ({
 
         return next;
     }, [selectedElement, selectedElementIsLogin]);
-    const selectedElementIsCycler = selectedElementType === "toggle" || selectedElementType === "list";
+    const selectedElementIsCycler = selectedElementType === "toggle" || selectedElementType === "list" || selectedElementType === "dropdown";
     const selectedCyclerStates = useMemo(() => {
         if (!selectedElementIsCycler) {
             return [];
@@ -1961,7 +2237,7 @@ const ScriptCreator: FC<ScriptCreatorProps> = ({
         return toCreatorSelectOptions(classNameOptions, "(none)");
     }, [classNameOptions]);
     const cyclerStateClassNameSelectOptions = useMemo(() => {
-        return toCreatorSelectOptions(TOGGLE_LIST_CLASSNAME_OPTIONS, "(none)");
+        return toCreatorSelectOptions(CYCLER_CLASSNAME_OPTIONS, "(none)");
     }, []);
     const schemaRootSelectOptions = useMemo(() => {
         return schemaData.screenIds.map((id) => ({ value: id, label: id }));
@@ -3050,6 +3326,16 @@ const ScriptCreator: FC<ScriptCreatorProps> = ({
                 };
                 break;
 
+            case "dropdown":
+                element = {
+                    type: "dropdown",
+                    states: [
+                        { active: true, text: "OPTION 1" },
+                        { active: false, text: "OPTION 2" },
+                    ],
+                };
+                break;
+
             case "reportComposer":
                 element = {
                     type: "reportComposer",
@@ -3383,12 +3669,14 @@ const ScriptCreator: FC<ScriptCreatorProps> = ({
 
     const addCyclerState = () => {
         const label = selectedElementType === "list" ? "ITEM" : "OPTION";
+        // dropdowns render each option on its own line, so they skip the "> " prompt prefix
+        const prefix = selectedElementType === "dropdown" ? "" : "> ";
         updateCyclerStates((prevStates) => {
             const nextIndex = prevStates.length + 1;
             return [
                 ...prevStates,
                 {
-                    text: `> ${label} ${nextIndex}`,
+                    text: `${prefix}${label} ${nextIndex}`,
                     active: false,
                 },
             ];
@@ -3590,6 +3878,141 @@ const ScriptCreator: FC<ScriptCreatorProps> = ({
         anchor.download = `${name || "script"}.json`;
         anchor.click();
         URL.revokeObjectURL(url);
+    };
+
+    const openImportScreensPicker = () => {
+        importFileInputRef.current?.click();
+    };
+
+    const openImportPicker = (importedRaw: any) => {
+        if (!importedRaw || typeof importedRaw !== "object") {
+            setImportStatus({ tone: "error", text: "That file isn't a valid Phosphor script." });
+            return;
+        }
+
+        const screens = Array.isArray(importedRaw.screens)
+            ? importedRaw.screens.filter((screen: any) => screen && typeof screen === "object")
+            : [];
+        const dialogs = Array.isArray(importedRaw.dialogs)
+            ? importedRaw.dialogs.filter((dialog: any) => dialog && typeof dialog === "object")
+            : [];
+
+        if (!screens.length && !dialogs.length) {
+            setImportStatus({ tone: "error", text: "No screens or dialogs found in that file." });
+            return;
+        }
+
+        setImportCandidate({ raw: importedRaw, screens, dialogs });
+        setImportSelectedIndices(new Set(screens.map((_: any, index: number) => index)));
+        setImportSelectedDialogIndices(new Set(dialogs.map((_: any, index: number) => index)));
+        setImportPreview(screens.length ? { kind: "screen", index: 0 } : { kind: "dialog", index: 0 });
+        setImportStatus(null);
+        setImportPickerOpen(true);
+    };
+
+    const closeImportPicker = () => {
+        setImportPickerOpen(false);
+        setImportCandidate(null);
+        setImportSelectedIndices(new Set());
+        setImportSelectedDialogIndices(new Set());
+        setImportPreview(null);
+    };
+
+    const toggleImportSelected = (index: number) => {
+        setImportSelectedIndices((prev) => {
+            const next = new Set(prev);
+            if (next.has(index)) {
+                next.delete(index);
+            } else {
+                next.add(index);
+            }
+            return next;
+        });
+    };
+
+    const toggleImportDialogSelected = (index: number) => {
+        setImportSelectedDialogIndices((prev) => {
+            const next = new Set(prev);
+            if (next.has(index)) {
+                next.delete(index);
+            } else {
+                next.add(index);
+            }
+            return next;
+        });
+    };
+
+    const selectAllImport = () => {
+        if (!importCandidate) {
+            return;
+        }
+        setImportSelectedIndices(new Set(importCandidate.screens.map((_, index) => index)));
+        setImportSelectedDialogIndices(new Set(importCandidate.dialogs.map((_, index) => index)));
+    };
+
+    const deselectAllImport = () => {
+        setImportSelectedIndices(new Set());
+        setImportSelectedDialogIndices(new Set());
+    };
+
+    const confirmImportSelected = () => {
+        if (!importCandidate) {
+            return;
+        }
+
+        const selectedScreens = importCandidate.screens.filter((_, index) => importSelectedIndices.has(index));
+        const selectedDialogs = importCandidate.dialogs.filter((_, index) => importSelectedDialogIndices.has(index));
+        if (!selectedScreens.length && !selectedDialogs.length) {
+            return;
+        }
+
+        const filteredRaw = { ...importCandidate.raw, screens: selectedScreens, dialogs: selectedDialogs };
+        const { script: mergedScript, importedScreens, importedDialogs } = buildScriptWithImportedScreens(script, filteredRaw);
+
+        updateScript(() => mergedScript);
+        if (importedScreens.length) {
+            setSidebarListMode("screens");
+            setSelectedScreenId(importedScreens[0].id);
+            setSelectedElementIndex(0);
+        } else if (importedDialogs.length) {
+            setSidebarListMode("dialogs");
+            setSelectedDialogFocusId(importedDialogs[0].id);
+            setSelectedDialogContentIndex(0);
+        }
+
+        const parts: string[] = [];
+        if (importedScreens.length) {
+            parts.push(`${importedScreens.length} screen${importedScreens.length === 1 ? "" : "s"}`);
+        }
+        if (importedDialogs.length) {
+            parts.push(`${importedDialogs.length} dialog${importedDialogs.length === 1 ? "" : "s"}`);
+        }
+        setImportStatus({ tone: "success", text: `Imported ${parts.join(" and ")}.` });
+        closeImportPicker();
+    };
+
+    const handleImportFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const input = event.target;
+        const file = input.files && input.files[0];
+        // reset the input so re-selecting the same file still fires onChange
+        input.value = "";
+        if (!file) {
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = () => {
+            try {
+                const parsed = JSON.parse(String(reader.result));
+                openImportPicker(parsed);
+            } catch {
+                setImportStatus({ tone: "error", text: "Could not parse that file as JSON." });
+            }
+        };
+        reader.onerror = () => {
+            setImportStatus({ tone: "error", text: "Could not read that file." });
+        };
+        reader.readAsText(file);
     };
 
     const handleSidebarResizePointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
@@ -5091,7 +5514,7 @@ const ScriptCreator: FC<ScriptCreatorProps> = ({
                                                     </label>
                                                 )}
 
-                                                {selectedElement && typeof selectedElement === "object" && (selectedElement.type === "toggle" || selectedElement.type === "list") && (
+                                                {selectedElement && typeof selectedElement === "object" && (selectedElement.type === "toggle" || selectedElement.type === "list" || selectedElement.type === "dropdown") && (
                                                     <div className="script-creator__cycler">
                                                         <div className="script-creator__list-header">
                                                             <span>States</span>
@@ -5767,7 +6190,7 @@ const ScriptCreator: FC<ScriptCreatorProps> = ({
                                     />
                                 </label>
                                 <span className="script-creator__schema-hint">
-                                    Tree is built from screen links, dialog links, prompts, toggles/lists, and screen onDone targets.
+                                    Tree is built from screen links, dialog links, prompts, toggles/lists/dropdowns, and screen onDone targets.
                                 </span>
                             </div>
 
@@ -5801,6 +6224,34 @@ const ScriptCreator: FC<ScriptCreatorProps> = ({
                     )}
                     <button className="script-creator__btn" onClick={copyJson}>[COPY JSON]</button>
                     <button className="script-creator__btn" onClick={downloadJson}>[DOWNLOAD JSON]</button>
+                    <button className="script-creator__btn" onClick={openImportScreensPicker}>[IMPORT SCREENS]</button>
+                    <input
+                        ref={importFileInputRef}
+                        type="file"
+                        accept="application/json,.json"
+                        style={{ display: "none" }}
+                        onChange={handleImportFileChange}
+                    />
+                    {importStatus && (
+                        <div
+                            className={`script-creator__footer-status script-creator__footer-status--${importStatus.tone}`}
+                            aria-live="polite"
+                            style={{
+                                flex: "0 0 auto",
+                                border: "1px solid currentColor",
+                                padding: "0.1rem 0.4rem",
+                                whiteSpace: "nowrap",
+                                textTransform: "uppercase",
+                                letterSpacing: "0.08em",
+                                fontSize: "0.65rem",
+                                lineHeight: 1,
+                                pointerEvents: "none",
+                                color: importStatus.tone === "success" ? "#8ee28f" : "#ff8b5c",
+                            }}
+                        >
+                            {importStatus.text}
+                        </div>
+                    )}
                     {moduleSaveStatusLabel && (
                         <div
                             className={`script-creator__footer-status script-creator__footer-status--${moduleSaveState}`}
@@ -5828,6 +6279,145 @@ const ScriptCreator: FC<ScriptCreatorProps> = ({
                     )}
                 </div>
             </div>
+
+            {importPickerOpen && importCandidate && (
+                <div
+                    className="script-creator__import-modal"
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        closeImportPicker();
+                    }}
+                >
+                    <div className="script-creator__import-panel" onClick={(e) => e.stopPropagation()}>
+                        <div className="script-creator__import-header">
+                            <strong>Import Screens</strong>
+                            <span className="script-creator__import-count">
+                                {importSelectedIndices.size + importSelectedDialogIndices.size} of{" "}
+                                {importCandidate.screens.length + importCandidate.dialogs.length} selected
+                            </span>
+                            <button className="script-creator__btn" onClick={closeImportPicker}>[CLOSE]</button>
+                        </div>
+
+                        <div className="script-creator__import-body">
+                            <div className="script-creator__import-list">
+                                <div className="script-creator__import-group-label">SCREENS</div>
+                                {!importCandidate.screens.length && (
+                                    <span className="script-creator__hint">No screens in this file.</span>
+                                )}
+                                {importCandidate.screens.map((screen: any, index: number) => {
+                                    const id = (screen?.id || `screen${index}`).toString();
+                                    const count = Array.isArray(screen?.content) ? screen.content.length : 0;
+                                    const isActive = importPreview?.kind === "screen" && importPreview.index === index;
+                                    return (
+                                        <div
+                                            key={`screen-${id}-${index}`}
+                                            className={
+                                                "script-creator__import-item"
+                                                + (isActive ? " script-creator__import-item--active" : "")
+                                            }
+                                        >
+                                            <input
+                                                type="checkbox"
+                                                className="script-creator__import-check"
+                                                checked={importSelectedIndices.has(index)}
+                                                onChange={() => toggleImportSelected(index)}
+                                                aria-label={`Import screen ${id}`}
+                                            />
+                                            <button
+                                                type="button"
+                                                className="script-creator__import-item-label"
+                                                onClick={() => setImportPreview({ kind: "screen", index })}
+                                            >
+                                                <span className="script-creator__import-item-id">{id}</span>
+                                                <span className="script-creator__import-item-meta">
+                                                    {count} {count === 1 ? "line" : "lines"}
+                                                </span>
+                                            </button>
+                                        </div>
+                                    );
+                                })}
+
+                                {importCandidate.dialogs.length > 0 && (
+                                    <div className="script-creator__import-group-label">DIALOGS</div>
+                                )}
+                                {importCandidate.dialogs.map((dialog: any, index: number) => {
+                                    const id = (dialog?.id || `dialog${index}`).toString();
+                                    const count = Array.isArray(dialog?.content) ? dialog.content.length : 0;
+                                    const isActive = importPreview?.kind === "dialog" && importPreview.index === index;
+                                    return (
+                                        <div
+                                            key={`dialog-${id}-${index}`}
+                                            className={
+                                                "script-creator__import-item"
+                                                + (isActive ? " script-creator__import-item--active" : "")
+                                            }
+                                        >
+                                            <input
+                                                type="checkbox"
+                                                className="script-creator__import-check"
+                                                checked={importSelectedDialogIndices.has(index)}
+                                                onChange={() => toggleImportDialogSelected(index)}
+                                                aria-label={`Import dialog ${id}`}
+                                            />
+                                            <button
+                                                type="button"
+                                                className="script-creator__import-item-label"
+                                                onClick={() => setImportPreview({ kind: "dialog", index })}
+                                            >
+                                                <span className="script-creator__import-item-id">{id}</span>
+                                                <span className="script-creator__import-item-meta">
+                                                    {count} {count === 1 ? "line" : "lines"}
+                                                </span>
+                                            </button>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+
+                            <div className="script-creator__import-preview">
+                                {(() => {
+                                    const source = importPreview?.kind === "dialog"
+                                        ? importCandidate.dialogs
+                                        : importCandidate.screens;
+                                    const item = importPreview ? source[importPreview.index] : undefined;
+                                    if (!item) {
+                                        return <span className="script-creator__hint">Select an item to preview.</span>;
+                                    }
+                                    const fallbackId = `${importPreview?.kind === "dialog" ? "dialog" : "screen"}${importPreview?.index ?? 0}`;
+                                    const previewId = (item.id || fallbackId).toString();
+                                    const titlePrefix = importPreview?.kind === "dialog" ? "[DIALOG] " : "";
+                                    const lines = getScreenPreviewLines(item);
+                                    return (
+                                        <>
+                                            <div className="script-creator__import-preview-title">{titlePrefix}{previewId}</div>
+                                            <div className="script-creator__import-preview-body">
+                                                {lines.map((line, lineIndex) => (
+                                                    <div key={lineIndex} className="script-creator__import-preview-line">
+                                                        {line.length ? line : " "}
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </>
+                                    );
+                                })()}
+                            </div>
+                        </div>
+
+                        <div className="script-creator__import-footer">
+                            <button className="script-creator__btn" onClick={selectAllImport}>[SELECT ALL]</button>
+                            <button className="script-creator__btn" onClick={deselectAllImport}>[DESELECT ALL]</button>
+                            <button
+                                className="script-creator__btn"
+                                onClick={confirmImportSelected}
+                                disabled={!importSelectedIndices.size && !importSelectedDialogIndices.size}
+                            >
+                                [IMPORT SELECTED]
+                            </button>
+                            <button className="script-creator__btn" onClick={closeImportPicker}>[CANCEL]</button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </section>
     );
 };
