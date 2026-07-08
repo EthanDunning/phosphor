@@ -1637,6 +1637,64 @@ const getElementListLabel = (entry: any): string => {
     return `${type}: ${headline}`;
 };
 
+// Build a plain-text, one-line-per-element preview of a screen's content (used by the import picker).
+const getScreenPreviewLines = (screen: any): string[] => {
+    const content = Array.isArray(screen?.content) ? screen.content : [];
+    if (!content.length) {
+        return ["(no content)"];
+    }
+
+    return content.map((entry: any) => {
+        if (typeof entry === "string") {
+            return entry;
+        }
+        if (!entry || typeof entry !== "object") {
+            return "(invalid element)";
+        }
+
+        const type = (typeof entry.type === "string" ? entry.type : "object").toLowerCase();
+        const cyclerText = ((): string => {
+            if (type !== "toggle" && type !== "list" && type !== "dropdown") {
+                return "";
+            }
+            const states = Array.isArray(entry.states) ? entry.states : [];
+            const active = states.find((state: any) => state && typeof state === "object" && state.active === true);
+            const candidate = active || states[0];
+            if (typeof candidate === "string") {
+                return candidate;
+            }
+            return candidate && typeof candidate.text === "string" ? candidate.text : "";
+        })();
+        const text = (cyclerText || entry.text || entry.prompt || entry.usernamePrompt || "").toString();
+
+        switch (type) {
+            case "text":
+            case "link":
+            case "href":
+                return text;
+            case "toggle":
+            case "list":
+            case "dropdown":
+                return `${text} ▼`;
+            case "prompt":
+                return text || "> ";
+            case "login":
+                return text || "username> ";
+            case "bitmap":
+            case "image":
+                return `[IMAGE${entry.src ? `: ${entry.src}` : ""}]`;
+            case "reportcomposer":
+                return "[REPORT COMPOSER]";
+            case "reportlist":
+                return "[REPORT LIST]";
+            case "mainframegame":
+                return "[MAINFRAME GAME]";
+            default:
+                return `[${type.toUpperCase()}]`;
+        }
+    });
+};
+
 const getDialogContentListLabel = (entry: any, index: number): string => {
     const previewRaw = typeof entry === "string" ? entry : JSON.stringify(entry);
     const preview = typeof previewRaw === "string" ? previewRaw : "";
@@ -1866,6 +1924,11 @@ const ScriptCreator: FC<ScriptCreatorProps> = ({
     const [searchFocusRequestId, setSearchFocusRequestId] = useState<number>(0);
     const [moduleSaveState, setModuleSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
     const [importStatus, setImportStatus] = useState<{ tone: "success" | "error"; text: string } | null>(null);
+    const [importPickerOpen, setImportPickerOpen] = useState<boolean>(false);
+    const [importCandidate, setImportCandidate] = useState<{ raw: any; screens: any[]; dialogs: any[] } | null>(null);
+    const [importSelectedIndices, setImportSelectedIndices] = useState<Set<number>>(() => new Set());
+    const [importSelectedDialogIndices, setImportSelectedDialogIndices] = useState<Set<number>>(() => new Set());
+    const [importPreview, setImportPreview] = useState<{ kind: "screen" | "dialog"; index: number } | null>(null);
     const importFileInputRef = useRef<HTMLInputElement | null>(null);
     const bodyRef = useRef<HTMLDivElement | null>(null);
     const editorRef = useRef<HTMLElement | null>(null);
@@ -3821,31 +3884,111 @@ const ScriptCreator: FC<ScriptCreatorProps> = ({
         importFileInputRef.current?.click();
     };
 
-    const importScreensFromScript = (importedRaw: any) => {
+    const openImportPicker = (importedRaw: any) => {
         if (!importedRaw || typeof importedRaw !== "object") {
             setImportStatus({ tone: "error", text: "That file isn't a valid Phosphor script." });
             return;
         }
 
-        const { script: mergedScript, importedScreens, importedDialogs } = buildScriptWithImportedScreens(script, importedRaw);
+        const screens = Array.isArray(importedRaw.screens)
+            ? importedRaw.screens.filter((screen: any) => screen && typeof screen === "object")
+            : [];
+        const dialogs = Array.isArray(importedRaw.dialogs)
+            ? importedRaw.dialogs.filter((dialog: any) => dialog && typeof dialog === "object")
+            : [];
 
-        if (!importedScreens.length) {
-            setImportStatus({ tone: "error", text: "No screens found in that file." });
+        if (!screens.length && !dialogs.length) {
+            setImportStatus({ tone: "error", text: "No screens or dialogs found in that file." });
             return;
         }
 
-        updateScript(() => mergedScript);
-        setSidebarListMode("screens");
-        setSelectedScreenId(importedScreens[0].id);
-        setSelectedElementIndex(0);
+        setImportCandidate({ raw: importedRaw, screens, dialogs });
+        setImportSelectedIndices(new Set(screens.map((_: any, index: number) => index)));
+        setImportSelectedDialogIndices(new Set(dialogs.map((_: any, index: number) => index)));
+        setImportPreview(screens.length ? { kind: "screen", index: 0 } : { kind: "dialog", index: 0 });
+        setImportStatus(null);
+        setImportPickerOpen(true);
+    };
 
-        const dialogNote = importedDialogs.length
-            ? ` and ${importedDialogs.length} dialog${importedDialogs.length === 1 ? "" : "s"}`
-            : "";
-        setImportStatus({
-            tone: "success",
-            text: `Imported ${importedScreens.length} screen${importedScreens.length === 1 ? "" : "s"}${dialogNote}.`,
+    const closeImportPicker = () => {
+        setImportPickerOpen(false);
+        setImportCandidate(null);
+        setImportSelectedIndices(new Set());
+        setImportSelectedDialogIndices(new Set());
+        setImportPreview(null);
+    };
+
+    const toggleImportSelected = (index: number) => {
+        setImportSelectedIndices((prev) => {
+            const next = new Set(prev);
+            if (next.has(index)) {
+                next.delete(index);
+            } else {
+                next.add(index);
+            }
+            return next;
         });
+    };
+
+    const toggleImportDialogSelected = (index: number) => {
+        setImportSelectedDialogIndices((prev) => {
+            const next = new Set(prev);
+            if (next.has(index)) {
+                next.delete(index);
+            } else {
+                next.add(index);
+            }
+            return next;
+        });
+    };
+
+    const selectAllImport = () => {
+        if (!importCandidate) {
+            return;
+        }
+        setImportSelectedIndices(new Set(importCandidate.screens.map((_, index) => index)));
+        setImportSelectedDialogIndices(new Set(importCandidate.dialogs.map((_, index) => index)));
+    };
+
+    const deselectAllImport = () => {
+        setImportSelectedIndices(new Set());
+        setImportSelectedDialogIndices(new Set());
+    };
+
+    const confirmImportSelected = () => {
+        if (!importCandidate) {
+            return;
+        }
+
+        const selectedScreens = importCandidate.screens.filter((_, index) => importSelectedIndices.has(index));
+        const selectedDialogs = importCandidate.dialogs.filter((_, index) => importSelectedDialogIndices.has(index));
+        if (!selectedScreens.length && !selectedDialogs.length) {
+            return;
+        }
+
+        const filteredRaw = { ...importCandidate.raw, screens: selectedScreens, dialogs: selectedDialogs };
+        const { script: mergedScript, importedScreens, importedDialogs } = buildScriptWithImportedScreens(script, filteredRaw);
+
+        updateScript(() => mergedScript);
+        if (importedScreens.length) {
+            setSidebarListMode("screens");
+            setSelectedScreenId(importedScreens[0].id);
+            setSelectedElementIndex(0);
+        } else if (importedDialogs.length) {
+            setSidebarListMode("dialogs");
+            setSelectedDialogFocusId(importedDialogs[0].id);
+            setSelectedDialogContentIndex(0);
+        }
+
+        const parts: string[] = [];
+        if (importedScreens.length) {
+            parts.push(`${importedScreens.length} screen${importedScreens.length === 1 ? "" : "s"}`);
+        }
+        if (importedDialogs.length) {
+            parts.push(`${importedDialogs.length} dialog${importedDialogs.length === 1 ? "" : "s"}`);
+        }
+        setImportStatus({ tone: "success", text: `Imported ${parts.join(" and ")}.` });
+        closeImportPicker();
     };
 
     const handleImportFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -3861,7 +4004,7 @@ const ScriptCreator: FC<ScriptCreatorProps> = ({
         reader.onload = () => {
             try {
                 const parsed = JSON.parse(String(reader.result));
-                importScreensFromScript(parsed);
+                openImportPicker(parsed);
             } catch {
                 setImportStatus({ tone: "error", text: "Could not parse that file as JSON." });
             }
@@ -6136,6 +6279,145 @@ const ScriptCreator: FC<ScriptCreatorProps> = ({
                     )}
                 </div>
             </div>
+
+            {importPickerOpen && importCandidate && (
+                <div
+                    className="script-creator__import-modal"
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        closeImportPicker();
+                    }}
+                >
+                    <div className="script-creator__import-panel" onClick={(e) => e.stopPropagation()}>
+                        <div className="script-creator__import-header">
+                            <strong>Import Screens</strong>
+                            <span className="script-creator__import-count">
+                                {importSelectedIndices.size + importSelectedDialogIndices.size} of{" "}
+                                {importCandidate.screens.length + importCandidate.dialogs.length} selected
+                            </span>
+                            <button className="script-creator__btn" onClick={closeImportPicker}>[CLOSE]</button>
+                        </div>
+
+                        <div className="script-creator__import-body">
+                            <div className="script-creator__import-list">
+                                <div className="script-creator__import-group-label">SCREENS</div>
+                                {!importCandidate.screens.length && (
+                                    <span className="script-creator__hint">No screens in this file.</span>
+                                )}
+                                {importCandidate.screens.map((screen: any, index: number) => {
+                                    const id = (screen?.id || `screen${index}`).toString();
+                                    const count = Array.isArray(screen?.content) ? screen.content.length : 0;
+                                    const isActive = importPreview?.kind === "screen" && importPreview.index === index;
+                                    return (
+                                        <div
+                                            key={`screen-${id}-${index}`}
+                                            className={
+                                                "script-creator__import-item"
+                                                + (isActive ? " script-creator__import-item--active" : "")
+                                            }
+                                        >
+                                            <input
+                                                type="checkbox"
+                                                className="script-creator__import-check"
+                                                checked={importSelectedIndices.has(index)}
+                                                onChange={() => toggleImportSelected(index)}
+                                                aria-label={`Import screen ${id}`}
+                                            />
+                                            <button
+                                                type="button"
+                                                className="script-creator__import-item-label"
+                                                onClick={() => setImportPreview({ kind: "screen", index })}
+                                            >
+                                                <span className="script-creator__import-item-id">{id}</span>
+                                                <span className="script-creator__import-item-meta">
+                                                    {count} {count === 1 ? "line" : "lines"}
+                                                </span>
+                                            </button>
+                                        </div>
+                                    );
+                                })}
+
+                                {importCandidate.dialogs.length > 0 && (
+                                    <div className="script-creator__import-group-label">DIALOGS</div>
+                                )}
+                                {importCandidate.dialogs.map((dialog: any, index: number) => {
+                                    const id = (dialog?.id || `dialog${index}`).toString();
+                                    const count = Array.isArray(dialog?.content) ? dialog.content.length : 0;
+                                    const isActive = importPreview?.kind === "dialog" && importPreview.index === index;
+                                    return (
+                                        <div
+                                            key={`dialog-${id}-${index}`}
+                                            className={
+                                                "script-creator__import-item"
+                                                + (isActive ? " script-creator__import-item--active" : "")
+                                            }
+                                        >
+                                            <input
+                                                type="checkbox"
+                                                className="script-creator__import-check"
+                                                checked={importSelectedDialogIndices.has(index)}
+                                                onChange={() => toggleImportDialogSelected(index)}
+                                                aria-label={`Import dialog ${id}`}
+                                            />
+                                            <button
+                                                type="button"
+                                                className="script-creator__import-item-label"
+                                                onClick={() => setImportPreview({ kind: "dialog", index })}
+                                            >
+                                                <span className="script-creator__import-item-id">{id}</span>
+                                                <span className="script-creator__import-item-meta">
+                                                    {count} {count === 1 ? "line" : "lines"}
+                                                </span>
+                                            </button>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+
+                            <div className="script-creator__import-preview">
+                                {(() => {
+                                    const source = importPreview?.kind === "dialog"
+                                        ? importCandidate.dialogs
+                                        : importCandidate.screens;
+                                    const item = importPreview ? source[importPreview.index] : undefined;
+                                    if (!item) {
+                                        return <span className="script-creator__hint">Select an item to preview.</span>;
+                                    }
+                                    const fallbackId = `${importPreview?.kind === "dialog" ? "dialog" : "screen"}${importPreview?.index ?? 0}`;
+                                    const previewId = (item.id || fallbackId).toString();
+                                    const titlePrefix = importPreview?.kind === "dialog" ? "[DIALOG] " : "";
+                                    const lines = getScreenPreviewLines(item);
+                                    return (
+                                        <>
+                                            <div className="script-creator__import-preview-title">{titlePrefix}{previewId}</div>
+                                            <div className="script-creator__import-preview-body">
+                                                {lines.map((line, lineIndex) => (
+                                                    <div key={lineIndex} className="script-creator__import-preview-line">
+                                                        {line.length ? line : " "}
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </>
+                                    );
+                                })()}
+                            </div>
+                        </div>
+
+                        <div className="script-creator__import-footer">
+                            <button className="script-creator__btn" onClick={selectAllImport}>[SELECT ALL]</button>
+                            <button className="script-creator__btn" onClick={deselectAllImport}>[DESELECT ALL]</button>
+                            <button
+                                className="script-creator__btn"
+                                onClick={confirmImportSelected}
+                                disabled={!importSelectedIndices.size && !importSelectedDialogIndices.size}
+                            >
+                                [IMPORT SELECTED]
+                            </button>
+                            <button className="script-creator__btn" onClick={closeImportPicker}>[CANCEL]</button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </section>
     );
 };
