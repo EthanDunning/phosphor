@@ -455,7 +455,10 @@ $creator-dark-control-bg: rgba($creator-dark-bg, 0.92);
 
     &__list--screens,
     &__list--dialogs {
-        min-height: 220px;
+        // Preferred height, but allow the list to shrink (min-height stays 0
+        // from &__list) when the sidebar is short so the move/delete action
+        // footer below stays visible instead of being clipped by overflow.
+        flex-basis: 220px;
     }
 
     &__hint {
