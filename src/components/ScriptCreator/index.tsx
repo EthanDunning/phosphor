@@ -1103,6 +1103,206 @@ const readScreenTargetsFromElement = (element: any): string[] => {
     return [];
 };
 
+// --- Import helpers: remap ids so an imported script can be merged without id collisions ---
+
+// Return a unique id: baseId if free, otherwise baseId-2, baseId-3, ... skipping anything in `reserved`.
+const makeUniqueImportId = (baseId: string, reserved: Set<string>): string => {
+    if (!reserved.has(baseId)) {
+        return baseId;
+    }
+    let suffix = 2;
+    while (reserved.has(`${baseId}-${suffix}`)) {
+        suffix += 1;
+    }
+    return `${baseId}-${suffix}`;
+};
+
+const remapId = (id: any, idMap: Record<string, string>): any => {
+    return typeof id === "string" && idMap[id] ? idMap[id] : id;
+};
+
+// Remap a single target entry / action object ({ type, target }) using the id map for its type.
+const remapTargetEntry = (entry: any, screenIdMap: Record<string, string>, dialogIdMap: Record<string, string>): any => {
+    if (!entry || typeof entry !== "object" || typeof entry.target !== "string") {
+        return entry;
+    }
+    const type = typeof entry.type === "string" ? entry.type.toLowerCase() : "";
+    if (type === "dialog") {
+        return { ...entry, target: remapId(entry.target, dialogIdMap) };
+    }
+    if (type === "link" || type === "href" || type === "action") {
+        return { ...entry, target: remapId(entry.target, screenIdMap) };
+    }
+    return entry;
+};
+
+// A link/href target can be a bare screen id string or an array of target entries.
+const remapLinkTarget = (target: any, screenIdMap: Record<string, string>, dialogIdMap: Record<string, string>): any => {
+    if (typeof target === "string") {
+        return remapId(target, screenIdMap);
+    }
+    if (Array.isArray(target)) {
+        return target.map((entry) => remapTargetEntry(entry, screenIdMap, dialogIdMap));
+    }
+    return target;
+};
+
+// Remap every screen/dialog reference inside a single content element. Text-line strings pass through untouched.
+const remapElementReferences = (element: any, screenIdMap: Record<string, string>, dialogIdMap: Record<string, string>): any => {
+    if (!element || typeof element !== "object") {
+        return element;
+    }
+
+    const type = typeof element.type === "string" ? element.type.toLowerCase() : "";
+    const next = { ...element };
+
+    if (type === "link" || type === "href") {
+        next.target = remapLinkTarget(element.target, screenIdMap, dialogIdMap);
+        return next;
+    }
+
+    if (type === "toggle" || type === "list" || type === "dropdown") {
+        if (Array.isArray(element.states)) {
+            next.states = element.states.map((state: any) => {
+                if (!state || typeof state !== "object") {
+                    return state;
+                }
+                const nextState = { ...state };
+                if (typeof state.target === "string") {
+                    nextState.target = remapId(state.target, screenIdMap);
+                }
+                if (typeof state.dialog === "string") {
+                    nextState.dialog = remapId(state.dialog, dialogIdMap);
+                }
+                if (state.action && typeof state.action === "object") {
+                    nextState.action = remapTargetEntry(state.action, screenIdMap, dialogIdMap);
+                }
+                return nextState;
+            });
+        }
+        return next;
+    }
+
+    if (type === "prompt") {
+        if (element.inputAction && typeof element.inputAction === "object") {
+            next.inputAction = remapTargetEntry(element.inputAction, screenIdMap, dialogIdMap);
+        }
+        if (Array.isArray(element.commands)) {
+            next.commands = element.commands.map((command: any) => {
+                if (command && typeof command === "object" && command.action && typeof command.action === "object") {
+                    return { ...command, action: remapTargetEntry(command.action, screenIdMap, dialogIdMap) };
+                }
+                return command;
+            });
+        }
+        return next;
+    }
+
+    if (type === "login") {
+        if (Array.isArray(element.credentials)) {
+            next.credentials = element.credentials.map((entry: any) => {
+                if (!entry || typeof entry !== "object") {
+                    return entry;
+                }
+                const nextEntry = { ...entry };
+                if (typeof entry.target === "string") {
+                    nextEntry.target = remapId(entry.target, screenIdMap);
+                }
+                if (entry.action && typeof entry.action === "object") {
+                    nextEntry.action = remapTargetEntry(entry.action, screenIdMap, dialogIdMap);
+                }
+                return nextEntry;
+            });
+        }
+        if (element.noMatchAction && typeof element.noMatchAction === "object") {
+            next.noMatchAction = remapTargetEntry(element.noMatchAction, screenIdMap, dialogIdMap);
+        }
+        if (typeof element.noMatchTarget === "string") {
+            next.noMatchTarget = remapId(element.noMatchTarget, screenIdMap);
+        }
+        return next;
+    }
+
+    if (type === "reportcomposer") {
+        if (typeof element.saveTarget === "string") {
+            next.saveTarget = remapId(element.saveTarget, screenIdMap);
+        }
+        if (typeof element.cancelTarget === "string") {
+            next.cancelTarget = remapId(element.cancelTarget, screenIdMap);
+        }
+        return next;
+    }
+
+    return next;
+};
+
+const remapScreenReferences = (screen: any, screenIdMap: Record<string, string>, dialogIdMap: Record<string, string>): any => {
+    const next = { ...screen, id: remapId(screen.id, screenIdMap) };
+    if (screen.onDone && typeof screen.onDone === "object" && typeof screen.onDone.target === "string") {
+        next.onDone = { ...screen.onDone, target: remapId(screen.onDone.target, screenIdMap) };
+    }
+    if (Array.isArray(screen.content)) {
+        next.content = screen.content.map((element: any) => remapElementReferences(element, screenIdMap, dialogIdMap));
+    }
+    return next;
+};
+
+const remapDialogReferences = (dialog: any, screenIdMap: Record<string, string>, dialogIdMap: Record<string, string>): any => {
+    const next = { ...dialog, id: remapId(dialog.id, dialogIdMap) };
+    if (Array.isArray(dialog.content)) {
+        next.content = dialog.content.map((element: any) => remapElementReferences(element, screenIdMap, dialogIdMap));
+    }
+    return next;
+};
+
+// Merge the screens/dialogs of an imported script into `currentScript`, renaming any colliding ids.
+const buildScriptWithImportedScreens = (currentScript: any, importedRaw: any): {
+    script: any;
+    importedScreens: any[];
+    importedDialogs: any[];
+} => {
+    const importedScreens = Array.isArray(importedRaw?.screens)
+        ? importedRaw.screens.filter((screen: any) => screen && typeof screen === "object")
+        : [];
+    const importedDialogs = Array.isArray(importedRaw?.dialogs)
+        ? importedRaw.dialogs.filter((dialog: any) => dialog && typeof dialog === "object")
+        : [];
+
+    const screenReserved = new Set<string>((currentScript.screens || []).map((screen: any) => screen.id));
+    const dialogReserved = new Set<string>((currentScript.dialogs || []).map((dialog: any) => dialog.id));
+
+    const screenIdMap: Record<string, string> = {};
+    const normalizedScreens = importedScreens.map((screen: any, index: number) => {
+        const rawId = typeof screen.id === "string" && screen.id.trim() ? screen.id : `screen${index}`;
+        const uniqueId = makeUniqueImportId(rawId, screenReserved);
+        screenReserved.add(uniqueId);
+        screenIdMap[rawId] = uniqueId;
+        return { ...screen, id: rawId };
+    });
+
+    const dialogIdMap: Record<string, string> = {};
+    const normalizedDialogs = importedDialogs.map((dialog: any, index: number) => {
+        const rawId = typeof dialog.id === "string" && dialog.id.trim() ? dialog.id : `dialog${index}`;
+        const uniqueId = makeUniqueImportId(rawId, dialogReserved);
+        dialogReserved.add(uniqueId);
+        dialogIdMap[rawId] = uniqueId;
+        return { ...dialog, id: rawId };
+    });
+
+    const remappedScreens = normalizedScreens.map((screen: any) => remapScreenReferences(screen, screenIdMap, dialogIdMap));
+    const remappedDialogs = normalizedDialogs.map((dialog: any) => remapDialogReferences(dialog, screenIdMap, dialogIdMap));
+
+    return {
+        script: {
+            ...currentScript,
+            screens: [...(currentScript.screens || []), ...remappedScreens],
+            dialogs: [...(currentScript.dialogs || []), ...remappedDialogs],
+        },
+        importedScreens: remappedScreens,
+        importedDialogs: remappedDialogs,
+    };
+};
+
 const buildScreenConnectionMap = (script: any): {
     screenIds: string[];
     nodeIds: string[];
@@ -1665,6 +1865,8 @@ const ScriptCreator: FC<ScriptCreatorProps> = ({
     const [visibleSearchOccurrenceCount, setVisibleSearchOccurrenceCount] = useState<number>(0);
     const [searchFocusRequestId, setSearchFocusRequestId] = useState<number>(0);
     const [moduleSaveState, setModuleSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
+    const [importStatus, setImportStatus] = useState<{ tone: "success" | "error"; text: string } | null>(null);
+    const importFileInputRef = useRef<HTMLInputElement | null>(null);
     const bodyRef = useRef<HTMLDivElement | null>(null);
     const editorRef = useRef<HTMLElement | null>(null);
     const resizePointerIdRef = useRef<number | null>(null);
@@ -1681,6 +1883,14 @@ const ScriptCreator: FC<ScriptCreatorProps> = ({
 
         setModuleSaveState("idle");
     }, [script]);
+
+    useEffect(() => {
+        if (!importStatus) {
+            return;
+        }
+        const timer = window.setTimeout(() => setImportStatus(null), 6000);
+        return () => window.clearTimeout(timer);
+    }, [importStatus]);
 
     const handleEditorMarkdownShortcut = (event: React.KeyboardEvent<HTMLElement>): void => {
         const nativeEvent = event.nativeEvent as KeyboardEvent & { isComposing?: boolean };
@@ -3605,6 +3815,61 @@ const ScriptCreator: FC<ScriptCreatorProps> = ({
         anchor.download = `${name || "script"}.json`;
         anchor.click();
         URL.revokeObjectURL(url);
+    };
+
+    const openImportScreensPicker = () => {
+        importFileInputRef.current?.click();
+    };
+
+    const importScreensFromScript = (importedRaw: any) => {
+        if (!importedRaw || typeof importedRaw !== "object") {
+            setImportStatus({ tone: "error", text: "That file isn't a valid Phosphor script." });
+            return;
+        }
+
+        const { script: mergedScript, importedScreens, importedDialogs } = buildScriptWithImportedScreens(script, importedRaw);
+
+        if (!importedScreens.length) {
+            setImportStatus({ tone: "error", text: "No screens found in that file." });
+            return;
+        }
+
+        updateScript(() => mergedScript);
+        setSidebarListMode("screens");
+        setSelectedScreenId(importedScreens[0].id);
+        setSelectedElementIndex(0);
+
+        const dialogNote = importedDialogs.length
+            ? ` and ${importedDialogs.length} dialog${importedDialogs.length === 1 ? "" : "s"}`
+            : "";
+        setImportStatus({
+            tone: "success",
+            text: `Imported ${importedScreens.length} screen${importedScreens.length === 1 ? "" : "s"}${dialogNote}.`,
+        });
+    };
+
+    const handleImportFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const input = event.target;
+        const file = input.files && input.files[0];
+        // reset the input so re-selecting the same file still fires onChange
+        input.value = "";
+        if (!file) {
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = () => {
+            try {
+                const parsed = JSON.parse(String(reader.result));
+                importScreensFromScript(parsed);
+            } catch {
+                setImportStatus({ tone: "error", text: "Could not parse that file as JSON." });
+            }
+        };
+        reader.onerror = () => {
+            setImportStatus({ tone: "error", text: "Could not read that file." });
+        };
+        reader.readAsText(file);
     };
 
     const handleSidebarResizePointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
@@ -5816,6 +6081,34 @@ const ScriptCreator: FC<ScriptCreatorProps> = ({
                     )}
                     <button className="script-creator__btn" onClick={copyJson}>[COPY JSON]</button>
                     <button className="script-creator__btn" onClick={downloadJson}>[DOWNLOAD JSON]</button>
+                    <button className="script-creator__btn" onClick={openImportScreensPicker}>[IMPORT SCREENS]</button>
+                    <input
+                        ref={importFileInputRef}
+                        type="file"
+                        accept="application/json,.json"
+                        style={{ display: "none" }}
+                        onChange={handleImportFileChange}
+                    />
+                    {importStatus && (
+                        <div
+                            className={`script-creator__footer-status script-creator__footer-status--${importStatus.tone}`}
+                            aria-live="polite"
+                            style={{
+                                flex: "0 0 auto",
+                                border: "1px solid currentColor",
+                                padding: "0.1rem 0.4rem",
+                                whiteSpace: "nowrap",
+                                textTransform: "uppercase",
+                                letterSpacing: "0.08em",
+                                fontSize: "0.65rem",
+                                lineHeight: 1,
+                                pointerEvents: "none",
+                                color: importStatus.tone === "success" ? "#8ee28f" : "#ff8b5c",
+                            }}
+                        >
+                            {importStatus.text}
+                        </div>
+                    )}
                     {moduleSaveStatusLabel && (
                         <div
                             className={`script-creator__footer-status script-creator__footer-status--${moduleSaveState}`}
