@@ -33,6 +33,9 @@ The original project loaded a single hardcoded JSON file (sample.json by default
 **Audio**
 - **Sound effects** — CRT power-on/off tones, ambient transformer hum, and randomized mechanical typing sounds play during terminal interaction. Autoplay is triggered on first user interaction to comply with browser policies.
 
+**Terminal interfaces**
+- **`filesystem` screen type** — a new screen `type` (alongside `screen` and `static`, and selectable in the Script Creator) that reproduces the SEEGSON data terminals from *Alien: Isolation*: a solid title bar around a framed CRT viewport, and a three-region **folders → sub-sections → content** layout that updates in place with no screen transitions (arrow keys and mouse both work). Set a screen's type to make it a file browser; no global toggle needed. `config.terminalType: "alien"` optionally wraps every screen in the same chrome. See the bundled **ALIEN TERMINAL (SEEGSON)** script for a full example. The system is pluggable, so additional interface skins can be added over time.
+
 **Themes & UI**
 - **Color themes** — cycle between four CRT color presets (Blue, Amber, Green, White) using the toolbar. Your choice is saved across sessions.
 - **Cloudflare Workers deployment** — `wrangler.toml` and `worker.js` are included for deploying to Cloudflare Pages/Workers via `npm run deploy:worker`.
@@ -67,6 +70,36 @@ The top-level structure is:
 ```
 
 Each screen has an `id`, a `type` (`"screen"` or `"static"`), and a `content` array of elements. Links between screens use the target screen's `id`. Images can reference any public URL or a path relative to the deployment's `public/` folder.
+
+#### Screen types and the *Alien: Isolation* file system
+
+Every screen has a `type` that decides how it is interpreted. Alongside the classic `"screen"` (teletype) and `"static"`, there is now **`"filesystem"`** — a screen that renders the SEEGSON three-region file browser from *Alien: Isolation*. Pick it from the **Type** dropdown in the Script Creator, or set it in JSON:
+
+```json
+{ "id": "main", "type": "filesystem", "headerTitle": "PERSONAL TERMINAL", "content": [ … ] }
+```
+
+A `filesystem` screen brings its own chrome: a solid title bar (from the screen's `headerTitle`, falling back to `config.name`) over a framed CRT viewport that fills the window with a uniform edge margin (the scanlines and vignette render over the title bar too). It respects whatever color theme is active. The rest of your screens (boot sequence, login, etc.) stay classic `"screen"`/`"static"` — the type is what flips a screen into the browser, so there's nothing hidden to toggle.
+
+The `filesystem` screen is a self-contained terminal with **no screen transitions**:
+
+- its `link` elements become the **folder tabs** down the left;
+- the selected folder's **target screen** supplies the **sub-section list** shown top-right — those are the target's own `link` elements, or, if the target has no links, the target itself is treated as a single sub-section (its `title` becomes the label);
+- if the target screen *also* has non-link content (text, etc.) alongside its links, that content is surfaced as a leading **file named after the folder**, so nothing is hidden — this makes converting an old text+links screen into a file system painless;
+- links that point **back to the file-system screen itself** (the old `< BACK` buttons on converted screens) are dropped, so they don't clutter the file list;
+- the selected sub-section's target supplies the **content** shown in the body below. That content is rendered with the same element components as a classic screen, so it supports text **class names** (`alert`/`notice`/`system`/…), **markdown**, **images** (`bitmap`), and interactive elements — not just plain text.
+
+Give leaf/content screens a `title` to label them in the list. Navigate with the arrow keys (`↑/↓` move within the focused list; `←/→` move from the folder list into the sub-section list; `Enter` opens/activates; `Home`/`End` jump to the ends; `Backspace` returns focus from the sub-section list to the folder list), or just click any folder or sub-section.
+
+> To wrap **every** screen (including classic ones) in the same chrome, set `config.terminalType: "alien"` — then classic screens teletype inside the CRT frame too. The `"filesystem"` screen type does not require it. (`layout: "folders"` on a `"screen"` is still honored as a legacy alias for `"filesystem"`.)
+
+**Working buttons.** A folder or sub-section that should *do something* (navigate, run an action) rather than open content is written as a **button** — give its `link` the array `target` form used by classic links, and it will fire through `_handleLinkClick` when clicked or `Enter`ed. For example, a log-out/back control:
+
+```json
+{ "type": "link", "text": "‹ LOG OUT", "target": [ { "type": "action", "action": "back" } ] }
+```
+
+(A plain string `target` opens content; an array `target` is a button.) Screens **without** `layout: "folders"` (boot screens, login prompts, etc.) render with the normal teletype flow inside the same chrome. See `src/data/alien-terminal.json` for a complete, playable example.
 
 To load your script without a build step, upload the JSON using the toolbar's `[ UPLOAD JSON ]` option. Any images or other assets you reference should be hosted externally (e.g. on Imgur, a CDN, or your own server) so they resolve correctly in the browser.
 

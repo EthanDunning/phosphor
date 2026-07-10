@@ -764,6 +764,7 @@ const BITMAP_CLASSNAME_OPTIONS = [
 const SCREEN_TYPE_OPTIONS: CreatorSelectOption[] = [
     { value: "screen", label: "screen" },
     { value: "static", label: "static" },
+    { value: "filesystem", label: "file system" },
 ];
 
 const SCRIPT_THEME_OPTIONS: CreatorSelectOption[] = [
@@ -2129,6 +2130,27 @@ const ScriptCreator: FC<ScriptCreatorProps> = ({
     const selectedScreenDefaultTextSpeed = selectedScreenDefaultTextSpeedMs === undefined
         ? ""
         : String(selectedScreenDefaultTextSpeedMs);
+
+    // The header title control applies to the alien skin: either a script-wide
+    // `terminalType: "alien"`, or a per-screen "file system" screen.
+    const isAlienScript = ((script?.config?.terminalType ?? script?.config?.interface ?? "") as string)
+        .toString().trim().toLowerCase() === "alien";
+    const selectedScreenIsFileSystem = (() => {
+        const type = typeof selectedScreen?.type === "string" ? selectedScreen.type.trim().toLowerCase() : "";
+        return type === "filesystem" || type === "file system" || type === "file-system";
+    })();
+    const showAlienHeaderTitle = isAlienScript || selectedScreenIsFileSystem;
+    const alienHeaderTitleFallback = (() => {
+        const alien = script?.config?.alien;
+        const alienTitle = alien && typeof alien === "object" && typeof alien.title === "string"
+            ? alien.title.trim()
+            : "";
+        if (alienTitle.length) {
+            return alienTitle;
+        }
+        const name = typeof script?.config?.name === "string" ? script.config.name.trim() : "";
+        return name.length ? name.toUpperCase() : "TERMINAL";
+    })();
 
     const selectedElement = selectedScreen?.content?.[selectedElementIndex];
     const canMoveElementUp = selectedElementIndex > 0;
@@ -4826,6 +4848,20 @@ const ScriptCreator: FC<ScriptCreatorProps> = ({
                                                         onChange={(e) => updateScreenDefaultTextSpeed(e.target.value)}
                                                     />
                                                 </label>
+
+                                                {showAlienHeaderTitle && (
+                                                    <label className="script-creator__field">
+                                                        <span>Header Title</span>
+                                                        <input
+                                                            value={selectedScreen.headerTitle || ""}
+                                                            placeholder={alienHeaderTitleFallback}
+                                                            onChange={(e) => {
+                                                                const nextValue = e.target.value;
+                                                                updateScreen({ headerTitle: nextValue.length ? nextValue : undefined });
+                                                            }}
+                                                        />
+                                                    </label>
+                                                )}
                                             </div>
                                         )}
 

@@ -1,0 +1,401 @@
+// ===========================================================================
+// ALIEN terminal skin
+// ---------------------------------------------------------------------------
+// An alternate presentation for Phosphor, modeled on the SEEGSON data
+// terminals in Alien: Isolation: a solid title bar up top, a left column of
+// selectable FOLDER tabs, and a right "detail" pane showing the highlighted
+// folder's message (title box + scrolling body). Activated per-script with:
+//
+//     "config": { "terminalType": "alien" }
+//
+// A screen opts into the two-pane view with `"layout": "folders"`; its `link`
+// elements become the folder tabs and each link's target screen supplies the
+// detail content. Screens without that layout render normally inside the same
+// chrome. Everything is scoped under `.phosphor--alien` so the classic skin is
+// untouched, and all colors come from the active theme's CSS variables.
+// ===========================================================================
+
+@use "../../assets/sass/fonts" as *;
+@use "../../assets/sass/colors" as *;
+
+// Custom scrollbars matching the Script Creator, so scrollable regions use the
+// terminal's own bright-on-dark bars instead of the default browser chrome.
+@mixin alien-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: var(--theme-fg, var(--fg)) var(--bg);
+
+    &::-webkit-scrollbar {
+        width: 12px;
+        height: 12px;
+    }
+
+    &::-webkit-scrollbar-track {
+        background: var(--bg);
+    }
+
+    &::-webkit-scrollbar-thumb {
+        background: var(--theme-fg, var(--fg));
+        border: 2px solid var(--bg);
+        min-height: 24px;
+    }
+
+    &::-webkit-scrollbar-corner {
+        background: var(--bg);
+    }
+}
+
+.phosphor--alien {
+    // thin header bar, no footer, and the uniform gap around the framed viewport
+    --alien-header-h: 1rem;
+    --alien-footer-h: 0px;
+    --alien-gap: 0.5rem;
+
+    // Theme-accurate translucent lines/glows. The first declaration of each is a
+    // static fallback (matches the blue theme); the color-mix declaration wins in
+    // modern browsers and tracks whatever theme fg color is active.
+    --alien-line: rgba(212, 249, 250, 0.5);
+    --alien-line: color-mix(in srgb, var(--theme-fg, var(--fg)) 50%, transparent);
+    --alien-line-soft: rgba(212, 249, 250, 0.22);
+    --alien-line-soft: color-mix(in srgb, var(--theme-fg, var(--fg)) 24%, transparent);
+    --alien-glow-inset: rgba(212, 249, 250, 0.06);
+    --alien-glow-inset: color-mix(in srgb, var(--theme-fg, var(--fg)) 7%, transparent);
+    --alien-glow-outer: rgba(212, 249, 250, 0.04);
+    --alien-glow-outer: color-mix(in srgb, var(--theme-fg, var(--fg)) 5%, transparent);
+
+    // Fill the viewport exactly (below the app toolbar); the framed box and its
+    // inner regions own all scrolling, so the page itself never scrolls.
+    padding: 0;
+    height: 100vh;
+    height: 100dvh;
+    overflow: hidden;
+
+    // The framed "viewport": a bordered, fixed-height screen with a uniform gap
+    // to the screen edge on all four sides.
+    .__main__ {
+        position: relative;
+        box-sizing: border-box;
+        max-width: none;
+        height: calc(100vh - env(safe-area-inset-top) - var(--header-height, 0px) - var(--alien-header-h) - var(--alien-footer-h) - (2 * var(--alien-gap)));
+        height: calc(100dvh - env(safe-area-inset-top) - var(--header-height, 0px) - var(--alien-header-h) - var(--alien-footer-h) - (2 * var(--alien-gap)));
+        margin: calc(env(safe-area-inset-top) + var(--header-height, 0px) + var(--alien-header-h) + var(--alien-gap))
+                var(--alien-gap)
+                calc(var(--alien-footer-h) + var(--alien-gap));
+        padding: 0.75rem 0.85rem;
+        overflow: hidden;
+        border: 1px solid var(--alien-line);
+        box-shadow:
+            inset 0 0 22px var(--alien-glow-inset),
+            0 0 18px var(--alien-glow-outer);
+        animation: phosphor-alien-flicker 5.5s steps(60) infinite;
+    }
+
+    // Corner brackets on the viewport for the industrial HUD feel.
+    .__main__::before,
+    .__main__::after {
+        content: "";
+        position: absolute;
+        width: 14px;
+        height: 14px;
+        pointer-events: none;
+        border: 1px solid var(--theme-fg, var(--fg));
+        opacity: 0.7;
+    }
+
+    .__main__::before {
+        top: -1px;
+        left: -1px;
+        border-right: none;
+        border-bottom: none;
+    }
+
+    .__main__::after {
+        bottom: -1px;
+        right: -1px;
+        border-left: none;
+        border-top: none;
+    }
+}
+
+// --- chrome bars -----------------------------------------------------------
+
+.phosphor-alien__chrome {
+    position: fixed;
+    left: 0;
+    right: 0;
+    z-index: 6;
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+    box-sizing: border-box;
+    padding: 0 clamp(0.6rem, 3vw, 1.5rem);
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    line-height: 1;
+    color: var(--theme-fg, var(--fg));
+    background: var(--bg-92, rgba(0, 12, 12, 0.92));
+    text-shadow: var(--theme-fg-glow, var(--fg-glow));
+    pointer-events: none;
+    -webkit-user-select: none;
+    user-select: none;
+}
+
+// Keep the CRT scanlines/vignette painting on top of the header bar (the
+// scanlines layer otherwise sits at z-index auto, below the fixed header).
+.phosphor--alien .__scanlines__ {
+    z-index: 10;
+}
+
+// Header: a solid bright bar with dark text and a small square indicator.
+.phosphor-alien__header {
+    top: calc(env(safe-area-inset-top) + var(--header-height, 0px));
+    height: var(--alien-header-h);
+    color: var(--bg);
+    background: var(--theme-fg, var(--fg));
+    text-shadow: none;
+    font-weight: bold;
+    font-size: $smallfontsize * 0.86; // ~24px, sized to sit inside the thin bar
+    box-shadow: 0 0 12px var(--alien-glow-outer);
+}
+
+.phosphor-alien__header-title {
+    flex: 1 1 auto;
+    letter-spacing: 0.24em;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+.phosphor-alien__header-square {
+    flex: 0 0 auto;
+    width: 0.62rem;
+    height: 0.62rem;
+    background: var(--bg);
+    opacity: 0.9;
+}
+
+// --- three-region folders workspace ----------------------------------------
+// Left: folder tabs. Top-right: the selected folder's sub-sections. Below:
+// the selected sub-section's content. Everything updates in place.
+
+.phosphor-alien__workspace {
+    display: grid;
+    grid-template-columns: minmax(8rem, 13rem) 1fr;
+    gap: 0.85rem;
+    height: 100%;
+    min-height: 0;
+}
+
+.phosphor-alien__folders {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    min-height: 0;
+    // only ever scroll vertically (when there are many folders); folder boxes
+    // fit the column width, so the horizontal bar must never appear
+    overflow-x: hidden;
+    overflow-y: auto;
+    @include alien-scrollbar;
+}
+
+.phosphor-alien__folders-label {
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    opacity: 0.7;
+    margin-bottom: 0.15rem;
+    font-size: $smallfontsize * 0.8;
+}
+
+.phosphor-alien__folder,
+.phosphor-alien__item {
+    position: relative;
+    box-sizing: border-box;
+    flex: 0 0 auto; // never shrink, so rows are never clipped
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    padding: 0.32rem 0.65rem;
+    border: 1px solid var(--alien-line);
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    // wrap long labels within the column instead of overflowing it
+    overflow-wrap: anywhere;
+    cursor: pointer;
+}
+
+.phosphor-alien__folder-label {
+    min-width: 0;
+}
+
+.phosphor-alien__folder:hover,
+.phosphor-alien__item:hover {
+    border-color: var(--theme-fg, var(--fg));
+}
+
+// selected row: inverted "cursor" block
+.phosphor-alien__folder.is-selected,
+.phosphor-alien__item.is-selected {
+    color: var(--bg);
+    background: var(--theme-fg, var(--fg));
+    border-color: var(--theme-fg, var(--fg));
+    text-shadow: var(--bg-glow);
+    box-shadow: var(--theme-fg-glow, var(--fg-glow));
+}
+
+// caret marks which column the keyboard is currently driving
+.phosphor-alien__folders.is-focused .phosphor-alien__folder.is-selected,
+.phosphor-alien__items.is-focused .phosphor-alien__item.is-selected {
+    padding-left: 1.5rem;
+}
+
+.phosphor-alien__folders.is-focused .phosphor-alien__folder.is-selected::before,
+.phosphor-alien__items.is-focused .phosphor-alien__item.is-selected::before {
+    content: "\25BA"; // ►
+    position: absolute;
+    left: 0.5rem;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 0.8em;
+}
+
+// connector line from the selected folder toward the sub-section list
+.phosphor-alien__folder.is-selected::after {
+    content: "";
+    position: absolute;
+    left: 100%;
+    top: 50%;
+    width: 0.85rem;
+    height: 1px;
+    background: var(--theme-fg, var(--fg));
+    box-shadow: var(--theme-fg-glow, var(--fg-glow));
+    pointer-events: none;
+}
+
+// button folders/items navigate/act instead of opening content, so they have
+// no sub-section list to connect to
+.phosphor-alien__folder.is-button.is-selected::after {
+    display: none;
+}
+
+.phosphor-alien__detail {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    min-height: 0;
+}
+
+.phosphor-alien__items {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    // The sub-section ("file name") list always renders every row at full height
+    // and never scrolls; only the content body below it scrolls.
+    flex: 0 0 auto;
+}
+
+.phosphor-alien__detail-body {
+    box-sizing: border-box;
+    flex: 1 1 auto;
+    min-height: 0;
+    // only scroll (vertically) when the content is longer than the box
+    overflow-x: hidden;
+    overflow-y: auto;
+    padding: 0.8rem 1rem;
+    border: 1px solid var(--alien-line);
+    @include alien-scrollbar;
+}
+
+// File content is rendered with the real element components (text, links,
+// images, prompts, …), so keep long words and wide images inside the pane.
+.phosphor-alien__detail-body .__text__,
+.phosphor-alien__detail-body .__link__ {
+    overflow-wrap: anywhere;
+}
+
+.phosphor-alien__detail-body img,
+.phosphor-alien__detail-body canvas {
+    max-width: 100%;
+    height: auto;
+}
+
+// --- menu (navigable link list) for non-folder alien screens ---------------
+
+.phosphor--alien .__link__.alien-menu-item {
+    display: block;
+    position: relative;
+    padding: 0.12em 0.6em 0.12em 1.6em;
+    letter-spacing: 0.06em;
+    transition: none;
+}
+
+.phosphor--alien .__link__.alien-menu-item.alien-selected,
+.phosphor--alien .__link__.alien-menu-item:hover {
+    color: var(--bg);
+    background: var(--theme-fg, var(--fg));
+    text-shadow: var(--bg-glow);
+    box-shadow: var(--theme-fg-glow, var(--fg-glow));
+}
+
+.phosphor--alien .__link__.alien-menu-item.alien-selected::before {
+    content: "\25BA"; // ►
+    position: absolute;
+    left: 0.5em;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 0.8em;
+}
+
+.phosphor--alien .__link__.alien-menu-item.alert.alien-selected,
+.phosphor--alien .__link__.alien-menu-item.alert:hover {
+    background: var(--alert);
+    box-shadow: var(--alert-glow);
+}
+
+// --- animations ------------------------------------------------------------
+
+// a barely-there brightness flutter on the framed screen
+@keyframes phosphor-alien-flicker {
+    0%, 100% { opacity: 1; }
+    47% { opacity: 1; }
+    48% { opacity: 0.96; }
+    49% { opacity: 1; }
+    83% { opacity: 1; }
+    84% { opacity: 0.94; }
+    85% { opacity: 1; }
+}
+
+@media (max-width: 720px) {
+    .phosphor-alien__chrome {
+        letter-spacing: 0.08em;
+        gap: 0.5rem;
+    }
+
+    // On narrow screens the three regions stack and the framed box grows with
+    // its content, so let the page scroll instead of forcing a fixed height.
+    .phosphor--alien {
+        height: auto;
+        min-height: 100dvh;
+        overflow: visible;
+    }
+
+    .phosphor--alien .__main__ {
+        height: auto;
+        min-height: calc(100dvh - env(safe-area-inset-top) - var(--header-height, 0px) - var(--alien-header-h) - var(--alien-footer-h) - (2 * var(--alien-gap)));
+        overflow: visible;
+    }
+
+    .phosphor-alien__workspace {
+        grid-template-columns: 1fr;
+        gap: 0.9rem;
+        height: auto;
+    }
+
+    .phosphor-alien__folders,
+    .phosphor-alien__items,
+    .phosphor-alien__detail-body {
+        overflow: visible;
+    }
+
+    .phosphor-alien__folder.is-selected::after {
+        display: none;
+    }
+}

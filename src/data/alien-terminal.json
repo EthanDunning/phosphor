@@ -1,0 +1,214 @@
+{
+    "config": {
+        "name": "Sevastopol Access Terminal",
+        "author": "EthanDunning",
+        "theme": "green",
+        "defaultTextSpeed": 0.8,
+        "comment": "Example of the 'alien' file-system screen (Alien: Isolation). A screen's TYPE decides how it is interpreted: \"screen\" and \"static\" are the classic teletype screens (used here for the boot + login), while \"filesystem\" renders the SEEGSON three-region browser with its own chrome. A file-system screen's link elements are the left-hand FOLDER tabs; the selected folder's target screen supplies the top-right list of sub-sections (its own links, or itself if it is a single message); and the selected sub-section's target supplies the content typed into the body — all with NO screen transitions. A folder or sub-section is a working BUTTON (it navigates / runs an action instead of opening content) when its `target` uses the array LinkTarget form, e.g. the 'LOG OUT' folder here: `\"target\": [{ \"type\": \"action\", \"action\": \"back\" }]`. Use ↑/↓ to move within a list, ←/→ to enter the sub-section list, Enter to open/activate, or just click. The header title comes from the screen's `headerTitle`. (Set `config.terminalType: \"alien\"` to also wrap every classic screen in the same chrome.)"
+    },
+    "screens": [
+        {
+            "id": "boot",
+            "type": "screen",
+            "defaultTextSpeed": 0.6,
+            "onDone": { "target": "login", "delayMs": 1400 },
+            "content": [
+                "",
+                { "type": "text", "className": "system", "text": "S E E G S O N" },
+                "APOLLO NETWORK ACCESS TERMINAL",
+                "MODEL S-8100  /  FIRMWARE 4.7.2",
+                "",
+                "ESTABLISHING SECURE UPLINK...",
+                "LINK ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓  100%",
+                { "type": "text", "className": "notice", "text": "CONNECTION ESTABLISHED" }
+            ]
+        },
+        {
+            "id": "login",
+            "type": "screen",
+            "content": [
+                { "type": "text", "className": "system", "text": "AUTHORIZATION REQUIRED" },
+                "This terminal is restricted to authorized SEEGSON personnel.",
+                "Unauthorized access is logged and reported to station security.",
+                "",
+                "HINT> OPERATOR / 31161",
+                "",
+                {
+                    "type": "login",
+                    "usernamePrompt": "OPERATOR ID> ",
+                    "passwordPrompt": "ACCESS CODE> ",
+                    "usernameCaseSensitive": false,
+                    "credentials": [
+                        { "username": "OPERATOR", "password": "31161", "target": "main" }
+                    ],
+                    "noMatchTarget": "login-fail"
+                }
+            ]
+        },
+        {
+            "id": "login-fail",
+            "type": "screen",
+            "onDone": { "target": "login", "delayMs": 1800 },
+            "content": [
+                "",
+                { "type": "text", "className": "alert", "text": "ACCESS DENIED" },
+                "Credentials not recognized. Re-authenticating...",
+                ""
+            ]
+        },
+
+        {
+            "id": "main",
+            "type": "filesystem",
+            "headerTitle": "PERSONAL TERMINAL",
+            "content": [
+                { "type": "link", "text": "PERSONAL", "target": "msg-nostromo" },
+                { "type": "link", "text": "SHARED", "target": "shared" },
+                { "type": "link", "text": "PERSONNEL", "target": "personnel" },
+                { "type": "link", "text": "SYSTEM", "target": "msg-system" },
+                { "type": "link", "text": "‹ LOG OUT", "target": [ { "type": "action", "action": "back" } ] }
+            ]
+        },
+
+        {
+            "id": "msg-nostromo",
+            "type": "screen",
+            "title": "RE: NOSTROMO INCIDENT",
+            "content": [
+                "To N. Taylor",
+                "RE: Nostromo incident. Case file #DS9398476",
+                "",
+                "Taylor — I pulled what I could from the archive, but the",
+                "incident predates my posting here, so treat the details as",
+                "provisional until the sealed records are released.",
+                "",
+                "In 2122 a commercial hauler went dark on the return leg of a",
+                "routine tow. No trace was recovered of the cargo or the crew.",
+                "Apart from a late-addition science officer, the complement had",
+                "served together on prior contracts — seven in all:",
+                "",
+                "  DALLAS   - Captain",
+                "  KANE     - Executive Officer",
+                "  RIPLEY   - Warrant Officer",
+                "  LAMBERT  - Navigation Officer",
+                "  ASH      - Science Officer",
+                "  PARKER   - Chief Engineer",
+                "  BRETT    - Engineering Tech",
+                "",
+                "The company classified the loss and moved on. I'd leave it",
+                "there if I were you.",
+                "",
+                "- R."
+            ]
+        },
+
+        {
+            "id": "shared",
+            "type": "screen",
+            "content": [
+                { "type": "link", "text": "STATION BULLETIN", "target": "msg-bulletin" },
+                { "type": "link", "text": "TRANSIT ADVISORY", "target": "msg-transit" }
+            ]
+        },
+        {
+            "id": "msg-bulletin",
+            "type": "screen",
+            "content": [
+                "POSTED TO: ALL PERSONNEL",
+                "PRIORITY:  ROUTINE",
+                "",
+                "The commissary will be closed for restock during third watch.",
+                "Recreation deck lighting is on a reduced cycle to conserve",
+                "power while the reactor fault is investigated.",
+                "",
+                "Thank you for your patience.",
+                "",
+                "- OPERATIONS"
+            ]
+        },
+        {
+            "id": "msg-transit",
+            "type": "screen",
+            "content": [
+                "POSTED TO: ALL PERSONNEL",
+                "PRIORITY:  ELEVATED",
+                "",
+                "The transit line between the upper and lower rings is on a",
+                "reduced schedule while diagnostics complete on Junction 7.",
+                "Allow extra time for shift changeovers, and report any",
+                "malfunction of the car doors to engineering immediately."
+            ]
+        },
+
+        {
+            "id": "personnel",
+            "type": "screen",
+            "content": [
+                { "type": "text", "className": "system", "text": "SEVASTOPOL STATION — ACTIVE ROSTER" },
+                "Records shown are current as of the last synchronization.",
+                "Three crew are quartered on this deck. Select a name to review",
+                "their file.",
+                "",
+                { "type": "link", "text": "WAITS, M.", "target": "person-waits" },
+                { "type": "link", "text": "TAGHMAOUI, S.", "target": "person-taghmaoui" },
+                { "type": "link", "text": "RICARDO, A.", "target": "person-ricardo" },
+                { "type": "link", "text": "< RETURN TO MENU", "target": "main" }
+            ]
+        },
+        {
+            "id": "person-waits",
+            "type": "screen",
+            "content": [
+                "ROLE......... COLONIAL MARSHAL, SENIOR",
+                "CLEARANCE.... TIER 3",
+                "STATUS....... ON STATION",
+                "",
+                "Assigned pending decommission of the station. Notes indicate",
+                "rising friction with operations staff over the handling of",
+                "the quarantine directive."
+            ]
+        },
+        {
+            "id": "person-taghmaoui",
+            "type": "screen",
+            "content": [
+                "ROLE......... SYSTEMS TECHNICIAN",
+                "CLEARANCE.... TIER 2",
+                "STATUS....... UNACCOUNTED FOR",
+                "",
+                "Last logged at Transit Junction 7, lower levels. Did not",
+                "report for the following shift. Search request filed and",
+                "pending."
+            ]
+        },
+        {
+            "id": "person-ricardo",
+            "type": "screen",
+            "content": [
+                "ROLE......... HULL ENGINEER",
+                "CLEARANCE.... TIER 2",
+                "STATUS....... ON STATION",
+                "",
+                "Maintains reactor coolant loops on the SciMed tower. Filed",
+                "three overdue maintenance requests this cycle, all unactioned."
+            ]
+        },
+
+        {
+            "id": "msg-system",
+            "type": "screen",
+            "title": "ENVIRONMENTAL STATUS",
+            "content": [
+                "# LIFE SUPPORT SUMMARY",
+                { "type": "text", "className": "notice", "text": "ATMOSPHERE..... STABLE" },
+                { "type": "text", "className": "notice", "text": "GRAVITY........ 1.0 G NOMINAL" },
+                { "type": "text", "className": "alert", "text": "REACTOR........ COOLANT PRESSURE LOW" },
+                { "type": "text", "className": "alert", "text": "SECTOR 7....... LIFE SUPPORT OFFLINE" },
+                "",
+                "One or more subsystems require attention. Contact station",
+                "engineering to acknowledge active faults. **This node cannot",
+                "clear alarms remotely.**"
+            ]
+        }
+    ]
+}

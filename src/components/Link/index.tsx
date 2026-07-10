@@ -21,10 +21,11 @@ export interface LinkProps {
 
     onClick?: (target: string | LinkTarget[], shiftKey: boolean) => void;
     onRendered?: () => void;
+    onHover?: () => void; // pointer entered/focused; used by menu-driven skins to sync selection
 }
 
 const Link: FC<LinkProps> = (props) => {
-    const { text, target, className, onClick, onRendered } = props;
+    const { text, target, className, onClick, onRendered, onHover } = props;
     const css = ["__link__", className ? className : null].join(" ").trim();
     const longPressTimerRef = useRef<number | null>(null);
     const lastLongPressAtRef = useRef<number>(0);
@@ -91,6 +92,7 @@ const Link: FC<LinkProps> = (props) => {
             className={css}
             title={hasShiftTarget ? "Shift-click or press and hold for alternate action" : undefined}
             onClick={handleClick}
+            onMouseEnter={onHover}
             onPointerDown={handlePointerDown}
             onPointerUp={handlePointerUp}
             onPointerLeave={handlePointerCancel}
