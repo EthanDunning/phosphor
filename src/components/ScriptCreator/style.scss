@@ -931,6 +931,52 @@ $creator-dark-control-bg: rgba($creator-dark-bg, 0.92);
                 padding: 0.1rem 0.25rem;
             }
         }
+
+        // editable (combobox) mode: a text input + caret button sharing one border
+        &__field {
+            display: flex;
+            align-items: center;
+            width: 100%;
+            border: 1px solid var(--fg);
+            background: var(--creator-control-bg);
+        }
+
+        &__input {
+            flex: 1 1 auto;
+            min-width: 0;
+            border: none;
+            background: transparent;
+            color: var(--creator-fg);
+            -webkit-text-fill-color: var(--creator-fg);
+            font-family: $font-family;
+            font-size: inherit;
+            line-height: 1.2;
+            padding: 0.1rem 0.25rem;
+            text-shadow: none;
+            outline: none;
+
+            &::placeholder {
+                color: var(--creator-fg);
+                opacity: 0.45;
+            }
+        }
+
+        &__caret--btn {
+            flex-shrink: 0;
+            border: none;
+            background: transparent;
+            color: var(--creator-fg);
+            -webkit-text-fill-color: var(--creator-fg);
+            cursor: pointer;
+            padding: 0 0.35rem;
+            font-size: 12pt;
+            line-height: 1;
+        }
+
+        &--editable.script-creator-select--open &__field {
+            outline: 1px solid var(--fg);
+            outline-offset: -1px;
+        }
     }
 }
 

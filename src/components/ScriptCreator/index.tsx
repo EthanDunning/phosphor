@@ -83,6 +83,8 @@ interface CreatorSelectProps {
     disabled?: boolean;
     fallbackLabel?: string;
     searchable?: boolean;
+    editable?: boolean; // combobox: free typing + filter-as-you-type over the options
+    placeholder?: string;
 }
 
 type CreatorColorMode = "theme" | "dark" | "light";
@@ -577,9 +579,14 @@ const CreatorSelect: FC<CreatorSelectProps> = ({
     disabled = false,
     fallbackLabel,
     searchable = false,
+    editable = false,
+    placeholder,
 }) => {
     const [open, setOpen] = useState<boolean>(false);
+    const [filtering, setFiltering] = useState<boolean>(false);
+    const [highlight, setHighlight] = useState<number>(-1);
     const rootRef = useRef<HTMLDivElement | null>(null);
+    const inputRef = useRef<HTMLInputElement | null>(null);
     const listboxId = useId();
     const selectedOption = options.find((option) => option.value === value) || null;
 
@@ -602,6 +609,135 @@ const CreatorSelect: FC<CreatorSelectProps> = ({
             setOpen(false);
         }
     }, [disabled]);
+
+    // Combobox mode: a text input you can type freely into, backed by a
+    // filter-as-you-type dropdown of the options (used for target fields so you
+    // can either type any id or pick an existing screen/dialog).
+    if (editable) {
+        const query = (value || "").toLowerCase();
+        const filteredOptions = (filtering && query.length)
+            ? options.filter((option) => `${option.label} ${option.value}`.toLowerCase().includes(query))
+            : options;
+
+        const selectOption = (option: CreatorSelectOption) => {
+            if (option.disabled) {
+                return;
+            }
+            onChange(option.value);
+            setOpen(false);
+            setFiltering(false);
+            setHighlight(-1);
+        };
+
+        return (
+            <div
+                ref={rootRef}
+                className={
+                    "script-creator-select script-creator-select--editable"
+                    + (open ? " script-creator-select--open" : "")
+                    + (disabled ? " script-creator-select--disabled" : "")
+                    + (className ? ` ${className}` : "")
+                }
+            >
+                <div className="script-creator-select__field">
+                    <input
+                        ref={inputRef}
+                        type="text"
+                        className="script-creator-select__input"
+                        value={value}
+                        placeholder={placeholder}
+                        disabled={disabled}
+                        role="combobox"
+                        aria-expanded={open}
+                        aria-controls={listboxId}
+                        autoComplete="off"
+                        spellCheck={false}
+                        onChange={(event) => {
+                            onChange(event.target.value);
+                            setOpen(true);
+                            setFiltering(true);
+                            setHighlight(0);
+                        }}
+                        onFocus={() => {
+                            setOpen(true);
+                            setFiltering(false);
+                            setHighlight(-1);
+                        }}
+                        onKeyDown={(event) => {
+                            if (event.key === "ArrowDown") {
+                                event.preventDefault();
+                                if (!open) {
+                                    setOpen(true);
+                                    setFiltering(false);
+                                    setHighlight(0);
+                                    return;
+                                }
+                                setHighlight((prev) => Math.min(filteredOptions.length - 1, prev + 1));
+                            } else if (event.key === "ArrowUp") {
+                                event.preventDefault();
+                                setHighlight((prev) => Math.max(0, prev - 1));
+                            } else if (event.key === "Enter") {
+                                if (open && highlight >= 0 && highlight < filteredOptions.length) {
+                                    event.preventDefault();
+                                    selectOption(filteredOptions[highlight]);
+                                } else {
+                                    setOpen(false);
+                                }
+                            } else if (event.key === "Escape") {
+                                setOpen(false);
+                            }
+                        }}
+                    />
+                    {!disabled && options.length > 0 && (
+                        <button
+                            type="button"
+                            tabIndex={-1}
+                            aria-label="Show options"
+                            className="script-creator-select__caret script-creator-select__caret--btn"
+                            onMouseDown={(event) => event.preventDefault()}
+                            onClick={() => {
+                                setFiltering(false);
+                                setHighlight(-1);
+                                setOpen((prev) => !prev);
+                                if (inputRef.current) {
+                                    inputRef.current.focus();
+                                }
+                            }}
+                        >
+                            ▼
+                        </button>
+                    )}
+                </div>
+
+                {open && filteredOptions.length > 0 && (
+                    <div id={listboxId} role="listbox" className="script-creator-select__menu">
+                        {filteredOptions.map((option, index) => {
+                            const isActive = option.value === value;
+                            const isHighlighted = index === highlight;
+                            return (
+                                <button
+                                    key={`${option.value}:${index}`}
+                                    type="button"
+                                    role="option"
+                                    aria-selected={isActive}
+                                    disabled={option.disabled}
+                                    className={
+                                        "script-creator-select__option"
+                                        + ((isActive || isHighlighted) ? " script-creator-select__option--active" : "")
+                                    }
+                                    onMouseEnter={() => setHighlight(index)}
+                                    onMouseDown={(event) => event.preventDefault()}
+                                    onClick={() => selectOption(option)}
+                                >
+                                    {option.label}
+                                </button>
+                            );
+                        })}
+                    </div>
+                )}
+            </div>
+        );
+    }
 
     const triggerLabel = selectedOption?.label || fallbackLabel || value || "(none)";
     const showCaret = !disabled && options.length > 0;
@@ -2277,17 +2413,16 @@ const ScriptCreator: FC<ScriptCreatorProps> = ({
             label: scriptOption.label,
         }));
     }, [availableScripts]);
-    const screenOnDoneTargetSelectOptions = useMemo(() => {
-        return [
-            { value: "", label: "(none)" },
-            ...schemaData.screenIds.map((id) => ({ value: id, label: id })),
-        ];
-    }, [schemaData.screenIds]);
-    const dialogIdSelectOptions = useMemo(() => {
-        return (script.dialogs || [])
+    // Combined list for target fields: every screen id, then every dialog id
+    // (dialogs suffixed so they're recognizable). Used with `editable` so the
+    // field is a type-to-filter combobox that also accepts arbitrary values.
+    const targetSelectOptions = useMemo(() => {
+        const screens = schemaData.screenIds.map((id) => ({ value: id, label: id }));
+        const dialogs = (script.dialogs || [])
             .filter((dialog: any) => dialog && typeof dialog.id === "string" && dialog.id.trim().length > 0)
-            .map((dialog: any) => ({ value: dialog.id, label: dialog.id }));
-    }, [script.dialogs]);
+            .map((dialog: any) => ({ value: dialog.id, label: `${dialog.id}  ·  dialog` }));
+        return [{ value: "", label: "(none)" }, ...screens, ...dialogs];
+    }, [schemaData.screenIds, script.dialogs]);
     const searchMatches = useMemo(() => {
         return buildScriptSearchMatches(script, searchQuery, searchMatchCase, searchWholeWord);
     }, [script, searchQuery, searchMatchCase, searchWholeWord]);
@@ -4816,9 +4951,9 @@ const ScriptCreator: FC<ScriptCreatorProps> = ({
                                                     <span>On Done Target</span>
                                                     <CreatorSelect
                                                         value={selectedScreenOnDoneTarget}
-                                                        options={screenOnDoneTargetSelectOptions}
-                                                        fallbackLabel={selectedScreenOnDoneTarget || "(none)"}
-                                                        searchable
+                                                        options={targetSelectOptions}
+                                                        editable
+                                                        placeholder="screen id"
                                                         onChange={updateScreenOnDoneTarget}
                                                     />
                                                 </label>
@@ -5002,37 +5137,21 @@ const ScriptCreator: FC<ScriptCreatorProps> = ({
 
                                                                         <label className="script-creator__field">
                                                                             <span>{targetLabel}{targetEntry.type === "action" ? " (optional)" : ""}</span>
-                                                                            {targetEntry.type === "dialog" && dialogIdSelectOptions.length > 0 ? (
-                                                                                <CreatorSelect
-                                                                                    value={targetEntry.target || ""}
-                                                                                    options={dialogIdSelectOptions}
-                                                                                    fallbackLabel={targetEntry.target || "(dialog id)"}
-                                                                                    searchable
-                                                                                    onChange={(nextTarget) => {
-                                                                                        updateLinkTargets((prevTargets) => {
-                                                                                            return prevTargets.map((entry, index) => {
-                                                                                                return index === targetIndex
-                                                                                                    ? { ...entry, target: nextTarget }
-                                                                                                    : entry;
-                                                                                            });
+                                                                            <CreatorSelect
+                                                                                value={targetEntry.target || ""}
+                                                                                options={targetSelectOptions}
+                                                                                editable
+                                                                                placeholder={targetEntry.type === "dialog" ? "dialog id" : "screen id"}
+                                                                                onChange={(nextTarget) => {
+                                                                                    updateLinkTargets((prevTargets) => {
+                                                                                        return prevTargets.map((entry, index) => {
+                                                                                            return index === targetIndex
+                                                                                                ? { ...entry, target: nextTarget }
+                                                                                                : entry;
                                                                                         });
-                                                                                    }}
-                                                                                />
-                                                                            ) : (
-                                                                                <input
-                                                                                    value={targetEntry.target || ""}
-                                                                                    onChange={(e) => {
-                                                                                        const nextTarget = e.target.value;
-                                                                                        updateLinkTargets((prevTargets) => {
-                                                                                            return prevTargets.map((entry, index) => {
-                                                                                                return index === targetIndex
-                                                                                                    ? { ...entry, target: nextTarget }
-                                                                                                    : entry;
-                                                                                            });
-                                                                                        });
-                                                                                    }}
-                                                                                />
-                                                                            )}
+                                                                                    });
+                                                                                }}
+                                                                            />
                                                                         </label>
 
                                                                         {targetEntry.type === "action" && (
@@ -5207,49 +5326,27 @@ const ScriptCreator: FC<ScriptCreatorProps> = ({
                                                                         {needsTarget && (
                                                                             <label className="script-creator__field">
                                                                                 <span>{actionType === "dialog" ? "Dialog ID" : "Target Screen"}</span>
-                                                                                {actionType === "dialog" && dialogIdSelectOptions.length > 0 ? (
-                                                                                    <CreatorSelect
-                                                                                        value={promptCommand.action?.target || ""}
-                                                                                        options={dialogIdSelectOptions}
-                                                                                        fallbackLabel={promptCommand.action?.target || "(dialog id)"}
-                                                                                        searchable
-                                                                                        onChange={(nextTarget) => {
-                                                                                            updatePromptCommands((prevCommands) => {
-                                                                                                return prevCommands.map((entry, index) => {
-                                                                                                    return index === commandIndex
-                                                                                                        ? {
-                                                                                                            ...entry,
-                                                                                                            action: {
-                                                                                                                ...entry.action,
-                                                                                                                target: nextTarget,
-                                                                                                            },
-                                                                                                        }
-                                                                                                        : entry;
-                                                                                                });
+                                                                                <CreatorSelect
+                                                                                    value={promptCommand.action?.target || ""}
+                                                                                    options={targetSelectOptions}
+                                                                                    editable
+                                                                                    placeholder={actionType === "dialog" ? "dialog id" : "screen id"}
+                                                                                    onChange={(nextTarget) => {
+                                                                                        updatePromptCommands((prevCommands) => {
+                                                                                            return prevCommands.map((entry, index) => {
+                                                                                                return index === commandIndex
+                                                                                                    ? {
+                                                                                                        ...entry,
+                                                                                                        action: {
+                                                                                                            ...entry.action,
+                                                                                                            target: nextTarget,
+                                                                                                        },
+                                                                                                    }
+                                                                                                    : entry;
                                                                                             });
-                                                                                        }}
-                                                                                    />
-                                                                                ) : (
-                                                                                    <input
-                                                                                        value={promptCommand.action?.target || ""}
-                                                                                        onChange={(e) => {
-                                                                                            const nextTarget = e.target.value;
-                                                                                            updatePromptCommands((prevCommands) => {
-                                                                                                return prevCommands.map((entry, index) => {
-                                                                                                    return index === commandIndex
-                                                                                                        ? {
-                                                                                                            ...entry,
-                                                                                                            action: {
-                                                                                                                ...entry.action,
-                                                                                                                target: nextTarget,
-                                                                                                            },
-                                                                                                        }
-                                                                                                        : entry;
-                                                                                                });
-                                                                                            });
-                                                                                        }}
-                                                                                    />
-                                                                                )}
+                                                                                        });
+                                                                                    }}
+                                                                                />
                                                                             </label>
                                                                         )}
 
@@ -5432,9 +5529,9 @@ const ScriptCreator: FC<ScriptCreatorProps> = ({
                                                                             <span>Success Target Screen</span>
                                                                             <CreatorSelect
                                                                                 value={credential.target || ""}
-                                                                                options={screenOnDoneTargetSelectOptions}
-                                                                                fallbackLabel={credential.target || "(none)"}
-                                                                                searchable
+                                                                                options={targetSelectOptions}
+                                                                                editable
+                                                                                placeholder="screen id"
                                                                                 onChange={(nextTarget) => {
                                                                                     updateLoginCredentials((prevCredentials) => {
                                                                                         return prevCredentials.map((entry, index) => {
@@ -5519,44 +5616,18 @@ const ScriptCreator: FC<ScriptCreatorProps> = ({
                                                                 {(selectedLoginNoMatchAction.type === "link" || selectedLoginNoMatchAction.type === "dialog") && (
                                                                     <label className="script-creator__field">
                                                                         <span>{selectedLoginNoMatchAction.type === "dialog" ? "Dialog ID" : "Target Screen"}</span>
-                                                                        {selectedLoginNoMatchAction.type === "dialog" && dialogIdSelectOptions.length > 0 ? (
-                                                                            <CreatorSelect
-                                                                                value={selectedLoginNoMatchAction.target || ""}
-                                                                                options={dialogIdSelectOptions}
-                                                                                fallbackLabel={selectedLoginNoMatchAction.target || "(dialog id)"}
-                                                                                searchable
-                                                                                onChange={(nextTarget) => {
-                                                                                    updateLoginNoMatchAction((prevAction) => ({
-                                                                                        ...prevAction,
-                                                                                        target: nextTarget,
-                                                                                    }));
-                                                                                }}
-                                                                            />
-                                                                        ) : selectedLoginNoMatchAction.type === "link" ? (
-                                                                            <CreatorSelect
-                                                                                value={selectedLoginNoMatchAction.target || ""}
-                                                                                options={screenOnDoneTargetSelectOptions}
-                                                                                fallbackLabel={selectedLoginNoMatchAction.target || "(none)"}
-                                                                                searchable
-                                                                                onChange={(nextTarget) => {
-                                                                                    updateLoginNoMatchAction((prevAction) => ({
-                                                                                        ...prevAction,
-                                                                                        target: nextTarget,
-                                                                                    }));
-                                                                                }}
-                                                                            />
-                                                                        ) : (
-                                                                            <input
-                                                                                value={selectedLoginNoMatchAction.target || ""}
-                                                                                onChange={(e) => {
-                                                                                    const nextTarget = e.target.value;
-                                                                                    updateLoginNoMatchAction((prevAction) => ({
-                                                                                        ...prevAction,
-                                                                                        target: nextTarget,
-                                                                                    }));
-                                                                                }}
-                                                                            />
-                                                                        )}
+                                                                        <CreatorSelect
+                                                                            value={selectedLoginNoMatchAction.target || ""}
+                                                                            options={targetSelectOptions}
+                                                                            editable
+                                                                            placeholder={selectedLoginNoMatchAction.type === "dialog" ? "dialog id" : "screen id"}
+                                                                            onChange={(nextTarget) => {
+                                                                                updateLoginNoMatchAction((prevAction) => ({
+                                                                                    ...prevAction,
+                                                                                    target: nextTarget,
+                                                                                }));
+                                                                            }}
+                                                                        />
                                                                     </label>
                                                                 )}
 
@@ -5710,37 +5781,21 @@ const ScriptCreator: FC<ScriptCreatorProps> = ({
                                                                             <>
                                                                                 <label className="script-creator__field">
                                                                                     <span>Dialog ID</span>
-                                                                                    {dialogIdSelectOptions.length > 0 ? (
-                                                                                        <CreatorSelect
-                                                                                            value={state.dialog || ""}
-                                                                                            options={dialogIdSelectOptions}
-                                                                                            fallbackLabel={state.dialog || "(dialog id)"}
-                                                                                            searchable
-                                                                                            onChange={(nextDialog) => {
-                                                                                                updateCyclerStates((prevStates) => {
-                                                                                                    return prevStates.map((entry: any, index: number) => {
-                                                                                                        return index === stateIndex
-                                                                                                            ? { ...entry, dialog: nextDialog }
-                                                                                                            : entry;
-                                                                                                    });
+                                                                                    <CreatorSelect
+                                                                                        value={state.dialog || ""}
+                                                                                        options={targetSelectOptions}
+                                                                                        editable
+                                                                                        placeholder="dialog id"
+                                                                                        onChange={(nextDialog) => {
+                                                                                            updateCyclerStates((prevStates) => {
+                                                                                                return prevStates.map((entry: any, index: number) => {
+                                                                                                    return index === stateIndex
+                                                                                                        ? { ...entry, dialog: nextDialog }
+                                                                                                        : entry;
                                                                                                 });
-                                                                                            }}
-                                                                                        />
-                                                                                    ) : (
-                                                                                        <input
-                                                                                            value={state.dialog || ""}
-                                                                                            onChange={(e) => {
-                                                                                                const nextDialog = e.target.value;
-                                                                                                updateCyclerStates((prevStates) => {
-                                                                                                    return prevStates.map((entry: any, index: number) => {
-                                                                                                        return index === stateIndex
-                                                                                                            ? { ...entry, dialog: nextDialog }
-                                                                                                            : entry;
-                                                                                                    });
-                                                                                                });
-                                                                                            }}
-                                                                                        />
-                                                                                    )}
+                                                                                            });
+                                                                                        }}
+                                                                                    />
                                                                                 </label>
 
                                                                                 <label className="script-creator__field">
@@ -5772,10 +5827,12 @@ const ScriptCreator: FC<ScriptCreatorProps> = ({
                                                                         {(behavior === "link" || behavior === "action") && (
                                                                             <label className="script-creator__field">
                                                                                 <span>Target Screen</span>
-                                                                                <input
+                                                                                <CreatorSelect
                                                                                     value={state.target || ""}
-                                                                                    onChange={(e) => {
-                                                                                        const nextTarget = e.target.value;
+                                                                                    options={targetSelectOptions}
+                                                                                    editable
+                                                                                    placeholder="screen id"
+                                                                                    onChange={(nextTarget) => {
                                                                                         updateCyclerStates((prevStates) => {
                                                                                             return prevStates.map((entry: any, index: number) => {
                                                                                                 return index === stateIndex
@@ -5942,9 +5999,9 @@ const ScriptCreator: FC<ScriptCreatorProps> = ({
                                                             <span>Save Target Screen</span>
                                                             <CreatorSelect
                                                                 value={selectedElement.saveTarget || ""}
-                                                                options={screenOnDoneTargetSelectOptions}
-                                                                fallbackLabel={selectedElement.saveTarget || "(none)"}
-                                                                searchable
+                                                                options={targetSelectOptions}
+                                                                editable
+                                                                placeholder="screen id"
                                                                 onChange={(nextTarget) => {
                                                                     if (!nextTarget.length) {
                                                                         const nextElement = { ...selectedElement };
@@ -5965,9 +6022,9 @@ const ScriptCreator: FC<ScriptCreatorProps> = ({
                                                             <span>Cancel Target Screen</span>
                                                             <CreatorSelect
                                                                 value={selectedElement.cancelTarget || ""}
-                                                                options={screenOnDoneTargetSelectOptions}
-                                                                fallbackLabel={selectedElement.cancelTarget || "(none)"}
-                                                                searchable
+                                                                options={targetSelectOptions}
+                                                                editable
+                                                                placeholder="screen id"
                                                                 onChange={(nextTarget) => {
                                                                     if (!nextTarget.length) {
                                                                         const nextElement = { ...selectedElement };
