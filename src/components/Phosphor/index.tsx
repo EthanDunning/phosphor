@@ -2,6 +2,7 @@ import React, { Component, ReactElement } from "react";
 
 // css
 import "./style.scss";
+import "./alien.scss";
 
 // modules
 import { nanoid } from "nanoid";
@@ -58,6 +59,26 @@ interface AppState {
     skipTextAnimation: boolean; // skip teletype animation for the active screen
     shutdownTextStage: 0 | 1 | 2 | 3 | 4 | 5;
     shutdownFxActive: boolean;
+
+    // "alien" terminal skin state (unused by the classic skin)
+    alienSelectedIndex: number; // which folder/menu link is highlighted (left column)
+    alienItemIndex: number; // which sub-section is highlighted (top-right list)
+    alienColumn: "folders" | "items"; // which list the keyboard currently drives
+    alienClock: string; // header clock text, ticked once per second
+    alienDetailDone: boolean; // has the detail-pane teletype finished for the current selection
+}
+
+// Supported terminal interface skins. "classic" is the original Phosphor
+// presentation; new skins (e.g. "alien") can be added here and gated behind
+// the `config.terminalType` script setting without touching classic behavior.
+type TerminalType = "classic" | "alien";
+
+interface AlienChromeConfig {
+    system: string;    // top-left brand, e.g. "SEEGSON"
+    title: string;     // header title / breadcrumb
+    footerHint: string; // control hint shown in the footer
+    status: string;    // right-hand footer status text
+    showClock: boolean; // show the live clock in the header
 }
 
 enum DialogType {
@@ -122,6 +143,8 @@ interface Screen {
     content: ScreenData[];
     onDone?: ScreenOnDone;
     defaultTextSpeed?: number;
+    layout?: string; // alien skin: "folders" renders a two-pane master/detail view
+    title?: string;  // alien skin: subject shown in the detail title bar when previewed
 }
 
 enum AppStatus {
@@ -204,6 +227,9 @@ class Phosphor extends Component<PhosphorProps, AppState> {
     private _shipLogStorageKey: string;
     private _userReportStorageKey: string;
     private _shutdownTimerId: number = null;
+    private _terminalType: TerminalType = "classic";
+    private _alienClockTimerId: number = null;
+    private _alienMenuIds: string[] = []; // ids of navigable links on the active screen, in order
 
     constructor(props: PhosphorProps) {
         super(props);
@@ -216,6 +242,7 @@ class Phosphor extends Component<PhosphorProps, AppState> {
 
         this._containerRef = React.createRef<HTMLElement>();
         this._script = getTerminalScript(props.json?.config?.script);
+        this._terminalType = this._resolveTerminalType(props.json?.config);
 
         this.state = {
             screens: [],
@@ -229,6 +256,11 @@ class Phosphor extends Component<PhosphorProps, AppState> {
             skipTextAnimation: false,
             shutdownTextStage: 0,
             shutdownFxActive: false,
+            alienSelectedIndex: 0,
+            alienItemIndex: 0,
+            alienColumn: "folders",
+            alienClock: this._formatAlienClock(),
+            alienDetailDone: false,
         };
 
         this._changeScreen = this._changeScreen.bind(this);
@@ -255,12 +287,20 @@ class Phosphor extends Component<PhosphorProps, AppState> {
             shutdownFxActive,
         } = this.state;
         const shutdownPhase = this.props.shutdownPhase || null;
+        const isAlien = this._isAlien();
+        const rootClassName = ["phosphor", isAlien ? "phosphor--alien" : null]
+            .filter(Boolean)
+            .join(" ");
 
         return (
-            <div className="phosphor">
+            <div className={rootClassName}>
+                {isAlien && this._renderAlienHeader()}
+
                 <section className={"__main__"} ref={this._containerRef}>
-                    {activeScreenId && this._renderScreen()}
+                    {activeScreenId && (isAlien ? this._renderAlienBody() : this._renderScreen())}
                 </section>
+
+                {isAlien && this._renderAlienFooter()}
 
                 {activeDialogId && this._renderDialog()}
 
@@ -289,6 +329,10 @@ class Phosphor extends Component<PhosphorProps, AppState> {
             this._script.onMount(this._getScriptApi());
         }
 
+        if (this._isAlien()) {
+            this._startAlienClock();
+        }
+
         // parse the data & prep the screens
         this._parseScreens();
         this._parseDialogs();
@@ -302,6 +346,7 @@ class Phosphor extends Component<PhosphorProps, AppState> {
         window.removeEventListener("wheel", this._handleWheel);
         this._clearScreenDoneTimer();
         this._clearShutdownTimer();
+        this._stopAlienClock();
         this._teardownAudio();
     }
 
@@ -327,6 +372,556 @@ class Phosphor extends Component<PhosphorProps, AppState> {
     // private methods
     private _isSoundEnabled(): boolean {
         return this.props.soundEnabled !== false;
+    }
+
+    // ---- terminal skin ("terminalType") -----------------------------------
+
+    // Normalize the script's requested interface skin. Anything unrecognized
+    // (or missing) falls back to the classic Phosphor presentation.
+    private _resolveTerminalType(config: any): TerminalType {
+        const raw = (config?.terminalType ?? config?.interface ?? "").toString().trim().toLowerCase();
+        return raw === "alien" ? "alien" : "classic";
+    }
+
+    private _isAlien(): boolean {
+        return this._terminalType === "alien";
+    }
+
+    // Resolve the chrome labels for the alien skin, falling back to sensible
+    // defaults derived from the script's config when not explicitly provided.
+    private _getAlienChromeConfig(): AlienChromeConfig {
+        const config = this.props.json?.config || {};
+        const alien = (config.alien && typeof config.alien === "object") ? config.alien : {};
+        const asText = (value: any): string => (typeof value === "string" ? value.trim() : "");
+
+        const title = asText(alien.title)
+            || asText(config.name).toUpperCase()
+            || "TERMINAL";
+
+        return {
+            system: asText(alien.system) || "SEEGSON",
+            title,
+            footerHint: asText(alien.footerHint) || "[↑/↓] SELECT   [ENTER] CONFIRM",
+            status: asText(alien.status) || "UPLINK SECURE",
+            showClock: alien.showClock !== false,
+        };
+    }
+
+    private _formatAlienClock(): string {
+        const now = new Date();
+        const pad = (value: number): string => value.toString().padStart(2, "0");
+        return `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+    }
+
+    private _startAlienClock(): void {
+        if (!this._getAlienChromeConfig().showClock) {
+            return;
+        }
+
+        this._stopAlienClock();
+        this._alienClockTimerId = window.setInterval(() => {
+            this.setState({ alienClock: this._formatAlienClock() });
+        }, 1000);
+    }
+
+    private _stopAlienClock(): void {
+        if (this._alienClockTimerId !== null) {
+            window.clearInterval(this._alienClockTimerId);
+            this._alienClockTimerId = null;
+        }
+    }
+
+    // The ordered ids of the links the alien menu cursor can move between on the
+    // active screen. Only interactive (Done) links participate.
+    private _computeAlienMenuIds(): string[] {
+        const screen = this._getScreen(this.state.activeScreenId);
+        if (!screen || !Array.isArray(screen.content)) {
+            return [];
+        }
+
+        return screen.content
+            .filter((element) => element && element.type === ScreenDataType.Link)
+            .map((element) => element.id);
+    }
+
+    // True when the active screen owns a focusable text input, so the alien
+    // menu handler yields Enter/typing to the Prompt/Login instead of hijacking it.
+    private _activeScreenHasTextInput(): boolean {
+        const screen = this._getScreen(this.state.activeScreenId);
+        if (!screen || !Array.isArray(screen.content)) {
+            return false;
+        }
+
+        return screen.content.some((element) => {
+            return element
+                && (element.type === ScreenDataType.Prompt || element.type === ScreenDataType.Login);
+        });
+    }
+
+    private _setAlienSelection(index: number, playSound = false): void {
+        const menuLength = this._alienMenuIds.length;
+        if (!menuLength) {
+            return;
+        }
+
+        const clamped = Math.max(0, Math.min(menuLength - 1, index));
+        if (clamped === this.state.alienSelectedIndex) {
+            return;
+        }
+
+        if (playSound) {
+            void this._playCharScroll(true);
+        }
+
+        // changing the highlighted folder re-types its message in the detail pane
+        this.setState({ alienSelectedIndex: clamped, alienDetailDone: false });
+    }
+
+    private _activateAlienSelection(shiftKey: boolean): void {
+        const menuIds = this._alienMenuIds;
+        const selectedId = menuIds[this.state.alienSelectedIndex];
+        if (!selectedId) {
+            return;
+        }
+
+        const screen = this._getScreen(this.state.activeScreenId);
+        const element = screen && Array.isArray(screen.content)
+            ? screen.content.find((item) => item.id === selectedId)
+            : null;
+        if (!element || element.target === undefined) {
+            return;
+        }
+
+        this._handleLinkClick(element.target, shiftKey);
+    }
+
+    private _handleAlienKeyDown(e: KeyboardEvent): void {
+        // don't fight text entry, dialogs, or in-progress teletype reveals
+        if (this.state.activeDialogId) {
+            return;
+        }
+        if (this.state.status !== AppStatus.Done) {
+            return;
+        }
+
+        const active = document.activeElement;
+        const isEditable = active instanceof HTMLElement
+            && (active instanceof HTMLInputElement
+                || active instanceof HTMLTextAreaElement
+                || active instanceof HTMLSelectElement
+                || active.isContentEditable);
+        if (isEditable) {
+            return;
+        }
+
+        // Two-column folders view: navigate the focused list, and switch focus
+        // between the folder column and the sub-section (item) column.
+        if (this._isAlienFolderScreen()) {
+            this._handleAlienFolderKey(e);
+            return;
+        }
+
+        // Menu mode (non-folder alien screens): a single navigable link list.
+        this._alienMenuIds = this._computeAlienMenuIds();
+        if (!this._alienMenuIds.length) {
+            return;
+        }
+
+        switch (e.key) {
+            case "ArrowDown":
+            case "Down":
+                e.preventDefault();
+                this._setAlienSelection(this.state.alienSelectedIndex + 1, true);
+                break;
+
+            case "ArrowUp":
+            case "Up":
+                e.preventDefault();
+                this._setAlienSelection(this.state.alienSelectedIndex - 1, true);
+                break;
+
+            case "Home":
+                e.preventDefault();
+                this._setAlienSelection(0, true);
+                break;
+
+            case "End":
+                e.preventDefault();
+                this._setAlienSelection(this._alienMenuIds.length - 1, true);
+                break;
+
+            case "Enter":
+                // a Prompt/Login on-screen owns Enter for command submission
+                if (this._activeScreenHasTextInput()) {
+                    return;
+                }
+                e.preventDefault();
+                this._activateAlienSelection(e.shiftKey);
+                break;
+
+            default:
+                break;
+        }
+    }
+
+    private _handleAlienFolderKey(e: KeyboardEvent): void {
+        const folders = this._getAlienFolders();
+        if (!folders.length) {
+            return;
+        }
+
+        const folderIndex = Math.max(0, Math.min(folders.length - 1, this.state.alienSelectedIndex));
+        const items = this._getAlienItems(folders[folderIndex]);
+        const column = this.state.alienColumn;
+
+        switch (e.key) {
+            case "ArrowDown":
+            case "Down":
+                e.preventDefault();
+                if (column === "items") {
+                    this._selectAlienItem(this.state.alienItemIndex + 1, true);
+                } else {
+                    this._selectAlienFolder(folderIndex + 1, true);
+                }
+                break;
+
+            case "ArrowUp":
+            case "Up":
+                e.preventDefault();
+                if (column === "items") {
+                    this._selectAlienItem(this.state.alienItemIndex - 1, true);
+                } else {
+                    this._selectAlienFolder(folderIndex - 1, true);
+                }
+                break;
+
+            case "ArrowRight":
+            case "Right":
+            case "Tab":
+            case "Enter":
+                e.preventDefault();
+                if (column === "folders") {
+                    this._setAlienColumn("items");
+                }
+                break;
+
+            case "ArrowLeft":
+            case "Left":
+            case "Backspace":
+            case "Escape":
+                e.preventDefault();
+                if (column === "items") {
+                    this._setAlienColumn("folders");
+                }
+                break;
+
+            case "Home":
+                e.preventDefault();
+                if (column === "items") {
+                    this._selectAlienItem(0, true);
+                } else {
+                    this._selectAlienFolder(0, true);
+                }
+                break;
+
+            case "End":
+                e.preventDefault();
+                if (column === "items") {
+                    this._selectAlienItem(items.length - 1, true);
+                } else {
+                    this._selectAlienFolder(folders.length - 1, true);
+                }
+                break;
+
+            default:
+                break;
+        }
+    }
+
+    // Is the active screen an alien two-pane "folders" view?
+    private _isAlienFolderScreen(): boolean {
+        const screen = this._getScreen(this.state.activeScreenId);
+        return !!screen && screen.layout === "folders";
+    }
+
+    // Resolve the screen a folder link points at (string target, or the first
+    // link-type entry of a LinkTarget[] array).
+    private _resolveLinkTargetScreen(element: any): Screen | null {
+        if (!element) {
+            return null;
+        }
+
+        let targetId: string | null = null;
+        if (typeof element.target === "string") {
+            targetId = element.target;
+        } else if (Array.isArray(element.target)) {
+            const entry = element.target.find((item: any) => {
+                return item && (item.type === "link" || item.type === undefined) && typeof item.target === "string";
+            });
+            targetId = entry ? entry.target : null;
+        }
+
+        return targetId ? (this._getScreen(targetId) || null) : null;
+    }
+
+    // The interactive links (folders) of the active alien folders screen.
+    private _getAlienFolders(): any[] {
+        const screen = this._getScreen(this.state.activeScreenId);
+        if (!screen || !Array.isArray(screen.content)) {
+            return [];
+        }
+        return screen.content.filter((element) => element && element.type === ScreenDataType.Link);
+    }
+
+    // The list of sub-sections shown top-right for a selected folder. If the
+    // folder's target screen has its own links, those are the items; otherwise
+    // the target is a single leaf message (a one-item list).
+    private _getAlienItems(folderElement: any): { label: string; content: Screen | null }[] {
+        const target = this._resolveLinkTargetScreen(folderElement);
+        if (!target) {
+            return [];
+        }
+
+        const links = (target.content || []).filter((element) => element && element.type === ScreenDataType.Link);
+        if (links.length) {
+            return links.map((link) => ({
+                label: this._stripFolderLabel(link.text || ""),
+                content: this._resolveLinkTargetScreen(link),
+            }));
+        }
+
+        const label = (typeof target.title === "string" && target.title.trim().length)
+            ? target.title
+            : this._stripFolderLabel(folderElement?.text || "");
+        return [{ label, content: target }];
+    }
+
+    // Flatten a content screen into the body text shown bottom-right.
+    private _getAlienBody(content: Screen | null): string {
+        if (!content || !Array.isArray(content.content)) {
+            return "";
+        }
+
+        const lines = content.content.map((element) => {
+            if (!element) {
+                return "";
+            }
+            if (element.type === ScreenDataType.Text || element.type === ScreenDataType.Link) {
+                return typeof element.text === "string" ? element.text : "";
+            }
+            return "";
+        });
+
+        while (lines.length && !lines[0].trim().length) {
+            lines.shift();
+        }
+        while (lines.length && !lines[lines.length - 1].trim().length) {
+            lines.pop();
+        }
+
+        return lines.join("\n");
+    }
+
+    // Select a folder (left column). Resets the item selection to the first
+    // sub-section and re-types the body.
+    private _selectAlienFolder(index: number, playSound = false): void {
+        const folders = this._getAlienFolders();
+        if (!folders.length) {
+            return;
+        }
+
+        const clamped = Math.max(0, Math.min(folders.length - 1, index));
+        if (clamped === this.state.alienSelectedIndex && this.state.alienColumn === "folders") {
+            return;
+        }
+
+        if (playSound) {
+            void this._playCharScroll(true);
+        }
+
+        this.setState({
+            alienSelectedIndex: clamped,
+            alienItemIndex: 0,
+            alienColumn: "folders",
+            alienDetailDone: false,
+        });
+    }
+
+    // Select an item (top-right list). Re-types the body with that item's content.
+    private _selectAlienItem(index: number, playSound = false): void {
+        const folders = this._getAlienFolders();
+        const folder = folders[this.state.alienSelectedIndex];
+        const items = folder ? this._getAlienItems(folder) : [];
+        if (!items.length) {
+            return;
+        }
+
+        const clamped = Math.max(0, Math.min(items.length - 1, index));
+        if (clamped === this.state.alienItemIndex && this.state.alienColumn === "items") {
+            return;
+        }
+
+        if (playSound) {
+            void this._playCharScroll(true);
+        }
+
+        this.setState({
+            alienItemIndex: clamped,
+            alienColumn: "items",
+            alienDetailDone: false,
+        });
+    }
+
+    // Move keyboard focus between the folder column and the item column.
+    private _setAlienColumn(column: "folders" | "items"): void {
+        if (column === "items") {
+            const folders = this._getAlienFolders();
+            const folder = folders[this.state.alienSelectedIndex];
+            const items = folder ? this._getAlienItems(folder) : [];
+            if (!items.length) {
+                return;
+            }
+        }
+
+        if (this.state.alienColumn === column) {
+            return;
+        }
+
+        void this._playCharScroll(true);
+        this.setState({ alienColumn: column });
+    }
+
+    private _stripFolderLabel(text: string): string {
+        return text.replace(/^[>►▶\s]+/, "").trim();
+    }
+
+    private _renderAlienHeader(): ReactElement {
+        const chrome = this._getAlienChromeConfig();
+        // Solid title bar (bright fill, dark text) with a small square status
+        // indicator at the far right, matching the SEEGSON terminal header.
+        return (
+            <div className="phosphor-alien__chrome phosphor-alien__header">
+                <span className="phosphor-alien__header-title">{chrome.title}</span>
+                {chrome.showClock && (
+                    <span className="phosphor-alien__clock">{this.state.alienClock}</span>
+                )}
+                <span className="phosphor-alien__header-square" />
+            </div>
+        );
+    }
+
+    // Chooses the two-pane "folders" view or the normal teletype flow, inside
+    // the alien chrome, based on the active screen's layout.
+    private _renderAlienBody(): ReactElement | (ReactElement | null)[] | null {
+        const screen = this._getScreen(this.state.activeScreenId);
+        if (screen && screen.layout === "folders") {
+            return this._renderAlienFolders(screen);
+        }
+
+        return this._renderScreen();
+    }
+
+    // The three-region folder view (no screen transitions): folder tabs on the
+    // left, the selected folder's sub-sections listed top-right, and the
+    // selected sub-section's content typed into the body below.
+    private _renderAlienFolders(screen: Screen): ReactElement {
+        const folders = (screen.content || []).filter((element) => element && element.type === ScreenDataType.Link);
+        // keep the shared selection order in sync for keyboard handlers
+        this._alienMenuIds = folders.map((folder) => folder.id);
+
+        const folderIndex = Math.max(0, Math.min(folders.length - 1, this.state.alienSelectedIndex));
+        const selectedFolder = folders[folderIndex] || null;
+        const items = selectedFolder ? this._getAlienItems(selectedFolder) : [];
+        const itemIndex = Math.max(0, Math.min(items.length - 1, this.state.alienItemIndex));
+        const selectedItem = items[itemIndex] || null;
+        const body = selectedItem ? this._getAlienBody(selectedItem.content) : "";
+        const bodyKey = selectedItem && selectedItem.content
+            ? `body:${selectedItem.content.id}`
+            : `empty:${folderIndex}:${itemIndex}`;
+
+        // Body types quickly but stays visible; ignore sub-1ms classic
+        // fast-forward speeds so the message is legibly "printed" on each switch.
+        const rawSpeed = this._getResolvedTextSpeed({}, screen);
+        const speed = (typeof rawSpeed === "number" && rawSpeed >= 1) ? rawSpeed : 5;
+        const foldersFocused = this.state.alienColumn === "folders";
+
+        return (
+            <div className="phosphor-alien__workspace">
+                <div className={["phosphor-alien__folders", foldersFocused ? "is-focused" : null].filter(Boolean).join(" ")}>
+                    <div className="phosphor-alien__folders-label">FOLDERS</div>
+                    {folders.map((folder, index) => {
+                        const className = [
+                            "phosphor-alien__folder",
+                            index === folderIndex ? "is-selected" : null,
+                            folder.className || null,
+                        ].filter(Boolean).join(" ");
+                        return (
+                            <div
+                                key={folder.id}
+                                className={className}
+                                onClick={() => this._selectAlienFolder(index)}
+                            >
+                                <span className="phosphor-alien__folder-label">
+                                    {this._stripFolderLabel(folder.text || "")}
+                                </span>
+                            </div>
+                        );
+                    })}
+                </div>
+
+                <div className="phosphor-alien__detail">
+                    <div className={["phosphor-alien__items", !foldersFocused ? "is-focused" : null].filter(Boolean).join(" ")}>
+                        {items.map((item, index) => {
+                            const className = [
+                                "phosphor-alien__item",
+                                index === itemIndex ? "is-selected" : null,
+                            ].filter(Boolean).join(" ");
+                            return (
+                                <div
+                                    key={index}
+                                    className={className}
+                                    onClick={() => this._selectAlienItem(index)}
+                                >
+                                    {item.label}
+                                </div>
+                            );
+                        })}
+                    </div>
+
+                    <div className="phosphor-alien__detail-body">
+                        {body.length === 0 ? null : (
+                            this.state.alienDetailDone
+                                ? <div className="phosphor-alien__detail-text">{body}</div>
+                                : (
+                                    <Teletype
+                                        key={bodyKey}
+                                        text={body}
+                                        className="phosphor-alien__detail-text"
+                                        speed={speed}
+                                        autocomplete={this.state.skipTextAnimation}
+                                        onComplete={() => this.setState({ alienDetailDone: true })}
+                                        onNewLine={this._handleTeletypeNewLine}
+                                        onCharDrawn={this._handleTeletypeCharDrawn}
+                                    />
+                                )
+                        )}
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    private _renderAlienFooter(): ReactElement {
+        const chrome = this._getAlienChromeConfig();
+        return (
+            <div className="phosphor-alien__chrome phosphor-alien__footer">
+                <span className="phosphor-alien__hint">{chrome.footerHint}</span>
+                <span className="phosphor-alien__status">
+                    <span className="phosphor-alien__status-dot" />
+                    {chrome.status}
+                </span>
+            </div>
+        );
     }
 
     private _clearShutdownTimer(): void {
@@ -615,23 +1210,28 @@ class Phosphor extends Component<PhosphorProps, AppState> {
 
     private _handleGlobalKeyDown(e: KeyboardEvent): void {
         const isShiftSpace = e.shiftKey && (e.code === "Space" || e.key === " ");
-        if (!isShiftSpace) {
+        if (isShiftSpace) {
+            if (e.repeat) {
+                return;
+            }
+
+            e.preventDefault();
+
+            if (this.state.status !== AppStatus.Active || this.state.skipTextAnimation) {
+                return;
+            }
+
+            this.setState({
+                skipTextAnimation: true,
+            });
             return;
         }
 
-        if (e.repeat) {
-            return;
+        // arrow-key menu navigation for the alien skin (key repeats allowed so
+        // holding an arrow key scrolls the selection)
+        if (this._isAlien()) {
+            this._handleAlienKeyDown(e);
         }
-
-        e.preventDefault();
-
-        if (this.state.status !== AppStatus.Active || this.state.skipTextAnimation) {
-            return;
-        }
-
-        this.setState({
-            skipTextAnimation: true,
-        });
     }
 
     private _handleWheel(e: WheelEvent): void {
@@ -839,6 +1439,10 @@ class Phosphor extends Component<PhosphorProps, AppState> {
         const activeScreen = screens[index].id
         this.setState({
             activeScreenId: activeScreen,
+            alienSelectedIndex: 0,
+            alienItemIndex: 0,
+            alienColumn: "folders",
+            alienDetailDone: false,
         }, () => {
             this._activateScreen();
             this._notifyScriptScreenChanged(activeScreen);
@@ -868,6 +1472,10 @@ class Phosphor extends Component<PhosphorProps, AppState> {
             activeElementId: null,
             status: AppStatus.Done,
             skipTextAnimation: false,
+            alienSelectedIndex: 0,
+            alienItemIndex: 0,
+            alienColumn: "folders",
+            alienDetailDone: false,
         }, () => {
             this._notifyScriptScreenChanged(restoredScreen.id);
 
@@ -1102,6 +1710,24 @@ class Phosphor extends Component<PhosphorProps, AppState> {
             return;
         }
 
+        // The alien "folders" view renders its own two-pane layout instead of the
+        // sequential teletype flow, so mark it ready immediately (like a static
+        // screen) so folder navigation is active right away.
+        if (this._isAlien() && screen.layout === "folders") {
+            screen.content.forEach((element) => {
+                element.state = ScreenDataState.Done;
+            });
+
+            this.setState({
+                status: AppStatus.Done,
+                activeElementId: null,
+            }, () => {
+                this._persistSession();
+                this._handleScreenDone(screen.id);
+            });
+            return;
+        }
+
         // update the app status
         const status = AppStatus.Active;
 
@@ -1156,6 +1782,9 @@ class Phosphor extends Component<PhosphorProps, AppState> {
             ? src.defaultTextSpeed
             : undefined;
 
+        const layout = typeof src.layout === "string" ? src.layout.trim().toLowerCase() : undefined;
+        const title = typeof src.title === "string" ? src.title : undefined;
+
         // if this screen is invalid for any reason, skip it
         if (!id || !type) {
             return;
@@ -1167,6 +1796,8 @@ class Phosphor extends Component<PhosphorProps, AppState> {
             content,
             onDone,
             defaultTextSpeed,
+            layout,
+            title,
         };
     }
 
@@ -1188,6 +1819,11 @@ class Phosphor extends Component<PhosphorProps, AppState> {
         const screen = this._getScreen(this.state.activeScreenId);
         if (!screen) {
             return null;
+        }
+
+        // keep the alien menu-cursor order in sync with what's on screen
+        if (this._isAlien()) {
+            this._alienMenuIds = this._computeAlienMenuIds();
         }
 
         // loop through the screen contents & render each element
@@ -1676,14 +2312,31 @@ class Phosphor extends Component<PhosphorProps, AppState> {
 
         // link
         if (element.type === ScreenDataType.Link) {
+            // in the alien skin, links become a keyboard-navigable menu: the
+            // highlighted row is inverted, and hovering syncs the cursor.
+            let linkClassName = className;
+            let onHover: (() => void) | undefined;
+            if (this._isAlien()) {
+                const menuIndex = this._alienMenuIds.indexOf(element.id);
+                if (menuIndex >= 0) {
+                    const selected = menuIndex === this.state.alienSelectedIndex;
+                    linkClassName = [className, "alien-menu-item", selected ? "alien-selected" : null]
+                        .filter(Boolean)
+                        .join(" ")
+                        .trim();
+                    onHover = () => this._setAlienSelection(menuIndex);
+                }
+            }
+
             return (
                 <Link
                     key={key}
                     text={element.text}
                     target={element.target}
-                    className={className}
+                    className={linkClassName}
                     onClick={this._handleLinkClick}
                     onRendered={handleRendered}
+                    onHover={onHover}
                 />
             );
         }
@@ -1873,6 +2526,10 @@ class Phosphor extends Component<PhosphorProps, AppState> {
             activeScreenId: targetScreen,
             activeElementId: null,
             skipTextAnimation: false,
+            alienSelectedIndex: 0,
+            alienItemIndex: 0,
+            alienColumn: "folders",
+            alienDetailDone: false,
         }, () => {
             this._activateScreen();
             this._notifyScriptScreenChanged(targetScreen);

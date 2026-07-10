@@ -33,6 +33,9 @@ The original project loaded a single hardcoded JSON file (sample.json by default
 **Audio**
 - **Sound effects** — CRT power-on/off tones, ambient transformer hum, and randomized mechanical typing sounds play during terminal interaction. Autoplay is triggered on first user interaction to comply with browser policies.
 
+**Terminal interfaces**
+- **Terminal types** — a script can choose an *interface skin* via `config.terminalType`. The default (`"classic"`) is the original free-scrolling teletype. `"alien"` reproduces the SEEGSON data terminals from *Alien: Isolation*: a solid title bar and footer chrome around a framed CRT viewport, and a three-region **folders → sub-sections → content** layout that updates in place with no screen transitions (arrow keys and mouse both work). See the bundled **ALIEN TERMINAL (SEEGSON)** script for a full example. The system is pluggable, so additional interface skins can be added over time.
+
 **Themes & UI**
 - **Color themes** — cycle between four CRT color presets (Blue, Amber, Green, White) using the toolbar. Your choice is saved across sessions.
 - **Cloudflare Workers deployment** — `wrangler.toml` and `worker.js` are included for deploying to Cloudflare Pages/Workers via `npm run deploy:worker`.
@@ -67,6 +70,36 @@ The top-level structure is:
 ```
 
 Each screen has an `id`, a `type` (`"screen"` or `"static"`), and a `content` array of elements. Links between screens use the target screen's `id`. Images can reference any public URL or a path relative to the deployment's `public/` folder.
+
+#### Terminal interface (terminal type)
+
+By default a script uses the classic Phosphor presentation. To use the *Alien: Isolation*-style interface, set `config.terminalType` to `"alien"` and (optionally) provide an `alien` block for the chrome labels:
+
+```json
+{
+    "config": {
+        "name": "My Terminal",
+        "terminalType": "alien",
+        "alien": {
+            "system": "SEEGSON",
+            "title": "PERSONAL TERMINAL",
+            "footerHint": "[↑/↓] NAVIGATE   [←/→] SWITCH LIST   [WHEEL] SCROLL",
+            "status": "UPLINK SECURE",
+            "showClock": true
+        }
+    }
+}
+```
+
+The `alien` skin renders a solid title bar, a live clock, and a footer status line around a framed CRT viewport. Every `alien` field is optional and falls back to a sensible default (`title` defaults to `config.name`). The skin respects whatever color theme is active, so it looks right in Blue, Amber, Green, or White.
+
+**Folders view (`layout: "folders"`).** A screen opts into the SEEGSON three-region layout by setting `"layout": "folders"`. It becomes a single self-contained terminal with **no screen transitions**:
+
+- its `link` elements become the **folder tabs** down the left;
+- the selected folder's **target screen** supplies the **sub-section list** shown top-right — those are the target's own `link` elements, or, if the target has no links, the target itself is treated as a single sub-section (its `title` becomes the label);
+- the selected sub-section's target supplies the **content** typed into the body below.
+
+Give leaf/content screens a `title` to label them in the list. Navigate with the arrow keys (`↑/↓` move within the focused list; `←/→`, `Enter`, or `Backspace` switch between the folder list and the sub-section list; `Home`/`End` jump to the ends), or just click any folder or sub-section. Screens **without** `layout: "folders"` (boot screens, login prompts, etc.) render with the normal teletype flow inside the same chrome. See `src/data/alien-terminal.json` for a complete, playable example.
 
 To load your script without a build step, upload the JSON using the toolbar's `[ UPLOAD JSON ]` option. Any images or other assets you reference should be hosted externally (e.g. on Imgur, a CDN, or your own server) so they resolve correctly in the browser.
 
