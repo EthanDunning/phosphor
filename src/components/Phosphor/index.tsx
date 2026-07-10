@@ -64,7 +64,6 @@ interface AppState {
     alienSelectedIndex: number; // which folder/menu link is highlighted (left column)
     alienItemIndex: number; // which sub-section is highlighted (top-right list)
     alienColumn: "folders" | "items"; // which list the keyboard currently drives
-    alienClock: string; // header clock text, ticked once per second
     alienDetailDone: boolean; // has the detail-pane teletype finished for the current selection
 }
 
@@ -74,11 +73,7 @@ interface AppState {
 type TerminalType = "classic" | "alien";
 
 interface AlienChromeConfig {
-    system: string;    // top-left brand, e.g. "SEEGSON"
-    title: string;     // header title / breadcrumb
-    footerHint: string; // control hint shown in the footer
-    status: string;    // right-hand footer status text
-    showClock: boolean; // show the live clock in the header
+    title: string; // header title (per-screen headerTitle, else config.alien.title)
 }
 
 enum DialogType {
@@ -145,6 +140,7 @@ interface Screen {
     defaultTextSpeed?: number;
     layout?: string; // alien skin: "folders" renders a two-pane master/detail view
     title?: string;  // alien skin: subject shown in the detail title bar when previewed
+    headerTitle?: string; // alien skin: text shown in the header bar for this screen
 }
 
 enum AppStatus {
@@ -228,7 +224,6 @@ class Phosphor extends Component<PhosphorProps, AppState> {
     private _userReportStorageKey: string;
     private _shutdownTimerId: number = null;
     private _terminalType: TerminalType = "classic";
-    private _alienClockTimerId: number = null;
     private _alienMenuIds: string[] = []; // ids of navigable links on the active screen, in order
 
     constructor(props: PhosphorProps) {
@@ -259,7 +254,6 @@ class Phosphor extends Component<PhosphorProps, AppState> {
             alienSelectedIndex: 0,
             alienItemIndex: 0,
             alienColumn: "folders",
-            alienClock: this._formatAlienClock(),
             alienDetailDone: false,
         };
 
@@ -300,8 +294,6 @@ class Phosphor extends Component<PhosphorProps, AppState> {
                     {activeScreenId && (isAlien ? this._renderAlienBody() : this._renderScreen())}
                 </section>
 
-                {isAlien && this._renderAlienFooter()}
-
                 {activeDialogId && this._renderDialog()}
 
                 {shutdownPhase && this._renderShutdownOverlay(shutdownPhase, shutdownTextStage, shutdownFxActive)}
@@ -329,10 +321,6 @@ class Phosphor extends Component<PhosphorProps, AppState> {
             this._script.onMount(this._getScriptApi());
         }
 
-        if (this._isAlien()) {
-            this._startAlienClock();
-        }
-
         // parse the data & prep the screens
         this._parseScreens();
         this._parseDialogs();
@@ -346,7 +334,6 @@ class Phosphor extends Component<PhosphorProps, AppState> {
         window.removeEventListener("wheel", this._handleWheel);
         this._clearScreenDoneTimer();
         this._clearShutdownTimer();
-        this._stopAlienClock();
         this._teardownAudio();
     }
 
@@ -387,48 +374,21 @@ class Phosphor extends Component<PhosphorProps, AppState> {
         return this._terminalType === "alien";
     }
 
-    // Resolve the chrome labels for the alien skin, falling back to sensible
-    // defaults derived from the script's config when not explicitly provided.
+    // Resolve the chrome labels for the alien skin. The header title can be set
+    // per-screen (`screen.headerTitle`) or script-wide (`config.alien.title`),
+    // falling back to the script name.
     private _getAlienChromeConfig(): AlienChromeConfig {
         const config = this.props.json?.config || {};
         const alien = (config.alien && typeof config.alien === "object") ? config.alien : {};
         const asText = (value: any): string => (typeof value === "string" ? value.trim() : "");
 
-        const title = asText(alien.title)
+        const activeScreen = this._getScreen(this.state.activeScreenId);
+        const title = asText(activeScreen?.headerTitle)
+            || asText(alien.title)
             || asText(config.name).toUpperCase()
             || "TERMINAL";
 
-        return {
-            system: asText(alien.system) || "SEEGSON",
-            title,
-            footerHint: asText(alien.footerHint) || "[↑/↓] SELECT   [ENTER] CONFIRM",
-            status: asText(alien.status) || "UPLINK SECURE",
-            showClock: alien.showClock !== false,
-        };
-    }
-
-    private _formatAlienClock(): string {
-        const now = new Date();
-        const pad = (value: number): string => value.toString().padStart(2, "0");
-        return `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
-    }
-
-    private _startAlienClock(): void {
-        if (!this._getAlienChromeConfig().showClock) {
-            return;
-        }
-
-        this._stopAlienClock();
-        this._alienClockTimerId = window.setInterval(() => {
-            this.setState({ alienClock: this._formatAlienClock() });
-        }, 1000);
-    }
-
-    private _stopAlienClock(): void {
-        if (this._alienClockTimerId !== null) {
-            window.clearInterval(this._alienClockTimerId);
-            this._alienClockTimerId = null;
-        }
+        return { title };
     }
 
     // The ordered ids of the links the alien menu cursor can move between on the
@@ -607,11 +567,21 @@ class Phosphor extends Component<PhosphorProps, AppState> {
 
             case "ArrowLeft":
             case "Left":
-            case "Backspace":
-            case "Escape":
                 e.preventDefault();
                 if (column === "items") {
                     this._setAlienColumn("folders");
+                }
+                break;
+
+            case "Backspace":
+            case "Escape":
+                // from the sub-section list, go back to the folder list; from the
+                // folder list, step back out of the terminal (e.g. to the login)
+                e.preventDefault();
+                if (column === "items") {
+                    this._setAlienColumn("folders");
+                } else if (this._screenHistory.length) {
+                    this._goBack();
                 }
                 break;
 
@@ -797,14 +767,21 @@ class Phosphor extends Component<PhosphorProps, AppState> {
 
     private _renderAlienHeader(): ReactElement {
         const chrome = this._getAlienChromeConfig();
-        // Solid title bar (bright fill, dark text) with a small square status
-        // indicator at the far right, matching the SEEGSON terminal header.
+        // Solid title bar (bright fill, dark text): an optional back button on the
+        // left, the (customizable) title, and a small square indicator at the right.
+        const showBack = this._isAlienFolderScreen() && this._screenHistory.length > 0;
         return (
             <div className="phosphor-alien__chrome phosphor-alien__header">
-                <span className="phosphor-alien__header-title">{chrome.title}</span>
-                {chrome.showClock && (
-                    <span className="phosphor-alien__clock">{this.state.alienClock}</span>
+                {showBack && (
+                    <button
+                        type="button"
+                        className="phosphor-alien__back"
+                        onClick={() => this._goBack()}
+                    >
+                        {"‹ BACK"}
+                    </button>
                 )}
+                <span className="phosphor-alien__header-title">{chrome.title}</span>
                 <span className="phosphor-alien__header-square" />
             </div>
         );
@@ -907,19 +884,6 @@ class Phosphor extends Component<PhosphorProps, AppState> {
                         )}
                     </div>
                 </div>
-            </div>
-        );
-    }
-
-    private _renderAlienFooter(): ReactElement {
-        const chrome = this._getAlienChromeConfig();
-        return (
-            <div className="phosphor-alien__chrome phosphor-alien__footer">
-                <span className="phosphor-alien__hint">{chrome.footerHint}</span>
-                <span className="phosphor-alien__status">
-                    <span className="phosphor-alien__status-dot" />
-                    {chrome.status}
-                </span>
             </div>
         );
     }
@@ -1784,6 +1748,7 @@ class Phosphor extends Component<PhosphorProps, AppState> {
 
         const layout = typeof src.layout === "string" ? src.layout.trim().toLowerCase() : undefined;
         const title = typeof src.title === "string" ? src.title : undefined;
+        const headerTitle = typeof src.headerTitle === "string" ? src.headerTitle : undefined;
 
         // if this screen is invalid for any reason, skip it
         if (!id || !type) {
@@ -1798,6 +1763,7 @@ class Phosphor extends Component<PhosphorProps, AppState> {
             defaultTextSpeed,
             layout,
             title,
+            headerTitle,
         };
     }
 

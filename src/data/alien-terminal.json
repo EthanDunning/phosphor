@@ -6,13 +6,9 @@
         "theme": "green",
         "defaultTextSpeed": 0.8,
         "alien": {
-            "system": "SEEGSON",
-            "title": "PERSONAL TERMINAL",
-            "footerHint": "[↑/↓] NAVIGATE   [←/→] SWITCH LIST   [WHEEL] SCROLL",
-            "status": "UPLINK SECURE",
-            "showClock": true
+            "title": "PERSONAL TERMINAL"
         },
-        "comment": "Example of the 'alien' terminal skin (Alien: Isolation). A screen with \"layout\": \"folders\" is a three-region view with NO screen transitions: its link elements are the left-hand FOLDER tabs; the selected folder's target screen supplies the top-right list of sub-sections (its own links, or itself if it is a single message); and the selected sub-section's target supplies the content typed into the body. Use ↑/↓ to move within a list, ←/→ (or Enter/Backspace) to switch between the folder list and the sub-section list, or just click. Boot and login screens use the normal flow inside the same chrome."
+        "comment": "Example of the 'alien' terminal skin (Alien: Isolation). A screen with \"layout\": \"folders\" is a three-region view with NO screen transitions: its link elements are the left-hand FOLDER tabs; the selected folder's target screen supplies the top-right list of sub-sections (its own links, or itself if it is a single message); and the selected sub-section's target supplies the content typed into the body. Use ↑/↓ to move within a list, ←/→ (or Enter/Backspace) to switch lists, or just click; a BACK button in the header (or Backspace on the folder list) returns to the login. The header title comes from a screen's `headerTitle`, else `config.alien.title`. Boot and login screens use the normal flow inside the same chrome."
     },
     "screens": [
         {
