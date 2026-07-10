@@ -304,10 +304,17 @@
     @include alien-scrollbar;
 }
 
-.phosphor-alien__detail-text,
-.phosphor-alien__detail-body .__teletype__ {
-    white-space: pre-wrap;
-    word-break: break-word;
+// File content is rendered with the real element components (text, links,
+// images, prompts, …), so keep long words and wide images inside the pane.
+.phosphor-alien__detail-body .__text__,
+.phosphor-alien__detail-body .__link__ {
+    overflow-wrap: anywhere;
+}
+
+.phosphor-alien__detail-body img,
+.phosphor-alien__detail-body canvas {
+    max-width: 100%;
+    height: auto;
 }
 
 // --- menu (navigable link list) for non-folder alien screens ---------------

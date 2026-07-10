@@ -144,9 +144,15 @@
             "id": "personnel",
             "type": "screen",
             "content": [
+                { "type": "text", "className": "system", "text": "SEVASTOPOL STATION — ACTIVE ROSTER" },
+                "Records shown are current as of the last synchronization.",
+                "Three crew are quartered on this deck. Select a name to review",
+                "their file.",
+                "",
                 { "type": "link", "text": "WAITS, M.", "target": "person-waits" },
                 { "type": "link", "text": "TAGHMAOUI, S.", "target": "person-taghmaoui" },
-                { "type": "link", "text": "RICARDO, A.", "target": "person-ricardo" }
+                { "type": "link", "text": "RICARDO, A.", "target": "person-ricardo" },
+                { "type": "link", "text": "< RETURN TO MENU", "target": "main" }
             ]
         },
         {
@@ -193,14 +199,15 @@
             "type": "screen",
             "title": "ENVIRONMENTAL STATUS",
             "content": [
-                "ATMOSPHERE..... STABLE",
-                "GRAVITY........ 1.0 G NOMINAL",
-                "REACTOR........ COOLANT PRESSURE LOW",
-                "SECTOR 7....... LIFE SUPPORT OFFLINE",
+                "# LIFE SUPPORT SUMMARY",
+                { "type": "text", "className": "notice", "text": "ATMOSPHERE..... STABLE" },
+                { "type": "text", "className": "notice", "text": "GRAVITY........ 1.0 G NOMINAL" },
+                { "type": "text", "className": "alert", "text": "REACTOR........ COOLANT PRESSURE LOW" },
+                { "type": "text", "className": "alert", "text": "SECTOR 7....... LIFE SUPPORT OFFLINE" },
                 "",
                 "One or more subsystems require attention. Contact station",
-                "engineering to acknowledge active faults. This node cannot",
-                "clear alarms remotely."
+                "engineering to acknowledge active faults. **This node cannot",
+                "clear alarms remotely.**"
             ]
         }
     ]

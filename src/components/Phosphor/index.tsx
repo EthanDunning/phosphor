@@ -64,7 +64,6 @@ interface AppState {
     alienSelectedIndex: number; // which folder/menu link is highlighted (left column)
     alienItemIndex: number; // which sub-section is highlighted (top-right list)
     alienColumn: "folders" | "items"; // which list the keyboard currently drives
-    alienDetailDone: boolean; // has the detail-pane teletype finished for the current selection
 }
 
 // Supported terminal interface skins. "classic" is the original Phosphor
@@ -255,7 +254,6 @@ class Phosphor extends Component<PhosphorProps, AppState> {
             alienSelectedIndex: 0,
             alienItemIndex: 0,
             alienColumn: "folders",
-            alienDetailDone: false,
         };
 
         this._changeScreen = this._changeScreen.bind(this);
@@ -447,8 +445,7 @@ class Phosphor extends Component<PhosphorProps, AppState> {
             void this._playCharScroll(true);
         }
 
-        // changing the highlighted folder re-types its message in the detail pane
-        this.setState({ alienSelectedIndex: clamped, alienDetailDone: false });
+        this.setState({ alienSelectedIndex: clamped });
     }
 
     private _activateAlienSelection(shiftKey: boolean): void {
@@ -687,45 +684,168 @@ class Phosphor extends Component<PhosphorProps, AppState> {
             return [];
         }
 
-        const links = (target.content || []).filter((element) => element && element.type === ScreenDataType.Link);
-        if (links.length) {
-            return links.map((link) => ({
-                label: this._stripFolderLabel(link.text || ""),
-                content: this._isAlienButton(link) ? null : this._resolveLinkTargetScreen(link),
-                link,
-            }));
-        }
-
-        const label = (typeof target.title === "string" && target.title.trim().length)
-            ? target.title
-            : this._stripFolderLabel(folderElement?.text || "");
-        return [{ label, content: target, link: null }];
-    }
-
-    // Flatten a content screen into the body text shown bottom-right.
-    private _getAlienBody(content: Screen | null): string {
-        if (!content || !Array.isArray(content.content)) {
-            return "";
-        }
-
-        const lines = content.content.map((element) => {
-            if (!element) {
-                return "";
-            }
-            if (element.type === ScreenDataType.Text || element.type === ScreenDataType.Link) {
-                return typeof element.text === "string" ? element.text : "";
-            }
-            return "";
+        const content = Array.isArray(target.content) ? target.content : [];
+        // Links that navigate back to the current file-system screen are dropped
+        // — on converted modules those are just "< BACK" buttons and shouldn't
+        // appear as files.
+        const links = content.filter((element) => {
+            return element
+                && element.type === ScreenDataType.Link
+                && !this._isBackToCurrentLink(element);
         });
 
-        while (lines.length && !lines[0].trim().length) {
-            lines.shift();
-        }
-        while (lines.length && !lines[lines.length - 1].trim().length) {
-            lines.pop();
+        // No sub-links: the whole target screen is a single leaf "file".
+        if (!links.length) {
+            const label = (typeof target.title === "string" && target.title.trim().length)
+                ? target.title
+                : this._stripFolderLabel(folderElement?.text || "");
+            return [{ label, content: target, link: null }];
         }
 
-        return lines.join("\n");
+        const items = links.map((link) => ({
+            label: this._stripFolderLabel(link.text || ""),
+            content: this._isAlienButton(link) ? null : this._resolveLinkTargetScreen(link),
+            link,
+        }));
+
+        // If the target screen also carries non-link information (text, images,
+        // etc.), surface it as a leading "file" named after the folder so nothing
+        // is hidden — this makes converting an old text+links screen into a file
+        // system trivial (the prose becomes a readable file alongside the links).
+        const nonLinkContent = content.filter((element) => element && element.type !== ScreenDataType.Link);
+        const hasInfo = nonLinkContent.some((element) => {
+            return element.type === ScreenDataType.Text
+                && typeof element.text === "string"
+                && element.text.trim().length > 0;
+        });
+
+        if (hasInfo) {
+            const infoLabel = this._stripFolderLabel(folderElement?.text || "")
+                || (typeof target.title === "string" ? target.title : "")
+                || "INFO";
+            const infoScreen = {
+                id: `${target.id}:__info__`,
+                type: ScreenType.Static,
+                content: nonLinkContent,
+            } as Screen;
+            items.unshift({ label: infoLabel, content: infoScreen, link: null });
+        }
+
+        return items;
+    }
+
+    // A link is "back to the current screen" when it targets the active
+    // file-system screen (a "< BACK" button on a converted module).
+    private _isBackToCurrentLink(element: any): boolean {
+        if (!element || element.type !== ScreenDataType.Link) {
+            return false;
+        }
+        const target = this._resolveLinkTargetScreen(element);
+        return !!target && !!this.state.activeScreenId && target.id === this.state.activeScreenId;
+    }
+
+    // Render a file's content in the body pane using the real element components,
+    // so it supports everything a classic screen does: text class names
+    // (alert/notice/system/…), markdown, images, and interactive elements.
+    private _renderAlienFileContent(contentScreen: Screen | null): (ReactElement | null)[] | null {
+        if (!contentScreen || !Array.isArray(contentScreen.content)) {
+            return null;
+        }
+        return contentScreen.content.map((element, index) => this._renderAlienFileElement(element, index));
+    }
+
+    private _renderAlienFileElement(element: any, key: number): ReactElement | null {
+        if (!element) {
+            return null;
+        }
+
+        const className = element.className || "";
+
+        switch (element.type) {
+            case ScreenDataType.Text: {
+                // \0 keeps intentionally-blank lines from collapsing
+                const text = (typeof element.text === "string" && element.text.length) ? element.text : "\0";
+                return <Text key={key} className={className} text={text} />;
+            }
+
+            case ScreenDataType.Link:
+                // hide "< BACK to this screen" links in file content too
+                if (this._isBackToCurrentLink(element)) {
+                    return null;
+                }
+                return (
+                    <Link
+                        key={key}
+                        text={element.text}
+                        target={element.target}
+                        className={className}
+                        onClick={this._handleLinkClick}
+                    />
+                );
+
+            case ScreenDataType.Bitmap:
+                return (
+                    <Bitmap
+                        key={key}
+                        className={className}
+                        src={element.src}
+                        alt={element.alt}
+                        animated={element.animated}
+                        scale={element.scale}
+                        fillWidth={element.fillWidth}
+                        autocomplete={true}
+                        onComplete={() => undefined}
+                    />
+                );
+
+            case ScreenDataType.Prompt:
+                return (
+                    <Prompt
+                        key={key}
+                        className={className}
+                        prompt={element.prompt}
+                        commands={element.commands}
+                        allowFreeInput={element.allowFreeInput}
+                        caseSensitive={element.caseSensitive}
+                        cursor={element.cursor}
+                        inputAction={element.inputAction}
+                        onCommand={this._handlePromptCommand}
+                        onEnter={this._handlePromptEnter}
+                    />
+                );
+
+            case ScreenDataType.Login: {
+                const handleSubmit = (username: string, password: string) => {
+                    this._handleLoginSubmit(username, password, element);
+                };
+                return (
+                    <LoginPrompt
+                        key={key}
+                        className={className}
+                        usernamePrompt={element.usernamePrompt}
+                        passwordPrompt={element.passwordPrompt}
+                        usernameCaseSensitive={element.usernameCaseSensitive}
+                        hideUsername={element.hideUsername}
+                        passwordCaseSensitive={element.passwordCaseSensitive}
+                        hidePassword={element.hidePassword}
+                        onSubmit={handleSubmit}
+                        onEnter={this._handlePromptEnter}
+                    />
+                );
+            }
+
+            case ScreenDataType.Toggle:
+                return <Toggle key={key} className={className} states={element.states} onClick={this._handleToggleClick} />;
+
+            case ScreenDataType.List:
+                return <List key={key} className={className} states={element.states} onClick={this._handleToggleClick} />;
+
+            case ScreenDataType.Dropdown:
+                return <Dropdown key={key} className={className} states={element.states} onClick={this._handleToggleClick} />;
+
+            default:
+                return null;
+        }
     }
 
     // Select a folder (left column). Resets the item selection to the first
@@ -748,9 +868,7 @@ class Phosphor extends Component<PhosphorProps, AppState> {
         this.setState({
             alienSelectedIndex: clamped,
             alienItemIndex: 0,
-            alienColumn: "folders",
-            alienDetailDone: false,
-        });
+            alienColumn: "folders",        });
     }
 
     // Select an item (top-right list). Re-types the body with that item's content.
@@ -773,9 +891,7 @@ class Phosphor extends Component<PhosphorProps, AppState> {
 
         this.setState({
             alienItemIndex: clamped,
-            alienColumn: "items",
-            alienDetailDone: false,
-        });
+            alienColumn: "items",        });
     }
 
     // Move keyboard focus between the folder column and the item column.
@@ -871,15 +987,9 @@ class Phosphor extends Component<PhosphorProps, AppState> {
         const items = selectedFolder ? this._getAlienItems(selectedFolder) : [];
         const itemIndex = Math.max(0, Math.min(items.length - 1, this.state.alienItemIndex));
         const selectedItem = items[itemIndex] || null;
-        const body = selectedItem ? this._getAlienBody(selectedItem.content) : "";
         const bodyKey = selectedItem && selectedItem.content
             ? `body:${selectedItem.content.id}`
             : `empty:${folderIndex}:${itemIndex}`;
-
-        // Body types quickly but stays visible; ignore sub-1ms classic
-        // fast-forward speeds so the message is legibly "printed" on each switch.
-        const rawSpeed = this._getResolvedTextSpeed({}, screen);
-        const speed = (typeof rawSpeed === "number" && rawSpeed >= 1) ? rawSpeed : 5;
         const foldersFocused = this.state.alienColumn === "folders";
 
         return (
@@ -927,23 +1037,8 @@ class Phosphor extends Component<PhosphorProps, AppState> {
                         })}
                     </div>
 
-                    <div className="phosphor-alien__detail-body">
-                        {body.length === 0 ? null : (
-                            this.state.alienDetailDone
-                                ? <div className="phosphor-alien__detail-text">{body}</div>
-                                : (
-                                    <Teletype
-                                        key={bodyKey}
-                                        text={body}
-                                        className="phosphor-alien__detail-text"
-                                        speed={speed}
-                                        autocomplete={this.state.skipTextAnimation}
-                                        onComplete={() => this.setState({ alienDetailDone: true })}
-                                        onNewLine={this._handleTeletypeNewLine}
-                                        onCharDrawn={this._handleTeletypeCharDrawn}
-                                    />
-                                )
-                        )}
+                    <div className="phosphor-alien__detail-body" key={bodyKey}>
+                        {selectedItem ? this._renderAlienFileContent(selectedItem.content) : null}
                     </div>
                 </div>
             </div>
@@ -1467,9 +1562,7 @@ class Phosphor extends Component<PhosphorProps, AppState> {
             activeScreenId: activeScreen,
             alienSelectedIndex: 0,
             alienItemIndex: 0,
-            alienColumn: "folders",
-            alienDetailDone: false,
-        }, () => {
+            alienColumn: "folders",        }, () => {
             this._activateScreen();
             this._notifyScriptScreenChanged(activeScreen);
         });
@@ -1500,9 +1593,7 @@ class Phosphor extends Component<PhosphorProps, AppState> {
             skipTextAnimation: false,
             alienSelectedIndex: 0,
             alienItemIndex: 0,
-            alienColumn: "folders",
-            alienDetailDone: false,
-        }, () => {
+            alienColumn: "folders",        }, () => {
             this._notifyScriptScreenChanged(restoredScreen.id);
 
             if (restoredScreen.onDone && restoredScreen.onDone.target) {
@@ -2561,9 +2652,7 @@ class Phosphor extends Component<PhosphorProps, AppState> {
             skipTextAnimation: false,
             alienSelectedIndex: 0,
             alienItemIndex: 0,
-            alienColumn: "folders",
-            alienDetailDone: false,
-        }, () => {
+            alienColumn: "folders",        }, () => {
             this._activateScreen();
             this._notifyScriptScreenChanged(targetScreen);
         });

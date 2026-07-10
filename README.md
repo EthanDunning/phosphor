@@ -85,7 +85,9 @@ The `filesystem` screen is a self-contained terminal with **no screen transition
 
 - its `link` elements become the **folder tabs** down the left;
 - the selected folder's **target screen** supplies the **sub-section list** shown top-right — those are the target's own `link` elements, or, if the target has no links, the target itself is treated as a single sub-section (its `title` becomes the label);
-- the selected sub-section's target supplies the **content** typed into the body below.
+- if the target screen *also* has non-link content (text, etc.) alongside its links, that content is surfaced as a leading **file named after the folder**, so nothing is hidden — this makes converting an old text+links screen into a file system painless;
+- links that point **back to the file-system screen itself** (the old `< BACK` buttons on converted screens) are dropped, so they don't clutter the file list;
+- the selected sub-section's target supplies the **content** shown in the body below. That content is rendered with the same element components as a classic screen, so it supports text **class names** (`alert`/`notice`/`system`/…), **markdown**, **images** (`bitmap`), and interactive elements — not just plain text.
 
 Give leaf/content screens a `title` to label them in the list. Navigate with the arrow keys (`↑/↓` move within the focused list; `←/→` move from the folder list into the sub-section list; `Enter` opens/activates; `Home`/`End` jump to the ends; `Backspace` returns focus from the sub-section list to the folder list), or just click any folder or sub-section.
 
