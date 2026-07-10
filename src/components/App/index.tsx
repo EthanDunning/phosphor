@@ -59,9 +59,29 @@ const MAX_CUSTOM_SCRIPTS = 50;
 const MODULE_SCRIPT_ID_PREFIX = "module:";
 const MODULE_QUERY_PARAM = "module";
 const BUNDLED_SUBSCRIBED_ENTRY_PREFIX = "bundled:";
-const BUNDLED_SUBSCRIBED_SCRIPT_IDS = ["ypsilon14", "sample"] as const;
+// Bundled scripts that appear in the modules menu as "subscribed" entries the
+// user can show/hide from the script dropdown.
+const BUNDLED_SUBSCRIBED_SCRIPT_IDS = ["ypsilon14", "sample", "alien-terminal"] as const;
+// Subset that starts hidden from the dropdown until the user turns it on.
+const BUNDLED_HIDDEN_BY_DEFAULT_SCRIPT_IDS = ["alien-terminal"] as const;
 const BUNDLED_OWNER_ID_PLACEHOLDER = "00000000-0000-0000-0000-000000000000";
 const PRINT_OPTIONS_STORAGE_KEY = "phosphor:print-options:v1";
+
+// Ensure hidden-by-default bundled scripts start hidden (false) unless the user
+// has an explicit stored preference. Everything else keeps the "visible unless
+// explicitly false" default, so the existing show/hide logic is unchanged.
+const seedHiddenByDefaultVisibility = (
+    visibilityById: Record<string, boolean>
+): Record<string, boolean> => {
+    const next = { ...visibilityById };
+    BUNDLED_HIDDEN_BY_DEFAULT_SCRIPT_IDS.forEach((scriptId) => {
+        const entryId = `${BUNDLED_SUBSCRIBED_ENTRY_PREFIX}${scriptId}`;
+        if (typeof next[entryId] !== "boolean") {
+            next[entryId] = false;
+        }
+    });
+    return next;
+};
 
 // One element of a printed hardcopy: either a line of text or a captured graphic.
 type PrintoutItem =
@@ -180,7 +200,7 @@ class App extends Component<any, AppState> {
         const headerVisible = loadPersistedHeaderVisible();
         const soundEnabled = loadPersistedSoundEnabled();
         const ownScriptsVisibilityById = loadPersistedOwnScriptsVisibility();
-        const subscribedScriptsVisibilityById = loadPersistedSubscribedScriptsVisibility();
+        const subscribedScriptsVisibilityById = seedHiddenByDefaultVisibility(loadPersistedSubscribedScriptsVisibility());
         const customScripts = this._loadCustomScripts();
         const activeScript = this._resolveInitialActiveScript(customScripts);
         const initialThemeState = this._resolveThemeStateForScript(activeScript.json, persistedTheme, customTheme);

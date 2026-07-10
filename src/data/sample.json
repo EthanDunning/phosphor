@@ -51,6 +51,12 @@
                 },
                 {
                     "type": "link",
+                    "className": "notice",
+                    "text": "> FILE SYSTEM SCREEN (ALIEN: ISOLATION STYLE) [NEW]",
+                    "target": "filesystem-intro"
+                },
+                {
+                    "type": "link",
                     "text": "> PROMPT BEHAVIOR",
                     "target": "prompt-behavior"
                 },
@@ -211,12 +217,14 @@
                 "Screen shape:",
                 "{",
                 "  \"id\": \"unique-id\",",
-                "  \"type\": \"screen\" | \"static\",",
+                "  \"type\": \"screen\" | \"static\" | \"filesystem\",",
                 "  \"content\": [ ... ],",
-                "  \"onDone\": { \"target\": \"next-id\", \"delayMs\": 1200 }",
+                "  \"onDone\": { \"target\": \"next-id\", \"delayMs\": 1200 },",
+                "  \"headerTitle\": \"...\"   (filesystem title bar text)",
                 "}",
                 "",
                 "screen = progressive render, static = immediate render",
+                "filesystem = Alien: Isolation folder browser (see FILE SYSTEM section)",
                 {
                     "type": "link",
                     "text": "> VIEW STATIC SCREEN EXAMPLE",
@@ -764,6 +772,20 @@
                 "- onDone (auto-advance with optional delayMs)",
                 "- allowFreeInput + inputAction + caseSensitive on prompts",
                 "- fillWidth / scale / animated for bitmap/image",
+                "- align: \"left\" | \"center\" | \"right\" | \"justify\" (any element)",
+                "",
+                {
+                    "type": "text",
+                    "className": "notice",
+                    "text": "This line is align=center.",
+                    "align": "center"
+                },
+                {
+                    "type": "text",
+                    "className": "notice",
+                    "text": "This line is align=right.",
+                    "align": "right"
+                },
                 "",
                 "Slow line:",
                 {
@@ -853,6 +875,135 @@
                     "text": "> TABLE OF CONTENTS",
                     "target": "hub"
                 }
+            ]
+        },
+        {
+            "id": "filesystem-intro",
+            "type": "screen",
+            "content": [
+                {
+                    "type": "text",
+                    "className": "alert",
+                    "text": "SECTION: FILE SYSTEM SCREEN (ALIEN: ISOLATION STYLE)"
+                },
+                "",
+                "Set a screen's type to \"filesystem\" and it renders the SEEGSON",
+                "three-region browser with its own chrome (title bar + framed viewport):",
+                "- the screen's links become FOLDER tabs (left column)",
+                "- the selected folder's target screen supplies the SUB-SECTION list (top-right)",
+                "- the selected sub-section's content shows in the BODY (bottom-right)",
+                "",
+                "Navigate with UP/DOWN (move within a list), LEFT/RIGHT (switch lists),",
+                "ENTER (open/activate), or just click. Nothing transitions screens; it",
+                "all updates in place.",
+                "",
+                {
+                    "type": "text",
+                    "className": "system",
+                    "text": "Features shown in the live example:"
+                },
+                "- headerTitle: sets the title-bar text for the screen",
+                "- info file: a folder whose target has TEXT surfaces it as a file named",
+                "  after the folder (so old text+links screens convert cleanly)",
+                "- working button: a folder/sub-section with an ARRAY target navigates or",
+                "  runs an action (the EXIT folder uses action \"back\")",
+                "- back-link filtering: links pointing back to the file-system screen are",
+                "  dropped automatically (no stray \"< BACK\" files)",
+                "- rich content: class-name colors, markdown, and images render in bodies",
+                "",
+                {
+                    "type": "text",
+                    "className": "notice",
+                    "text": "Tip: set config.terminalType \"alien\" to wrap EVERY screen in the chrome."
+                },
+                "",
+                {
+                    "type": "link",
+                    "className": "notice",
+                    "text": "> OPEN THE LIVE FILE SYSTEM",
+                    "target": "file-system-demo"
+                },
+                {
+                    "type": "link",
+                    "text": "> TABLE OF CONTENTS",
+                    "target": "hub"
+                }
+            ]
+        },
+        {
+            "id": "file-system-demo",
+            "type": "filesystem",
+            "headerTitle": "PHOSPHOR FILE SYSTEM",
+            "content": [
+                { "type": "link", "text": "OVERVIEW", "target": "fs-overview" },
+                { "type": "link", "text": "PERSONNEL", "target": "fs-personnel" },
+                { "type": "link", "text": "GALLERY", "target": "fs-gallery" },
+                { "type": "link", "text": "‹ EXIT TO GUIDE", "target": [ { "type": "action", "action": "back" } ] }
+            ]
+        },
+        {
+            "id": "fs-overview",
+            "type": "screen",
+            "title": "RE: SYSTEM OVERVIEW",
+            "content": [
+                "# SEEGSON APOLLO",
+                { "type": "text", "className": "notice", "text": "UPLINK........ ONLINE" },
+                { "type": "text", "className": "alert", "text": "SECURITY...... BREACH DETECTED" },
+                "",
+                "OVERVIEW is a folder pointing at this leaf screen, so it shows as one",
+                "file. The body renders through the real element components, so",
+                "**class names**, markdown, and images all work here.",
+                "",
+                "Markdown quick check: *italic*, __underline__, and a list:",
+                "- first item",
+                "- second item"
+            ]
+        },
+        {
+            "id": "fs-personnel",
+            "type": "screen",
+            "content": [
+                { "type": "text", "className": "system", "text": "CREW ROSTER" },
+                "This folder's target has text as well as links, so the text becomes",
+                "an info file named after the folder (PERSONNEL), listed above the crew.",
+                "",
+                { "type": "link", "text": "MORLEY, D.", "target": "fs-person-a" },
+                { "type": "link", "text": "CHEN, R.", "target": "fs-person-b" },
+                { "type": "link", "text": "< BACK TO ROOT", "target": "file-system-demo" }
+            ]
+        },
+        {
+            "id": "fs-person-a",
+            "type": "screen",
+            "title": "FILE: MORLEY, D.",
+            "content": [
+                "ROLE......... DECK OFFICER",
+                "CLEARANCE.... TIER 2",
+                "STATUS....... ON STATION",
+                "",
+                "Filed two overdue incident reports this cycle."
+            ]
+        },
+        {
+            "id": "fs-person-b",
+            "type": "screen",
+            "title": "FILE: CHEN, R.",
+            "content": [
+                "ROLE......... MEDICAL OFFICER",
+                "CLEARANCE.... TIER 2",
+                "STATUS....... OFF DUTY",
+                "",
+                "Requested transfer at the next crew rotation."
+            ]
+        },
+        {
+            "id": "fs-gallery",
+            "type": "screen",
+            "title": "STATION SCHEMATIC",
+            "content": [
+                "Recovered schematic fragment:",
+                { "type": "bitmap", "src": "img/ypsilon-map.png", "scale": 0.5 },
+                "Images render inside the file body via the bitmap/image element."
             ]
         },
         {
