@@ -2,13 +2,9 @@
     "config": {
         "name": "Sevastopol Access Terminal",
         "author": "EthanDunning",
-        "terminalType": "alien",
         "theme": "green",
         "defaultTextSpeed": 0.8,
-        "alien": {
-            "title": "PERSONAL TERMINAL"
-        },
-        "comment": "Example of the 'alien' terminal skin (Alien: Isolation). A screen with \"layout\": \"folders\" is a three-region view with NO screen transitions: its link elements are the left-hand FOLDER tabs; the selected folder's target screen supplies the top-right list of sub-sections (its own links, or itself if it is a single message); and the selected sub-section's target supplies the content typed into the body. Use ↑/↓ to move within a list, ←/→ (or Enter/Backspace) to switch lists, or just click; a BACK button in the header (or Backspace on the folder list) returns to the login. The header title comes from a screen's `headerTitle`, else `config.alien.title`. Boot and login screens use the normal flow inside the same chrome."
+        "comment": "Example of the 'alien' file-system screen (Alien: Isolation). A screen's TYPE decides how it is interpreted: \"screen\" and \"static\" are the classic teletype screens (used here for the boot + login), while \"filesystem\" renders the SEEGSON three-region browser with its own chrome. A file-system screen's link elements are the left-hand FOLDER tabs; the selected folder's target screen supplies the top-right list of sub-sections (its own links, or itself if it is a single message); and the selected sub-section's target supplies the content typed into the body — all with NO screen transitions. A folder or sub-section is a working BUTTON (it navigates / runs an action instead of opening content) when its `target` uses the array LinkTarget form, e.g. the 'LOG OUT' folder here: `\"target\": [{ \"type\": \"action\", \"action\": \"back\" }]`. Use ↑/↓ to move within a list, ←/→ to enter the sub-section list, Enter to open/activate, or just click. The header title comes from the screen's `headerTitle`. (Set `config.terminalType: \"alien\"` to also wrap every classic screen in the same chrome.)"
     },
     "screens": [
         {
@@ -63,13 +59,14 @@
 
         {
             "id": "main",
-            "type": "screen",
-            "layout": "folders",
+            "type": "filesystem",
+            "headerTitle": "PERSONAL TERMINAL",
             "content": [
                 { "type": "link", "text": "PERSONAL", "target": "msg-nostromo" },
                 { "type": "link", "text": "SHARED", "target": "shared" },
                 { "type": "link", "text": "PERSONNEL", "target": "personnel" },
-                { "type": "link", "text": "SYSTEM", "target": "msg-system" }
+                { "type": "link", "text": "SYSTEM", "target": "msg-system" },
+                { "type": "link", "text": "‹ LOG OUT", "target": [ { "type": "action", "action": "back" } ] }
             ]
         },
 

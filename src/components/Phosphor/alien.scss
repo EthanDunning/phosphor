@@ -139,8 +139,13 @@
     user-select: none;
 }
 
-// Header: a solid bright bar with dark text, an optional back button, and a
-// small square indicator.
+// Keep the CRT scanlines/vignette painting on top of the header bar (the
+// scanlines layer otherwise sits at z-index auto, below the fixed header).
+.phosphor--alien .__scanlines__ {
+    z-index: 10;
+}
+
+// Header: a solid bright bar with dark text and a small square indicator.
 .phosphor-alien__header {
     top: calc(env(safe-area-inset-top) + var(--header-height, 0px));
     height: var(--alien-header-h);
@@ -150,32 +155,6 @@
     font-weight: bold;
     font-size: $smallfontsize * 0.86; // ~24px, sized to sit inside the thin bar
     box-shadow: 0 0 12px var(--alien-glow-outer);
-}
-
-// Back button: dark on the bright bar, inverting on hover. It is the only
-// interactive part of the chrome, so it re-enables pointer events.
-.phosphor-alien__back {
-    flex: 0 0 auto;
-    pointer-events: auto;
-    cursor: pointer;
-    font: inherit;
-    font-size: $smallfontsize * 0.7;
-    font-weight: bold;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    color: var(--bg);
-    background: transparent;
-    border: 1px solid var(--bg);
-    border-radius: 0;
-    padding: 0.1em 0.55em;
-    line-height: 1;
-}
-
-.phosphor-alien__back:hover,
-.phosphor-alien__back:focus-visible {
-    color: var(--theme-fg, var(--fg));
-    background: var(--bg);
-    outline: none;
 }
 
 .phosphor-alien__header-title {
@@ -289,6 +268,12 @@
     background: var(--theme-fg, var(--fg));
     box-shadow: var(--theme-fg-glow, var(--fg-glow));
     pointer-events: none;
+}
+
+// button folders/items navigate/act instead of opening content, so they have
+// no sub-section list to connect to
+.phosphor-alien__folder.is-button.is-selected::after {
+    display: none;
 }
 
 .phosphor-alien__detail {

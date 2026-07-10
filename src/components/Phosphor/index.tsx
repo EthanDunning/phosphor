@@ -94,6 +94,7 @@ enum ScreenType {
     Unknown = 0,
     Screen,
     Static,
+    FileSystem, // renders the alien folder/file-browser view for this screen
 }
 
 enum ScreenDataType {
@@ -370,8 +371,21 @@ class Phosphor extends Component<PhosphorProps, AppState> {
         return raw === "alien" ? "alien" : "classic";
     }
 
+    // A screen is a "file system" (alien folder browser) when its type is
+    // FileSystem (or the legacy `layout: "folders"` property is set).
+    private _isFolderScreen(screen: Screen | undefined | null): boolean {
+        return !!screen && (screen.type === ScreenType.FileSystem || screen.layout === "folders");
+    }
+
+    // The alien skin is active when the script opts in script-wide
+    // (`config.terminalType: "alien"`) or when the active screen is a file-system
+    // screen — so a single `type: "filesystem"` screen renders as the alien
+    // browser (with its chrome) even in an otherwise classic script.
     private _isAlien(): boolean {
-        return this._terminalType === "alien";
+        if (this._terminalType === "alien") {
+            return true;
+        }
+        return this._isFolderScreen(this._getScreen(this.state.activeScreenId));
     }
 
     // Resolve the chrome labels for the alien skin. The header title can be set
@@ -532,6 +546,7 @@ class Phosphor extends Component<PhosphorProps, AppState> {
 
         const folderIndex = Math.max(0, Math.min(folders.length - 1, this.state.alienSelectedIndex));
         const items = this._getAlienItems(folders[folderIndex]);
+        const itemIndex = Math.max(0, Math.min(items.length - 1, this.state.alienItemIndex));
         const column = this.state.alienColumn;
 
         switch (e.key) {
@@ -558,9 +573,21 @@ class Phosphor extends Component<PhosphorProps, AppState> {
             case "ArrowRight":
             case "Right":
             case "Tab":
-            case "Enter":
                 e.preventDefault();
-                if (column === "folders") {
+                if (column === "folders" && items.length) {
+                    this._setAlienColumn("items");
+                }
+                break;
+
+            case "Enter":
+                // activate the highlighted entry: a button navigates/acts, a
+                // content folder opens its sub-section list, a content item selects
+                e.preventDefault();
+                if (column === "items") {
+                    this._activateAlienItem(itemIndex);
+                } else if (this._isAlienButton(folders[folderIndex])) {
+                    this._activateAlienFolder(folderIndex);
+                } else if (items.length) {
                     this._setAlienColumn("items");
                 }
                 break;
@@ -575,13 +602,11 @@ class Phosphor extends Component<PhosphorProps, AppState> {
 
             case "Backspace":
             case "Escape":
-                // from the sub-section list, go back to the folder list; from the
-                // folder list, step back out of the terminal (e.g. to the login)
-                e.preventDefault();
+                // return focus from the sub-section list to the folder list;
+                // leaving the terminal is author-driven (e.g. a LOG OUT button)
                 if (column === "items") {
+                    e.preventDefault();
                     this._setAlienColumn("folders");
-                } else if (this._screenHistory.length) {
-                    this._goBack();
                 }
                 break;
 
@@ -608,10 +633,9 @@ class Phosphor extends Component<PhosphorProps, AppState> {
         }
     }
 
-    // Is the active screen an alien two-pane "folders" view?
+    // Is the active screen an alien folder/file-system view?
     private _isAlienFolderScreen(): boolean {
-        const screen = this._getScreen(this.state.activeScreenId);
-        return !!screen && screen.layout === "folders";
+        return this._isFolderScreen(this._getScreen(this.state.activeScreenId));
     }
 
     // Resolve the screen a folder link points at (string target, or the first
@@ -643,10 +667,21 @@ class Phosphor extends Component<PhosphorProps, AppState> {
         return screen.content.filter((element) => element && element.type === ScreenDataType.Link);
     }
 
-    // The list of sub-sections shown top-right for a selected folder. If the
-    // folder's target screen has its own links, those are the items; otherwise
-    // the target is a single leaf message (a one-item list).
-    private _getAlienItems(folderElement: any): { label: string; content: Screen | null }[] {
+    // A folder or sub-section is a "button" (it navigates / runs an action when
+    // activated, like a classic link) rather than opening content, when its
+    // target uses the array LinkTarget form, e.g. [{ "type": "action", ... }].
+    private _isAlienButton(element: any): boolean {
+        return !!element && Array.isArray(element.target);
+    }
+
+    // The list of sub-sections shown top-right for a selected folder. Each item
+    // is either a content page (opens in the body) or a button (`link` set, no
+    // content). A button folder has no sub-sections.
+    private _getAlienItems(folderElement: any): { label: string; content: Screen | null; link: any }[] {
+        if (this._isAlienButton(folderElement)) {
+            return [];
+        }
+
         const target = this._resolveLinkTargetScreen(folderElement);
         if (!target) {
             return [];
@@ -656,14 +691,15 @@ class Phosphor extends Component<PhosphorProps, AppState> {
         if (links.length) {
             return links.map((link) => ({
                 label: this._stripFolderLabel(link.text || ""),
-                content: this._resolveLinkTargetScreen(link),
+                content: this._isAlienButton(link) ? null : this._resolveLinkTargetScreen(link),
+                link,
             }));
         }
 
         const label = (typeof target.title === "string" && target.title.trim().length)
             ? target.title
             : this._stripFolderLabel(folderElement?.text || "");
-        return [{ label, content: target }];
+        return [{ label, content: target, link: null }];
     }
 
     // Flatten a content screen into the body text shown bottom-right.
@@ -761,26 +797,50 @@ class Phosphor extends Component<PhosphorProps, AppState> {
         this.setState({ alienColumn: column });
     }
 
+    // Activate a folder: a button navigates/acts; a content folder selects.
+    private _activateAlienFolder(index: number): void {
+        const folders = this._getAlienFolders();
+        const folder = folders[index];
+        if (!folder) {
+            return;
+        }
+
+        if (this._isAlienButton(folder)) {
+            this._handleLinkClick(folder.target, false);
+            return;
+        }
+
+        this._selectAlienFolder(index);
+    }
+
+    // Activate a sub-section: a button navigates/acts; a content item selects.
+    private _activateAlienItem(index: number): void {
+        const folders = this._getAlienFolders();
+        const folder = folders[this.state.alienSelectedIndex];
+        const items = folder ? this._getAlienItems(folder) : [];
+        const item = items[index];
+        if (!item) {
+            return;
+        }
+
+        if (item.link && this._isAlienButton(item.link)) {
+            this._handleLinkClick(item.link.target, false);
+            return;
+        }
+
+        this._selectAlienItem(index);
+    }
+
     private _stripFolderLabel(text: string): string {
         return text.replace(/^[>►▶\s]+/, "").trim();
     }
 
     private _renderAlienHeader(): ReactElement {
         const chrome = this._getAlienChromeConfig();
-        // Solid title bar (bright fill, dark text): an optional back button on the
-        // left, the (customizable) title, and a small square indicator at the right.
-        const showBack = this._isAlienFolderScreen() && this._screenHistory.length > 0;
+        // Solid title bar (bright fill, dark text): the (customizable) title and a
+        // small square indicator. Rendered beneath the CRT scanlines/vignette.
         return (
             <div className="phosphor-alien__chrome phosphor-alien__header">
-                {showBack && (
-                    <button
-                        type="button"
-                        className="phosphor-alien__back"
-                        onClick={() => this._goBack()}
-                    >
-                        {"‹ BACK"}
-                    </button>
-                )}
                 <span className="phosphor-alien__header-title">{chrome.title}</span>
                 <span className="phosphor-alien__header-square" />
             </div>
@@ -791,7 +851,7 @@ class Phosphor extends Component<PhosphorProps, AppState> {
     // the alien chrome, based on the active screen's layout.
     private _renderAlienBody(): ReactElement | (ReactElement | null)[] | null {
         const screen = this._getScreen(this.state.activeScreenId);
-        if (screen && screen.layout === "folders") {
+        if (this._isFolderScreen(screen)) {
             return this._renderAlienFolders(screen);
         }
 
@@ -830,13 +890,14 @@ class Phosphor extends Component<PhosphorProps, AppState> {
                         const className = [
                             "phosphor-alien__folder",
                             index === folderIndex ? "is-selected" : null,
+                            this._isAlienButton(folder) ? "is-button" : null,
                             folder.className || null,
                         ].filter(Boolean).join(" ");
                         return (
                             <div
                                 key={folder.id}
                                 className={className}
-                                onClick={() => this._selectAlienFolder(index)}
+                                onClick={() => this._activateAlienFolder(index)}
                             >
                                 <span className="phosphor-alien__folder-label">
                                     {this._stripFolderLabel(folder.text || "")}
@@ -852,12 +913,13 @@ class Phosphor extends Component<PhosphorProps, AppState> {
                             const className = [
                                 "phosphor-alien__item",
                                 index === itemIndex ? "is-selected" : null,
+                                item.link && this._isAlienButton(item.link) ? "is-button" : null,
                             ].filter(Boolean).join(" ");
                             return (
                                 <div
                                     key={index}
                                     className={className}
-                                    onClick={() => this._selectAlienItem(index)}
+                                    onClick={() => this._activateAlienItem(index)}
                                 >
                                     {item.label}
                                 </div>
@@ -1674,10 +1736,10 @@ class Phosphor extends Component<PhosphorProps, AppState> {
             return;
         }
 
-        // The alien "folders" view renders its own two-pane layout instead of the
-        // sequential teletype flow, so mark it ready immediately (like a static
-        // screen) so folder navigation is active right away.
-        if (this._isAlien() && screen.layout === "folders") {
+        // The alien folder/file-system view renders its own two-pane layout
+        // instead of the sequential teletype flow, so mark it ready immediately
+        // (like a static screen) so folder navigation is active right away.
+        if (this._isFolderScreen(screen)) {
             screen.content.forEach((element) => {
                 element.state = ScreenDataState.Done;
             });
@@ -1774,6 +1836,11 @@ class Phosphor extends Component<PhosphorProps, AppState> {
 
             case "static":
                 return ScreenType.Static;
+
+            case "filesystem":
+            case "file system":
+            case "file-system":
+                return ScreenType.FileSystem;
 
             default:
                 return ScreenType.Unknown;

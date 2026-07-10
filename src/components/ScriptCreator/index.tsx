@@ -764,6 +764,7 @@ const BITMAP_CLASSNAME_OPTIONS = [
 const SCREEN_TYPE_OPTIONS: CreatorSelectOption[] = [
     { value: "screen", label: "screen" },
     { value: "static", label: "static" },
+    { value: "filesystem", label: "file system" },
 ];
 
 const SCRIPT_THEME_OPTIONS: CreatorSelectOption[] = [
@@ -2130,9 +2131,15 @@ const ScriptCreator: FC<ScriptCreatorProps> = ({
         ? ""
         : String(selectedScreenDefaultTextSpeedMs);
 
-    // The header title control only applies to the alien terminal skin.
+    // The header title control applies to the alien skin: either a script-wide
+    // `terminalType: "alien"`, or a per-screen "file system" screen.
     const isAlienScript = ((script?.config?.terminalType ?? script?.config?.interface ?? "") as string)
         .toString().trim().toLowerCase() === "alien";
+    const selectedScreenIsFileSystem = (() => {
+        const type = typeof selectedScreen?.type === "string" ? selectedScreen.type.trim().toLowerCase() : "";
+        return type === "filesystem" || type === "file system" || type === "file-system";
+    })();
+    const showAlienHeaderTitle = isAlienScript || selectedScreenIsFileSystem;
     const alienHeaderTitleFallback = (() => {
         const alien = script?.config?.alien;
         const alienTitle = alien && typeof alien === "object" && typeof alien.title === "string"
@@ -4842,7 +4849,7 @@ const ScriptCreator: FC<ScriptCreatorProps> = ({
                                                     />
                                                 </label>
 
-                                                {isAlienScript && (
+                                                {showAlienHeaderTitle && (
                                                     <label className="script-creator__field">
                                                         <span>Header Title</span>
                                                         <input
