@@ -2,10 +2,11 @@
 @use "../../assets/sass/colors" as *;
 
 .__report_composer__ {
-    margin-top: $lineheight;
+    margin-bottom: $lineheight;
 
     input,
     textarea {
+        display: block;
         width: 100%;
         padding: 8px;
         box-sizing: border-box;
