@@ -3,7 +3,7 @@
         "name": "Phosphor Sample Script",
         "author": "EthanDunning",
         "script": null,
-        "defaultTextSpeed": 1.2
+        "defaultTextSpeed": 10
     },
     "screens": [
         {
