@@ -3,6 +3,8 @@ import React, { FC, useEffect, useRef, useState, } from "react";
 // css
 import "./style.scss";
 
+import { registerTerminalInput } from "../../lib/terminalInput";
+
 export interface PromptProps {
     prompt?: string;
     commands?: any[];
@@ -135,6 +137,16 @@ const Prompt: FC<PromptProps> = (props) => {
                 break;
         }
     };
+
+    // While this prompt is accepting keystrokes, global letter shortcuts (like
+    // Shift+H) must not steal the key — otherwise you can't type "H" in a prompt.
+    useEffect(() => {
+        if (disabled) {
+            return;
+        }
+
+        return registerTerminalInput();
+    }, [disabled]);
 
     // render effects
     useEffect(() => {

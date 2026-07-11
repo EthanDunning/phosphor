@@ -44,7 +44,6 @@ import {
     TerminalScriptActionMeta,
     TerminalScriptApi,
 } from "../../scripts/terminal";
-import { markdownToPlainText, parseMarkdownHeading } from "../../utils/markdown";
 
 interface AppState {
     screens: Screen[];
@@ -414,6 +413,35 @@ class Phosphor extends Component<PhosphorProps, AppState> {
         return screen.content
             .filter((element) => element && element.type === ScreenDataType.Link)
             .map((element) => element.id);
+    }
+
+    // Skip a login on the active screen (Ctrl+Shift+L). Submits the login's first
+    // credential through the normal success path, so whatever that credential
+    // does (`target` or `action`) happens exactly as if it had been typed.
+    private _bypassLogin(): void {
+        const screen = this._getScreen(this.state.activeScreenId);
+        if (!screen || !Array.isArray(screen.content)) {
+            return;
+        }
+
+        const login = screen.content.find((element) => {
+            return element && element.type === ScreenDataType.Login;
+        });
+        if (!login || !Array.isArray(login.credentials)) {
+            return;
+        }
+
+        const credential = login.credentials.find((entry: any) => {
+            return entry
+                && typeof entry.username === "string"
+                && typeof entry.password === "string";
+        });
+        if (!credential) {
+            return;
+        }
+
+        void this._playCharEnter(true);
+        this._handleLoginSubmit(credential.username, credential.password, login);
     }
 
     // True when the active screen owns a focusable text input, so the alien
@@ -1330,6 +1358,14 @@ class Phosphor extends Component<PhosphorProps, AppState> {
     }
 
     private _handleGlobalKeyDown(e: KeyboardEvent): void {
+        // Ctrl+Shift+L skips a login on the active screen. Prompt/LoginPrompt both
+        // ignore ctrl-modified keys, so this can never collide with typing.
+        if (e.ctrlKey && e.shiftKey && !e.altKey && !e.metaKey && e.key.toLowerCase() === "l") {
+            e.preventDefault();
+            this._bypassLogin();
+            return;
+        }
+
         const isShiftSpace = e.shiftKey && (e.code === "Space" || e.key === " ");
         if (isShiftSpace) {
             if (e.repeat) {
@@ -2310,19 +2346,16 @@ class Phosphor extends Component<PhosphorProps, AppState> {
             const sourceText = type === ScreenDataType.Prompt
                 ? element.prompt
                 : (type === ScreenDataType.Login ? element.usernamePrompt : element.text);
-            const text = (type === ScreenDataType.Text)
-                ? markdownToPlainText(sourceText || "")
-                : (sourceText || "");
-            const headingLevel = type === ScreenDataType.Text
-                ? (parseMarkdownHeading(sourceText || "")?.level || undefined)
-                : undefined;
+            const text = sourceText || "";
+            // text elements are the only ones rendered as markdown once they're done typing
+            const markdown = type === ScreenDataType.Text;
             const speed = this._getResolvedTextSpeed(element, screen);
             const handleRendered = () => this._activateNextScreenData();
             return (
                 <Teletype
                     key={key}
                     text={text}
-                    headingLevel={headingLevel}
+                    markdown={markdown}
                     onComplete={handleRendered}
                     onNewLine={this._handleTeletypeNewLine}
                     onCharDrawn={this._handleTeletypeCharDrawn}

@@ -31,6 +31,11 @@
                 },
                 {
                     "type": "link",
+                    "text": "> KEYBOARD SHORTCUTS",
+                    "target": "keybinds"
+                },
+                {
+                    "type": "link",
                     "text": "> MODULES + LIBRARY WORKFLOW",
                     "target": "modules-workflow"
                 },
@@ -51,8 +56,7 @@
                 },
                 {
                     "type": "link",
-                    "className": "notice",
-                    "text": "> FILE SYSTEM SCREEN (ALIEN: ISOLATION STYLE) [NEW]",
+                    "text": "> FILE SYSTEM SCREENS",
                     "target": "filesystem-intro"
                 },
                 {
@@ -100,12 +104,106 @@
                 "- Flow runs in the real terminal renderer",
                 "- Use it before publishing modules",
                 "",
-                "Tip: SHIFT+SPACE skips active typing animation.",
-                "",
+                {
+                    "type": "link",
+                    "text": "> KEYBOARD SHORTCUTS",
+                    "target": "keybinds"
+                },
                 {
                     "type": "link",
                     "text": "> NEXT: MODULES + LIBRARY WORKFLOW",
                     "target": "modules-workflow"
+                },
+                {
+                    "type": "link",
+                    "text": "> TABLE OF CONTENTS",
+                    "target": "hub"
+                }
+            ]
+        },
+        {
+            "id": "keybinds",
+            "type": "screen",
+            "content": [
+                {
+                    "type": "text",
+                    "className": "alert",
+                    "text": "SECTION: KEYBOARD SHORTCUTS"
+                },
+                "",
+                "Every shortcut the app listens for.",
+                "Shortcuts are ignored while text is being entered: in a terminal",
+                "prompt or login, and in any text field (script creator, library",
+                "search, report composer).",
+                "",
+                {
+                    "type": "text",
+                    "className": "system",
+                    "text": "[APP]"
+                },
+                "Shift + H .......... show / hide the top header bar",
+                "",
+                {
+                    "type": "text",
+                    "className": "system",
+                    "text": "[TERMINAL]"
+                },
+                "Shift + Space ...... skip the typing animation on the current screen",
+                "Ctrl + Shift + L ... bypass a login on the current screen; submits",
+                "                     the login's first credential, so it lands on",
+                "                     whatever that credential targets. Does nothing",
+                "                     on a screen without a login.",
+                "",
+                {
+                    "type": "text",
+                    "className": "system",
+                    "text": "[PROMPTS]"
+                },
+                "letters / numbers .. enter text",
+                "Backspace .......... delete the last character",
+                "Enter .............. submit the command",
+                "",
+                {
+                    "type": "text",
+                    "className": "system",
+                    "text": "[LOGIN PROMPTS]"
+                },
+                "letters / numbers .. enter text",
+                "Enter .............. submit the username, then the password",
+                "Backspace .......... delete the last character",
+                "",
+                {
+                    "type": "text",
+                    "className": "system",
+                    "text": "[DIALOGS]"
+                },
+                "Escape ............. close the dialog",
+                "Enter .............. close the dialog (when it has no action buttons)",
+                "",
+                {
+                    "type": "text",
+                    "className": "system",
+                    "text": "[FILE SYSTEM SCREENS]"
+                },
+                "Up / Down .......... move within the focused list",
+                "Left / Right ....... switch between the folder list and the file list",
+                "Enter .............. open a folder's files, or activate a button",
+                "Home / End ......... jump to the first / last entry",
+                "Backspace / Esc .... return focus from the file list to the folder list",
+                "",
+                {
+                    "type": "text",
+                    "className": "system",
+                    "text": "[MOUSE]"
+                },
+                "Shift + click ...... alternate action on a link, toggle, or list,",
+                "                     where the script defines one",
+                "Press and hold ..... same as Shift + click, for touch screens",
+                "",
+                {
+                    "type": "link",
+                    "text": "> PREVIOUS: USING THE APP",
+                    "target": "using-app"
                 },
                 {
                     "type": "link",
@@ -224,7 +322,7 @@
                 "}",
                 "",
                 "screen = progressive render, static = immediate render",
-                "filesystem = Alien: Isolation folder browser (see FILE SYSTEM section)",
+                "filesystem = three-region file browser (see FILE SYSTEM SCREENS)",
                 {
                     "type": "link",
                     "text": "> VIEW STATIC SCREEN EXAMPLE",
@@ -884,44 +982,66 @@
                 {
                     "type": "text",
                     "className": "alert",
-                    "text": "SECTION: FILE SYSTEM SCREEN (ALIEN: ISOLATION STYLE)"
+                    "text": "SECTION: FILE SYSTEM SCREENS"
                 },
                 "",
-                "Set a screen's type to \"filesystem\" and it renders the SEEGSON",
-                "three-region browser with its own chrome (title bar + framed viewport):",
-                "- the screen's links become FOLDER tabs (left column)",
-                "- the selected folder's target screen supplies the SUB-SECTION list (top-right)",
-                "- the selected sub-section's content shows in the BODY (bottom-right)",
-                "",
-                "Navigate with UP/DOWN (move within a list), LEFT/RIGHT (switch lists),",
-                "ENTER (open/activate), or just click. Nothing transitions screens; it",
-                "all updates in place.",
+                "A screen with \"type\": \"filesystem\" renders a three-region file",
+                "browser inside its own chrome (a title bar over a framed viewport).",
+                "It is one self-contained view: selecting things updates it in place",
+                "and never changes screens.",
                 "",
                 {
                     "type": "text",
                     "className": "system",
-                    "text": "Features shown in the live example:"
+                    "text": "[STRUCTURE]"
                 },
-                "- headerTitle: sets the title-bar text for the screen",
-                "- info file: a folder whose target has TEXT surfaces it as a file named",
-                "  after the folder (so old text+links screens convert cleanly)",
-                "- working button: a folder/sub-section with an ARRAY target navigates or",
-                "  runs an action (the EXIT folder uses action \"back\")",
-                "- back-link filtering: links pointing back to the file-system screen are",
-                "  dropped automatically (no stray \"< BACK\" files)",
-                "- rich content: class-name colors, markdown, and images render in bodies",
+                "- the screen's link elements are the FOLDERS (left column)",
+                "- a folder's target screen supplies the FILE list (top right):",
+                "    - that target's own link elements are the files, or",
+                "    - if the target has no links, the target itself is one file",
+                "- the selected file's target supplies the CONTENT (bottom right)",
                 "",
                 {
                     "type": "text",
-                    "className": "notice",
-                    "text": "Tip: set config.terminalType \"alien\" to wrap EVERY screen in the chrome."
+                    "className": "system",
+                    "text": "[PROPERTIES]"
                 },
+                "- headerTitle (on the file system screen): title bar text",
+                "- title (on a content screen): the name shown in the file list",
+                "",
+                {
+                    "type": "text",
+                    "className": "system",
+                    "text": "[BEHAVIOUR]"
+                },
+                "- info file: if a folder's target has text as well as links, that",
+                "  text becomes a file named after the folder, listed first",
+                "- buttons: a folder or file whose target is an ARRAY navigates or",
+                "  runs an action instead of opening content, e.g.",
+                "  \"target\": [ { \"type\": \"action\", \"action\": \"back\" } ]",
+                "- back links: a link pointing back at the file system screen itself",
+                "  is hidden, so a converted screen's \"< BACK\" link is not listed",
+                "- content: file bodies render the same elements a normal screen",
+                "  does, including class names, markdown, images, and prompts",
+                "",
+                {
+                    "type": "text",
+                    "className": "system",
+                    "text": "[WHOLE-SCRIPT CHROME]"
+                },
+                "Setting config.terminalType to \"alien\" wraps every screen in the",
+                "same chrome, so classic screens sit inside the framed viewport too.",
+                "It is not required: a \"filesystem\" screen brings its own chrome.",
                 "",
                 {
                     "type": "link",
-                    "className": "notice",
                     "text": "> OPEN THE LIVE FILE SYSTEM",
                     "target": "file-system-demo"
+                },
+                {
+                    "type": "link",
+                    "text": "> KEYBOARD SHORTCUTS",
+                    "target": "keybinds"
                 },
                 {
                     "type": "link",
@@ -944,19 +1064,19 @@
         {
             "id": "fs-overview",
             "type": "screen",
-            "title": "RE: SYSTEM OVERVIEW",
+            "title": "STATION OVERVIEW",
             "content": [
-                "# SEEGSON APOLLO",
+                "# STATION OVERVIEW",
                 { "type": "text", "className": "notice", "text": "UPLINK........ ONLINE" },
+                { "type": "text", "className": "notice", "text": "ATMOSPHERE.... STABLE" },
                 { "type": "text", "className": "alert", "text": "SECURITY...... BREACH DETECTED" },
                 "",
-                "OVERVIEW is a folder pointing at this leaf screen, so it shows as one",
-                "file. The body renders through the real element components, so",
-                "**class names**, markdown, and images all work here.",
+                "All decks report **nominal** power draw. The *lower* ring remains",
+                "sealed pending a security sweep.",
                 "",
-                "Markdown quick check: *italic*, __underline__, and a list:",
-                "- first item",
-                "- second item"
+                "Outstanding items:",
+                "- reseal Junction 7",
+                "- restore Sector 4 lighting"
             ]
         },
         {
@@ -964,8 +1084,8 @@
             "type": "screen",
             "content": [
                 { "type": "text", "className": "system", "text": "CREW ROSTER" },
-                "This folder's target has text as well as links, so the text becomes",
-                "an info file named after the folder (PERSONNEL), listed above the crew.",
+                "Two crew are quartered on this deck. Records are current as of the",
+                "last synchronization.",
                 "",
                 { "type": "link", "text": "MORLEY, D.", "target": "fs-person-a" },
                 { "type": "link", "text": "CHEN, R.", "target": "fs-person-b" },
@@ -1001,9 +1121,10 @@
             "type": "screen",
             "title": "STATION SCHEMATIC",
             "content": [
-                "Recovered schematic fragment:",
-                { "type": "bitmap", "src": "img/ypsilon-map.png", "scale": 0.5 },
-                "Images render inside the file body via the bitmap/image element."
+                "Deck schematic, revision 4:",
+                { "type": "bitmap", "src": "img/ypsilon-map.png", "className": "luminosity", "scale": 0.5 },
+                "Recovered from the maintenance archive. Airlock states shown are",
+                "as of the last sweep and may be stale."
             ]
         },
         {

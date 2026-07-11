@@ -51,6 +51,7 @@ import {
     persistSubscribedScriptsVisibility,
 } from "../../lib/preferences";
 import { getModulesBrowserUrl, getTerminalAppUrl } from "../../lib/routes";
+import { isTypingContext } from "../../lib/terminalInput";
 import type { MainframePhase } from "../MainframeGame/shared";
 
 const CUSTOM_SCRIPTS_STORAGE_KEY = "phosphor:custom-scripts:v1";
@@ -353,6 +354,13 @@ class App extends Component<any, AppState> {
         }
 
         if (event.shiftKey && event.key.toLowerCase() === "h") {
+            // Shift+H is how you type a capital "H". Never steal it while the user
+            // is typing — in a terminal prompt/login, or any real text field
+            // (Script Creator, library search, report composer, ...).
+            if (isTypingContext()) {
+                return;
+            }
+
             event.preventDefault();
             this._handleHeaderVisibilityToggle();
         }

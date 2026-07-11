@@ -50,7 +50,7 @@ When you open the app you'll see a small toolbar fixed to the top of the screen 
 - **`[THEME:...]`** — click to cycle through the four color themes.
 - **`[GITHUB]`** — links to this repository.
 
-The terminal itself works the same as the original: click links to navigate between screens, use `Shift+Space` to skip the teletype animation on the current screen.
+The terminal itself works the same as the original: click links to navigate between screens, use `Shift+Space` to skip the teletype animation on the current screen, `Ctrl+Shift+L` to bypass a login screen (it submits the login's first credential), and `Shift+H` to show/hide the header. Shortcuts are ignored while text is being entered, so they never interfere with typing in a prompt, login, or text field. The bundled **PHOSPHOR SAMPLE SCRIPT** has a **KEYBOARD SHORTCUTS** page listing all of them.
 
 ### Writing your own script
 

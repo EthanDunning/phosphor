@@ -2098,14 +2098,12 @@ const ModulesBrowser: FC = () => {
                                     </div>
 
                                     <div className="modules-browser__detail-actions">
-                                        <button
+                                        <a
                                             className="modules-browser__btn"
-                                            onClick={() => {
-                                                window.location.href = getTerminalAppUrl(selectedModule.id);
-                                            }}
+                                            href={getTerminalAppUrl(selectedModule.id)}
                                         >
                                             Open in Phosphor
-                                        </button>
+                                        </a>
 
                                         {isModuleLinkShareable(selectedModule.visibility) && (
                                             <div ref={shareMenuRef} className="modules-browser__share-menu">

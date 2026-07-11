@@ -83,6 +83,13 @@
         padding: 0.75rem 0.85rem;
         overflow: hidden;
         border: 1px solid var(--alien-line);
+        // Opaque terminal backdrop. The flicker animation below animates opacity,
+        // which makes this element an isolation boundary; without a solid
+        // background, bitmap `mix-blend-mode` effects (monochrome/luminosity/…)
+        // would blend against a transparent backdrop and do nothing. This gives
+        // them the same terminal backdrop they get on a classic screen.
+        background-color: var(--bg);
+        background-image: var(--bg-gradient);
         box-shadow:
             inset 0 0 22px var(--alien-glow-inset),
             0 0 18px var(--alien-glow-outer);
@@ -301,6 +308,13 @@
     overflow-y: auto;
     padding: 0.8rem 1rem;
     border: 1px solid var(--alien-line);
+    // A scroll container forms its own isolation group for `mix-blend-mode`, so
+    // bitmap blend effects (monochrome/luminosity/lighten/…) inside the file body
+    // blend against THIS element's backdrop. Give it the opaque terminal
+    // background so those effects work exactly as they do on a classic screen
+    // (otherwise the image's own black background shows through unblended).
+    background-color: var(--bg);
+    background-image: var(--bg-gradient);
     @include alien-scrollbar;
 }
 

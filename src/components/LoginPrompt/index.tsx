@@ -3,6 +3,8 @@ import React, { FC, useEffect, useState } from "react";
 // css
 import "./style.scss";
 
+import { registerTerminalInput } from "../../lib/terminalInput";
+
 export interface LoginPromptProps {
     usernamePrompt?: string;
     passwordPrompt?: string;
@@ -138,6 +140,16 @@ const LoginPrompt: FC<LoginPromptProps> = (props) => {
     useEffect(() => {
         onRendered && onRendered();
     }, [onRendered]);
+
+    // While this login is accepting keystrokes, global letter shortcuts (like
+    // Shift+H) must not steal the key — otherwise you can't type "H" in a login.
+    useEffect(() => {
+        if (disabled) {
+            return;
+        }
+
+        return registerTerminalInput();
+    }, [disabled]);
 
     useEffect(() => {
         document.addEventListener("keydown", handleKeyDown);
