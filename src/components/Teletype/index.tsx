@@ -1,5 +1,5 @@
-import React, { Component, ReactElement } from "react";
-import { markdownToPlainText, parseMarkdownHeading } from "../../utils/markdown";
+import React, { Component, CSSProperties, ReactElement, ReactNode } from "react";
+import { MarkdownLine, markdownToPlainText, parseMarkdownHeading, parseMarkdownLines } from "../../utils/markdown";
 
 // css
 import "./style.scss";
@@ -7,6 +7,7 @@ import "./style.scss";
 interface TeletypeProps {
     text: string; // text to animate
     className?: string; // css class
+    markdown?: boolean; // treat text as markdown and type into rendered blocks? default = false
     headingLevel?: number; // optional markdown heading level for styled typing
     autostart?: boolean; // start animating immediately? default = true
     autocomplete?: boolean; // skip animating and instead fully render? default = false
@@ -25,6 +26,13 @@ interface TeletypeState {
     paused: boolean;
 }
 
+// a markdown line plus its span in the typed text; end is exclusive and excludes
+// the newline that follows the line
+interface TypedLine extends MarkdownLine {
+    start: number;
+    end: number;
+}
+
 class Teletype extends Component<TeletypeProps, TeletypeState> {
     private _cursorInterval = 15;
     private _charsPerTick = 1;
@@ -33,6 +41,9 @@ class Teletype extends Component<TeletypeProps, TeletypeState> {
     private _completionScheduled = false;
     private _cursorRef: React.RefObject<HTMLElement> = null;
     private _cursorY: number = null;
+    private _markdownSource: string = null;
+    private _markdownLines: TypedLine[] = null;
+    private _markdownText: string = null;
 
     constructor(props: TeletypeProps) {
         super(props);
@@ -72,25 +83,23 @@ class Teletype extends Component<TeletypeProps, TeletypeState> {
     public render(): ReactElement {
         const { className } = this.props;
         const { char, done, active, } = this.state;
-        const headingLevel = this._getHeadingLevel();
-        const text = this._getDisplayText();
-
-        const visible = text.substr(0, char); // already rendered
-        const cursor = text.substr(char, 1) || " "; // " " ensures the curosr is briefly visible for line breaks
-        const hidden = text.substr(char + 1); // to be rendered
 
         if (!active || done) {
             return null;
         }
 
         const css = ["__teletype__", className ? className : null].join(" ").trim();
-        const content = (
-            <>
-                <span className="visible">{visible}</span>
-                <span className="cursor" ref={this._cursorRef}>{cursor}</span>
-                <span className="hidden">{hidden}</span>
-            </>
-        );
+        const lines = this._getMarkdownLines();
+
+        // markdown text types into the same blocks the finished text renders as,
+        // so bullets, headings and quotes don't jump around on the last character
+        if (lines) {
+            return <div className={css}>{this._renderMarkdownBlocks(lines, char)}</div>;
+        }
+
+        const text = this._getDisplayText();
+        const content = this._renderTypedLine(text, 0, text.length, char);
+        const headingLevel = this._getHeadingLevel();
 
         if (headingLevel) {
             return (
@@ -268,6 +277,142 @@ class Teletype extends Component<TeletypeProps, TeletypeState> {
         });
     }
 
+    // parse (and cache) the markdown source into lines, each holding the range of
+    // the typed text it covers
+    private _getMarkdownLines(): TypedLine[] | null {
+        if (!this.props.markdown) {
+            return null;
+        }
+
+        const source = this.props.text || "";
+
+        if (this._markdownSource !== source) {
+            let offset = 0;
+
+            this._markdownSource = source;
+            this._markdownLines = parseMarkdownLines(source).map((line) => {
+                const start = offset;
+                const end = start + line.content.length;
+                offset = end + 1; // the newline between lines is typed but never drawn
+                return { ...line, start, end };
+            });
+            this._markdownText = this._markdownLines.map((line) => line.content).join("\n");
+        }
+
+        return this._markdownLines;
+    }
+
+    private _renderMarkdownBlocks(lines: TypedLine[], char: number): ReactNode[] {
+        const blocks: ReactNode[] = [];
+        let index = 0;
+
+        while (index < lines.length) {
+            const line = lines[index];
+            const blockKey = `tt-block-${blocks.length}`;
+
+            if (line.kind === "bullet") {
+                const items: ReactNode[] = [];
+
+                while (index < lines.length && lines[index].kind === "bullet") {
+                    const item = lines[index];
+                    items.push(
+                        <li key={`tt-item-${index}`} className={this._getLineClassName("__md-list-item", item, char)}>
+                            {this._renderTypedLine(item.content, item.start, item.end, char)}
+                        </li>
+                    );
+                    index++;
+                }
+
+                blocks.push(<ul key={blockKey} className="__md-list">{items}</ul>);
+                continue;
+            }
+
+            if (line.kind === "quote") {
+                const quoteLines: ReactNode[] = [];
+
+                while (index < lines.length && lines[index].kind === "quote") {
+                    const quote = lines[index];
+                    const quoteStyle = {
+                        "--md-quote-level": String(quote.level),
+                    } as CSSProperties;
+
+                    quoteLines.push(
+                        <div
+                            key={`tt-quote-${index}`}
+                            className={this._getLineClassName("__md-quote-line", quote, char)}
+                            style={quoteStyle}
+                        >
+                            {this._renderTypedLine(quote.content, quote.start, quote.end, char)}
+                        </div>
+                    );
+                    index++;
+                }
+
+                blocks.push(<blockquote key={blockKey} className="__md-blockquote">{quoteLines}</blockquote>);
+                continue;
+            }
+
+            if (line.kind === "empty") {
+                // the placeholder keeps the blank line at full height before and after it is typed
+                blocks.push(
+                    <div key={blockKey} className="__md-empty" aria-hidden="true">
+                        {this._renderTypedLine(line.content, line.start, line.end, char, "\u00A0")}
+                    </div>
+                );
+                index++;
+                continue;
+            }
+
+            if (line.kind === "heading") {
+                blocks.push(
+                    <div key={blockKey} className={`__md-heading __md-heading--h${line.level}`}>
+                        {this._renderTypedLine(line.content, line.start, line.end, char)}
+                    </div>
+                );
+                index++;
+                continue;
+            }
+
+            blocks.push(
+                <div key={blockKey} className="__md-line">
+                    {this._renderTypedLine(line.content, line.start, line.end, char)}
+                </div>
+            );
+            index++;
+        }
+
+        return blocks;
+    }
+
+    // lines that haven't been reached are hidden rather than empty, so their
+    // decoration (bullet marker, quote bar) doesn't show up ahead of the cursor
+    private _getLineClassName(className: string, line: TypedLine, char: number): string {
+        return char < line.start ? `${className} hidden` : className;
+    }
+
+    private _renderTypedLine(text: string, start: number, end: number, char: number, placeholder = ""): ReactNode {
+        if (char > end) {
+            return <span className="visible">{text.length ? text : placeholder}</span>;
+        }
+
+        if (char < start) {
+            return <span className="hidden">{text.length ? text : placeholder}</span>;
+        }
+
+        const offset = char - start;
+        const visible = text.substr(0, offset); // already rendered
+        const cursor = text.substr(offset, 1) || " "; // " " ensures the curosr is briefly visible for line breaks
+        const hidden = text.substr(offset + 1); // to be rendered
+
+        return (
+            <>
+                <span className="visible">{visible}</span>
+                <span className="cursor" ref={this._cursorRef}>{cursor}</span>
+                <span className="hidden">{hidden}</span>
+            </>
+        );
+    }
+
     private _getHeadingLevel(): number | null {
         if (typeof this.props.headingLevel === "number" && Number.isFinite(this.props.headingLevel)) {
             return Math.min(6, Math.max(1, Math.floor(this.props.headingLevel)));
@@ -282,6 +427,11 @@ class Teletype extends Component<TeletypeProps, TeletypeState> {
     }
 
     private _getDisplayText(): string {
+        // in markdown mode the blocks carry the formatting, so only the text is typed
+        if (this._getMarkdownLines()) {
+            return this._markdownText;
+        }
+
         if (typeof this.props.headingLevel === "number" && Number.isFinite(this.props.headingLevel)) {
             return this.props.text;
         }

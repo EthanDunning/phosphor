@@ -44,7 +44,6 @@ import {
     TerminalScriptActionMeta,
     TerminalScriptApi,
 } from "../../scripts/terminal";
-import { markdownToPlainText, parseMarkdownHeading } from "../../utils/markdown";
 
 interface AppState {
     screens: Screen[];
@@ -2347,19 +2346,16 @@ class Phosphor extends Component<PhosphorProps, AppState> {
             const sourceText = type === ScreenDataType.Prompt
                 ? element.prompt
                 : (type === ScreenDataType.Login ? element.usernamePrompt : element.text);
-            const text = (type === ScreenDataType.Text)
-                ? markdownToPlainText(sourceText || "")
-                : (sourceText || "");
-            const headingLevel = type === ScreenDataType.Text
-                ? (parseMarkdownHeading(sourceText || "")?.level || undefined)
-                : undefined;
+            const text = sourceText || "";
+            // text elements are the only ones rendered as markdown once they're done typing
+            const markdown = type === ScreenDataType.Text;
             const speed = this._getResolvedTextSpeed(element, screen);
             const handleRendered = () => this._activateNextScreenData();
             return (
                 <Teletype
                     key={key}
                     text={text}
-                    headingLevel={headingLevel}
+                    markdown={markdown}
                     onComplete={handleRendered}
                     onNewLine={this._handleTeletypeNewLine}
                     onCharDrawn={this._handleTeletypeCharDrawn}

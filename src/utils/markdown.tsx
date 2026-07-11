@@ -13,10 +13,21 @@ interface InlineTokenMatch {
 const HEADING_PATTERN = /^(#{1,6})\s+(.+)$/;
 const BULLET_PATTERN = /^\s*[-*+]\s+(.+)$/;
 const HORIZONTAL_RULE_PATTERN = /^\s*([-*_])(?:\s*\1){2,}\s*$/;
+const BULLET_MARKER = "• ";
+const HORIZONTAL_RULE_TEXT = "----------------";
 
 export interface MarkdownHeadingMatch {
     level: number;
     text: string;
+}
+
+export type MarkdownLineKind = "empty" | "rule" | "heading" | "bullet" | "quote" | "line";
+
+export interface MarkdownLine {
+    kind: MarkdownLineKind;
+    level: number; // heading level or blockquote depth; 0 for everything else
+    text: string; // plain-text form of the line, bullet marker included
+    content: string; // text only, so a renderer can supply its own bullet/quote decoration
 }
 
 interface BlockquoteLine {
@@ -367,36 +378,55 @@ const stripInlineMarkdown = (value: string): string => {
     return output;
 };
 
-export const markdownToPlainText = (text: string): string => {
+// a line-by-line view of the source, so the teletype can type plain text while
+// still rendering the same blocks renderMarkdown() produces
+export const parseMarkdownLines = (text: string): MarkdownLine[] => {
     const normalized = (text || "").replace(/\0/g, "").replace(/\r\n?/g, "\n");
-    const lines = normalized.split("\n").map((line) => {
+
+    return normalized.split("\n").map((line): MarkdownLine => {
         const trimmed = line.trim();
 
         if (!trimmed.length) {
-            return "";
+            return { kind: "empty", level: 0, text: "", content: "" };
         }
 
         if (HORIZONTAL_RULE_PATTERN.test(trimmed)) {
-            return "----------------";
+            return {
+                kind: "rule",
+                level: 0,
+                text: HORIZONTAL_RULE_TEXT,
+                content: HORIZONTAL_RULE_TEXT,
+            };
         }
 
         const headingMatch = parseMarkdownHeading(trimmed);
         if (headingMatch) {
-            return stripInlineMarkdown(headingMatch.text);
+            const content = stripInlineMarkdown(headingMatch.text);
+            return { kind: "heading", level: headingMatch.level, text: content, content };
         }
 
         const bulletMatch = BULLET_PATTERN.exec(line);
         if (bulletMatch) {
-            return `• ${stripInlineMarkdown(bulletMatch[1])}`;
+            const content = stripInlineMarkdown(bulletMatch[1]);
+            return { kind: "bullet", level: 0, text: `${BULLET_MARKER}${content}`, content };
         }
 
         const quoteMatch = parseBlockquoteLine(line);
         if (quoteMatch) {
-            return stripInlineMarkdown(quoteMatch.text);
+            const content = stripInlineMarkdown(quoteMatch.text);
+            return {
+                kind: "quote",
+                level: Math.max(1, Math.floor(quoteMatch.level)),
+                text: content,
+                content,
+            };
         }
 
-        return stripInlineMarkdown(line);
+        const content = stripInlineMarkdown(line);
+        return { kind: "line", level: 0, text: content, content };
     });
+};
 
-    return lines.join("\n");
+export const markdownToPlainText = (text: string): string => {
+    return parseMarkdownLines(text).map((line) => line.text).join("\n");
 };
