@@ -3,14 +3,13 @@
         "name": "Sevastopol Access Terminal",
         "author": "EthanDunning",
         "theme": "green",
-        "defaultTextSpeed": 0.8,
+        "defaultTextSpeed": 20,
         "comment": "Example of the 'alien' file-system screen (Alien: Isolation). A screen's TYPE decides how it is interpreted: \"screen\" and \"static\" are the classic teletype screens (used here for the boot + login), while \"filesystem\" renders the SEEGSON three-region browser with its own chrome. A file-system screen's link elements are the left-hand FOLDER tabs; the selected folder's target screen supplies the top-right list of sub-sections (its own links, or itself if it is a single message); and the selected sub-section's target supplies the content typed into the body — all with NO screen transitions. A folder or sub-section is a working BUTTON (it navigates / runs an action instead of opening content) when its `target` uses the array LinkTarget form, e.g. the 'LOG OUT' folder here: `\"target\": [{ \"type\": \"action\", \"action\": \"back\" }]`. Use ↑/↓ to move within a list, ←/→ to enter the sub-section list, Enter to open/activate, or just click. The header title comes from the screen's `headerTitle`. (Set `config.terminalType: \"alien\"` to also wrap every classic screen in the same chrome.)"
     },
     "screens": [
         {
             "id": "boot",
             "type": "screen",
-            "defaultTextSpeed": 0.6,
             "onDone": { "target": "login", "delayMs": 1400 },
             "content": [
                 "",
@@ -19,7 +18,13 @@
                 "MODEL S-8100  /  FIRMWARE 4.7.2",
                 "",
                 "ESTABLISHING SECURE UPLINK...",
-                "LINK ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓  100%",
+                "",
+                {
+                "type": "text",
+                "text": "LINK ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓  100%",
+                "speed": 5
+                },
+                "",
                 { "type": "text", "className": "notice", "text": "CONNECTION ESTABLISHED" }
             ]
         },
@@ -66,7 +71,7 @@
                 { "type": "link", "text": "SHARED", "target": "shared" },
                 { "type": "link", "text": "PERSONNEL", "target": "personnel" },
                 { "type": "link", "text": "SYSTEM", "target": "msg-system" },
-                { "type": "link", "text": "‹ LOG OUT", "target": [ { "type": "action", "action": "back" } ] }
+                { "type": "link", "text": "< LOG OUT", "target": [ { "type": "action", "action": "back" } ] }
             ]
         },
 

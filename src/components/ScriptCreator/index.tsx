@@ -997,14 +997,43 @@ const parseOptionalPositiveNumber = (value: any): number | undefined => {
     return parsed;
 };
 
-const parseOptionalPositiveInteger = (value: any): number | undefined => {
-    const parsed = parseOptionalPositiveNumber(value);
-    if (parsed === undefined) {
-        return undefined;
-    }
+// speeds are milliseconds per character, but the teletype also honours values
+// below 1 (it draws several characters per tick), so fractions are kept as-is
+const parseOptionalTextSpeed = (value: any): number | undefined => {
+    return parseOptionalPositiveNumber(value);
+};
 
-    const floored = Math.floor(parsed);
-    return floored > 0 ? floored : undefined;
+interface CreatorSpeedInputProps {
+    value: string; // the committed speed, or "" when unset
+    placeholder: string;
+    onChange: (nextValue: string) => void;
+}
+
+// a plain controlled input would swallow the keystrokes of a fractional speed:
+// "0" and "0." are both rejected on the way to "0.6", so the draft is held here
+// and only committed once it parses
+const CreatorSpeedInput: FC<CreatorSpeedInputProps> = ({ value, placeholder, onChange }) => {
+    const [draft, setDraft] = useState<string | null>(null);
+
+    const handleChange = (nextValue: string) => {
+        setDraft(nextValue);
+
+        if (!nextValue.trim().length || parseOptionalTextSpeed(nextValue) !== undefined) {
+            onChange(nextValue);
+        }
+    };
+
+    return (
+        <input
+            type="number"
+            min="0.1"
+            step="any"
+            value={draft ?? value}
+            placeholder={placeholder}
+            onChange={(e) => handleChange(e.target.value)}
+            onBlur={() => setDraft(null)}
+        />
+    );
 };
 
 const normalizeElementTextSpeed = (entry: any): any => {
@@ -1012,7 +1041,7 @@ const normalizeElementTextSpeed = (entry: any): any => {
         return entry;
     }
 
-    const parsedSpeed = parseOptionalPositiveInteger((entry as any).speed);
+    const parsedSpeed = parseOptionalTextSpeed((entry as any).speed);
     const nextEntry = {
         ...entry,
     };
@@ -1048,7 +1077,7 @@ const ensureScriptShape = (raw: any): any => {
     }
     delete base.config.themeId;
 
-    const defaultTextSpeed = parseOptionalPositiveInteger(base.config.defaultTextSpeed);
+    const defaultTextSpeed = parseOptionalTextSpeed(base.config.defaultTextSpeed);
     if (defaultTextSpeed === undefined) {
         delete base.config.defaultTextSpeed;
     } else {
@@ -1082,7 +1111,7 @@ const ensureScriptShape = (raw: any): any => {
                 type: typeof screen.type === "string" ? screen.type : "screen",
                 content: Array.isArray(screen.content) ? screen.content.map(normalizeElementTextSpeed) : [],
             };
-            const screenDefaultTextSpeed = parseOptionalPositiveInteger(screen.defaultTextSpeed);
+            const screenDefaultTextSpeed = parseOptionalTextSpeed(screen.defaultTextSpeed);
             if (screenDefaultTextSpeed === undefined) {
                 delete normalizedScreen.defaultTextSpeed;
             } else {
@@ -2252,17 +2281,9 @@ const ScriptCreator: FC<ScriptCreatorProps> = ({
         && Number.isFinite(selectedScreen.onDone.delayMs)
         ? String(Math.max(0, Math.floor(selectedScreen.onDone.delayMs)))
         : "";
-    const scriptDefaultTextSpeedMs = typeof script?.config?.defaultTextSpeed === "number"
-        && Number.isFinite(script.config.defaultTextSpeed)
-        && script.config.defaultTextSpeed > 0
-        ? Math.floor(script.config.defaultTextSpeed)
-        : undefined;
+    const scriptDefaultTextSpeedMs = parseOptionalTextSpeed(script?.config?.defaultTextSpeed);
     const resolvedScriptDefaultTextSpeedMs = scriptDefaultTextSpeedMs ?? PHOSPHOR_DEFAULT_TEXT_SPEED_MS;
-    const selectedScreenDefaultTextSpeedMs = typeof selectedScreen?.defaultTextSpeed === "number"
-        && Number.isFinite(selectedScreen.defaultTextSpeed)
-        && selectedScreen.defaultTextSpeed > 0
-        ? Math.floor(selectedScreen.defaultTextSpeed)
-        : undefined;
+    const selectedScreenDefaultTextSpeedMs = parseOptionalTextSpeed(selectedScreen?.defaultTextSpeed);
     const selectedScreenDefaultTextSpeed = selectedScreenDefaultTextSpeedMs === undefined
         ? ""
         : String(selectedScreenDefaultTextSpeedMs);
@@ -2301,12 +2322,8 @@ const ScriptCreator: FC<ScriptCreatorProps> = ({
     ) ? selectedElement.type.toLowerCase() : "";
     const selectedElementSupportsTextSpeed = selectedElement !== undefined
         && (typeof selectedElement === "string" || typeof selectedElement === "object");
-    const selectedElementTextSpeedMs = selectedElementSupportsTextSpeed
-        && typeof selectedElement === "object"
-        && typeof (selectedElement as any).speed === "number"
-        && Number.isFinite((selectedElement as any).speed)
-        && (selectedElement as any).speed > 0
-        ? Math.floor((selectedElement as any).speed)
+    const selectedElementTextSpeedMs = selectedElementSupportsTextSpeed && typeof selectedElement === "object"
+        ? parseOptionalTextSpeed((selectedElement as any).speed)
         : undefined;
     const selectedElementTextSpeed = selectedElementTextSpeedMs === undefined
         ? ""
@@ -3061,7 +3078,7 @@ const ScriptCreator: FC<ScriptCreatorProps> = ({
             return;
         }
 
-        const parsedSpeed = parseOptionalPositiveInteger(trimmedSpeed);
+        const parsedSpeed = parseOptionalTextSpeed(trimmedSpeed);
         if (parsedSpeed === undefined) {
             return;
         }
@@ -3648,7 +3665,7 @@ const ScriptCreator: FC<ScriptCreatorProps> = ({
             return;
         }
 
-        const parsedSpeed = parseOptionalPositiveInteger(trimmedSpeed);
+        const parsedSpeed = parseOptionalTextSpeed(trimmedSpeed);
         if (parsedSpeed === undefined) {
             return;
         }
@@ -4612,20 +4629,16 @@ const ScriptCreator: FC<ScriptCreatorProps> = ({
 
                                 <label className="script-creator__field">
                                     <span>Default Text Speed (ms)</span>
-                                    <input
-                                        type="number"
-                                        min="1"
-                                        step="1"
-                                        value={script.config?.defaultTextSpeed ?? ""}
+                                    <CreatorSpeedInput
+                                        value={scriptDefaultTextSpeedMs === undefined ? "" : String(scriptDefaultTextSpeedMs)}
                                         placeholder={String(PHOSPHOR_DEFAULT_TEXT_SPEED_MS)}
-                                        onChange={(e) => {
-                                            const nextValue = e.target.value;
-                                            if (!nextValue.length) {
+                                        onChange={(nextValue) => {
+                                            if (!nextValue.trim().length) {
                                                 removeConfigKey("defaultTextSpeed");
                                                 return;
                                             }
 
-                                            const parsed = parseOptionalPositiveInteger(nextValue);
+                                            const parsed = parseOptionalTextSpeed(nextValue);
                                             if (parsed === undefined) {
                                                 return;
                                             }
@@ -4974,13 +4987,11 @@ const ScriptCreator: FC<ScriptCreatorProps> = ({
 
                                                 <label className="script-creator__field">
                                                     <span>Default Text Speed (ms)</span>
-                                                    <input
-                                                        type="number"
-                                                        min="1"
-                                                        step="1"
+                                                    <CreatorSpeedInput
+                                                        key={`screen-speed-${selectedScreen.id}`}
                                                         value={selectedScreenDefaultTextSpeed}
                                                         placeholder={String(resolvedScriptDefaultTextSpeedMs)}
-                                                        onChange={(e) => updateScreenDefaultTextSpeed(e.target.value)}
+                                                        onChange={updateScreenDefaultTextSpeed}
                                                     />
                                                 </label>
 
@@ -6100,13 +6111,11 @@ const ScriptCreator: FC<ScriptCreatorProps> = ({
                                                 {selectedElementSupportsTextSpeed && (
                                                     <label className="script-creator__field">
                                                         <span>Text Speed (ms)</span>
-                                                        <input
-                                                            type="number"
-                                                            min="1"
-                                                            step="1"
+                                                        <CreatorSpeedInput
+                                                            key={`element-speed-${selectedScreen?.id || ""}-${selectedElementIndex}`}
                                                             value={selectedElementTextSpeed}
                                                             placeholder={selectedElementTextSpeedPlaceholder}
-                                                            onChange={(e) => updateElementTextSpeed(e.target.value)}
+                                                            onChange={updateElementTextSpeed}
                                                         />
                                                     </label>
                                                 )}
