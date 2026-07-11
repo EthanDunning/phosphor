@@ -34,7 +34,7 @@ interface TypedLine extends MarkdownLine {
 }
 
 class Teletype extends Component<TeletypeProps, TeletypeState> {
-    private _cursorInterval = 15;
+    private _cursorInterval = 20; // ms per character, matching the speed the creator advertises
     private _charsPerTick = 1;
     private _animateTimerId: number = null;
     private _completeTimerId: number = null;
