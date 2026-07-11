@@ -496,17 +496,26 @@
                     "className": "system",
                     "text": "[ELEMENT: BITMAP / IMAGE OBJECT]"
                 },
+                "Normal",
                 {
                     "type": "bitmap",
                     "src": "img/ypsilon-map.png",
-                    "className": "luminosity",
+                    "scale": 0.45
+
+                },
+                "Lighten",
+                {
+                    "type": "bitmap",
+                    "src": "img/ypsilon-map.png",
+                    "className": "lighten",
                     "scale": 0.45
                 },
+                "Monochrome",
                 {
                     "type": "image",
                     "src": "img/ypsilon-map.png",
                     "className": "monochrome",
-                    "scale": 0.25
+                    "scale": 0.45
                 },
                 "",
                 {
