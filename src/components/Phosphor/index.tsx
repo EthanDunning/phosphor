@@ -416,6 +416,35 @@ class Phosphor extends Component<PhosphorProps, AppState> {
             .map((element) => element.id);
     }
 
+    // Skip a login on the active screen (Ctrl+Shift+L). Submits the login's first
+    // credential through the normal success path, so whatever that credential
+    // does (`target` or `action`) happens exactly as if it had been typed.
+    private _bypassLogin(): void {
+        const screen = this._getScreen(this.state.activeScreenId);
+        if (!screen || !Array.isArray(screen.content)) {
+            return;
+        }
+
+        const login = screen.content.find((element) => {
+            return element && element.type === ScreenDataType.Login;
+        });
+        if (!login || !Array.isArray(login.credentials)) {
+            return;
+        }
+
+        const credential = login.credentials.find((entry: any) => {
+            return entry
+                && typeof entry.username === "string"
+                && typeof entry.password === "string";
+        });
+        if (!credential) {
+            return;
+        }
+
+        void this._playCharEnter(true);
+        this._handleLoginSubmit(credential.username, credential.password, login);
+    }
+
     // True when the active screen owns a focusable text input, so the alien
     // menu handler yields Enter/typing to the Prompt/Login instead of hijacking it.
     private _activeScreenHasTextInput(): boolean {
@@ -1330,6 +1359,14 @@ class Phosphor extends Component<PhosphorProps, AppState> {
     }
 
     private _handleGlobalKeyDown(e: KeyboardEvent): void {
+        // Ctrl+Shift+L skips a login on the active screen. Prompt/LoginPrompt both
+        // ignore ctrl-modified keys, so this can never collide with typing.
+        if (e.ctrlKey && e.shiftKey && !e.altKey && !e.metaKey && e.key.toLowerCase() === "l") {
+            e.preventDefault();
+            this._bypassLogin();
+            return;
+        }
+
         const isShiftSpace = e.shiftKey && (e.code === "Space" || e.key === " ");
         if (isShiftSpace) {
             if (e.repeat) {
