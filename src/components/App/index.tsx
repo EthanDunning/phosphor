@@ -12,6 +12,7 @@ import {
     Theme,
     CustomThemeConfig,
     createCustomTheme,
+    customThemeFromTheme,
     loadPersistedCustomTheme,
     loadPersistedTheme,
     persistCustomTheme,
@@ -1290,16 +1291,20 @@ class App extends Component<any, AppState> {
         this._setModuleQueryParam(null);
     }
 
-    private _handleThemeSelect(themeId: string): void {
+    // seedFromActiveTheme: shift-click on CUSTOM copies the theme you are currently
+    // on into the custom swatches instead of restoring your last saved custom colors.
+    private _handleThemeSelect(themeId: string, seedFromActiveTheme: boolean = false): void {
         if (themeId === "custom") {
             this.setState((prev) => {
                 const baseThemeId = prev.activeTheme.id === "custom"
                     ? prev.customTheme.baseThemeId
                     : prev.activeTheme.id;
-                const customTheme: CustomThemeConfig = {
-                    ...prev.customTheme,
-                    baseThemeId,
-                };
+                const customTheme: CustomThemeConfig = seedFromActiveTheme && prev.activeTheme.id !== "custom"
+                    ? customThemeFromTheme(prev.activeTheme)
+                    : {
+                        ...prev.customTheme,
+                        baseThemeId,
+                    };
                 const nextTheme = createCustomTheme(customTheme);
                 applyTheme(nextTheme);
                 persistTheme(nextTheme);
@@ -3006,9 +3011,12 @@ class App extends Component<any, AppState> {
                                             "phosphor-header__dropdown-item" +
                                             (activeTheme.id === "custom" ? " phosphor-header__dropdown-item--active" : "")
                                         }
-                                        onClick={() => {
+                                        title={activeTheme.id === "custom"
+                                            ? undefined
+                                            : "Shift-click to copy the current theme's colors into CUSTOM"}
+                                        onClick={(event) => {
                                             if (activeTheme.id !== "custom") {
-                                                this._handleThemeSelect("custom");
+                                                this._handleThemeSelect("custom", event.shiftKey);
                                                 return;
                                             }
                                             this._handleCustomThemeEditorToggle();
@@ -3293,9 +3301,12 @@ class App extends Component<any, AppState> {
                                                             "phosphor-header__dropdown-item" +
                                                             (activeTheme.id === "custom" ? " phosphor-header__dropdown-item--active" : "")
                                                         }
-                                                        onClick={() => {
+                                                        title={activeTheme.id === "custom"
+                                                            ? undefined
+                                                            : "Shift-click to copy the current theme's colors into CUSTOM"}
+                                                        onClick={(event) => {
                                                             if (activeTheme.id !== "custom") {
-                                                                this._handleThemeSelect("custom");
+                                                                this._handleThemeSelect("custom", event.shiftKey);
                                                                 return;
                                                             }
                                                             this._handleCustomThemeEditorToggle();

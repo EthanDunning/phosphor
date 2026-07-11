@@ -218,6 +218,27 @@ export const sanitizeCustomTheme = (customTheme: Partial<CustomThemeConfig> | nu
     };
 };
 
+// Read a theme's resolved vars back out as an editable custom-theme config, so
+// CUSTOM can start from whatever the user is currently looking at.
+export const customThemeFromTheme = (theme: Theme): CustomThemeConfig => {
+    const hexVar = (name: string, fallback: string): string => {
+        const value = theme.vars[name];
+        return value ? rgbCssToHex(value) : fallback;
+    };
+
+    return sanitizeCustomTheme({
+        baseThemeId: theme.id,
+        bgHex: hexVar("--bg", DEFAULT_CUSTOM_THEME.bgHex),
+        fgHex: hexVar("--fg", DEFAULT_CUSTOM_THEME.fgHex),
+        textHex: hexVar("--theme-fg", DEFAULT_CUSTOM_THEME.textHex),
+        alertHex: hexVar("--alert", DEFAULT_CUSTOM_THEME.alertHex),
+        emphasisHex: hexVar("--emphasis", DEFAULT_CUSTOM_THEME.emphasisHex),
+        noticeHex: hexVar("--notice", DEFAULT_CUSTOM_THEME.noticeHex),
+        hyperlinkHex: hexVar("--hyperlink", DEFAULT_CUSTOM_THEME.hyperlinkHex),
+        systemHex: hexVar("--system", DEFAULT_CUSTOM_THEME.systemHex),
+    });
+};
+
 export const createCustomTheme = (customThemeInput: CustomThemeConfig): Theme => {
     const customTheme = sanitizeCustomTheme(customThemeInput);
     const baseTheme = THEMES.find((theme) => theme.id === customTheme.baseThemeId) || DEFAULT_THEME;
