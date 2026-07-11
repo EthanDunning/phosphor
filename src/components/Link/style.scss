@@ -15,9 +15,9 @@
     &:hover,
     &:active {
         color: var(--bg);
-        background: var(--fg);
+        background: var(--theme-fg, var(--fg));
         text-shadow: var(--bg-glow);
-        box-shadow: var(--fg-glow);
+        box-shadow: var(--theme-fg-glow, var(--fg-glow));
         transition:  background 50ms, foreground 150ms;
     }
 

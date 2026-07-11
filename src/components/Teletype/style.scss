@@ -3,7 +3,7 @@
 .__teletype__ {
     .cursor {
         color: var(--bg-20);
-        background: var(--fg);
+        background: var(--theme-fg, var(--fg));
     }
 
     .hidden {
