@@ -9,13 +9,13 @@
         width: 100%;
         padding: 8px;
         box-sizing: border-box;
-        border: 1px solid var(--fg);
+        border: 1px solid var(--theme-fg, var(--fg));
         background: var(--bg-75);
-        color: var(--fg);
+        color: var(--theme-fg, var(--fg));
         font-family: $font-family;
         font-size: $fontsize;
         line-height: $lineheight;
-        text-shadow: var(--fg-glow);
+        text-shadow: var(--theme-fg-glow, var(--fg-glow));
     }
 
     input {
@@ -35,21 +35,21 @@
 
         button {
             cursor: pointer;
-            border: 1px solid var(--fg);
+            border: 1px solid var(--theme-fg, var(--fg));
             background: transparent;
-            color: var(--fg);
+            color: var(--theme-fg, var(--fg));
             font-family: $font-family;
             font-size: $fontsize;
             line-height: $lineheight;
             padding: 4px 10px;
-            text-shadow: var(--fg-glow);
+            text-shadow: var(--theme-fg-glow, var(--fg-glow));
 
             &:hover,
             &:active {
                 color: var(--bg);
-                background: var(--fg);
+                background: var(--theme-fg, var(--fg));
                 text-shadow: var(--bg-glow);
-                box-shadow: var(--fg-glow);
+                box-shadow: var(--theme-fg-glow, var(--fg-glow));
             }
         }
     }

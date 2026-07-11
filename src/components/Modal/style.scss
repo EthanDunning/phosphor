@@ -8,7 +8,7 @@
     top: 0;
     left: 0;
     background: var(--bg-80);
-    color: var(--fg);
+    color: var(--theme-fg, var(--fg));
 
     .content {
         position: fixed;
@@ -16,7 +16,7 @@
         left: 50%;
         padding: $lineheight * 0.5;
         transform: translate(-50%, -50%);
-        background: var(--fg);
+        background: var(--theme-fg, var(--fg));
         color: var(--bg);
         text-shadow: var(--bg-glow);
 
@@ -41,7 +41,7 @@
         .action {
             appearance: none;
             border: 1px solid var(--bg);
-            background: var(--fg);
+            background: var(--theme-fg, var(--fg));
             color: var(--bg);
             font: inherit;
             padding: 0.15rem 0.4rem;

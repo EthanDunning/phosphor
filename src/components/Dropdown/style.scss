@@ -52,7 +52,7 @@
     display: block;
     margin: 0 0 0 1em;
     padding: 0 0 0 0.5em;
-    border-left: 1px dashed var(--fg);
+    border-left: 1px dashed var(--theme-fg, var(--fg));
 }
 
 .__dropdown__option {
