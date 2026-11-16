@@ -16,7 +16,7 @@ export const BUNDLED_SCRIPTS: BundledScript[] = [
     // { id: "aphelion-mainframe", label: "APHELION_MAINFRAME", json: aphelionMainframeJson },
     // { id: "incr-ss-ark", label: "INCR-SS-ARK",  json: incrSsArkJson },
     // { id: "gradient-descent-terminal", label: "GRADIENT DESCENT TERMINAL", json: gradientDescentTerminalJson },
-    { id: "alien-terminal", label: "ALIEN TERMINAL (SEEGSON)", json: alienTerminalJson },
+    { id: "alien-terminal", label: "ALIEN TERMINAL", json: alienTerminalJson },
     { id: "sample",      label: "PHOSPHOR SAMPLE SCRIPT",     json: sampleJson    },
 ];
 

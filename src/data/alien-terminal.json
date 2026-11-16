@@ -10,7 +10,7 @@
         {
             "id": "boot",
             "type": "screen",
-            "onDone": { "target": "login", "delayMs": 1400 },
+            "onDone": { "target": "main", "delayMs": 1400 },
             "content": [
                 "",
                 { "type": "text", "className": "system", "text": "S E E G S O N" },

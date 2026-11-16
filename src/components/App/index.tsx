@@ -65,7 +65,8 @@ const BUNDLED_SUBSCRIBED_ENTRY_PREFIX = "bundled:";
 // user can show/hide from the script dropdown.
 const BUNDLED_SUBSCRIBED_SCRIPT_IDS = ["ypsilon14", "sample", "alien-terminal"] as const;
 // Subset that starts hidden from the dropdown until the user turns it on.
-const BUNDLED_HIDDEN_BY_DEFAULT_SCRIPT_IDS = ["alien-terminal"] as const;
+// const BUNDLED_HIDDEN_BY_DEFAULT_SCRIPT_IDS = ["alien-terminal"] as const;
+const BUNDLED_HIDDEN_BY_DEFAULT_SCRIPT_IDS = [] as const;
 const BUNDLED_OWNER_ID_PLACEHOLDER = "00000000-0000-0000-0000-000000000000";
 const PRINT_OPTIONS_STORAGE_KEY = "phosphor:print-options:v1";
 
