@@ -202,3 +202,21 @@
     gap: 0.4rem;
     margin-top: 0.3rem;
 }
+
+// shown instead of the terminal while a shared ?module= link loads
+.phosphor-module-loading {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg);
+    color: var(--theme-fg, var(--fg));
+    text-shadow: var(--theme-fg-glow, var(--fg-glow));
+    letter-spacing: 0.1em;
+    animation: phosphor-module-loading-blink 1.2s steps(2, start) infinite;
+}
+
+@keyframes phosphor-module-loading-blink {
+    to { opacity: 0.35; }
+}

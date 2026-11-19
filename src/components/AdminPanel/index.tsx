@@ -40,7 +40,7 @@ const STATUS_FILTERS = [
 const KIND_TAGS: Record<string, string> = { bug: "BUG", feature: "FEATURE", general: "GENERAL" };
 
 const CONTEXT_LABELS: Record<string, string> = {
-    script: "Script",
+    script: "Module",
     screen: "Screen",
     page: "Page",
     viewport: "Viewport",

@@ -1,0 +1,59 @@
+// SUPPORT > [HELP]. The overlay, box, header and buttons come from
+// .modules-panel / .feedback-dialog; only the shortcut list lives here.
+.help-dialog {
+    &__box {
+        width: min(760px, 100%);
+    }
+
+    &__body {
+        min-height: 0;
+        overflow: auto;
+        padding: 0.35rem 0.5rem 0.5rem;
+        // two columns of groups when there's room
+        columns: 2 22rem;
+        column-gap: 1.5rem;
+    }
+
+    &__note {
+        column-span: all;
+        margin: 0 0 0.5rem;
+        font-size: 0.85em;
+        opacity: 0.8;
+    }
+
+    &__group {
+        break-inside: avoid;
+        margin-bottom: 0.65rem;
+
+        h3 {
+            margin: 0 0 0.15rem;
+            font-size: 0.85em;
+            font-weight: normal;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            border-bottom: 1px dotted currentColor;
+        }
+
+        dl {
+            margin: 0;
+        }
+    }
+
+    &__row {
+        display: grid;
+        grid-template-columns: minmax(7.5em, max-content) 1fr;
+        gap: 0.75em;
+        padding: 0.05rem 0;
+        line-height: 1.25;
+
+        dt {
+            white-space: nowrap;
+            color: var(--modules-selected-bg, currentColor);
+        }
+
+        dd {
+            margin: 0;
+            opacity: 0.9;
+        }
+    }
+}

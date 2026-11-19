@@ -2,12 +2,14 @@ import React, { FC, useEffect, useCallback } from "react";
 import { renderMarkdown } from "../../utils/markdown";
 import Prompt from "../Prompt";
 import { getImageWrapperProps } from "../Bitmap";
+import { getFontSizeClassName } from "../../lib/textStyle";
 
 import "./style.scss";
 
 interface ModalTextEntry {
     text?: string;
     className?: string;
+    fontSize?: number;
 }
 
 interface ModalBitmapEntry {
@@ -25,6 +27,7 @@ interface ModalPromptEntry {
     prompt: string;
     commands?: any[];
     className?: string;
+    fontSize?: number;
     caseSensitive?: boolean;
     cursor?: boolean;
     allowFreeInput?: boolean;
@@ -74,7 +77,7 @@ const Modal: FC<ModalProps> = (props) => {
                     return (
                         <Prompt
                             key={index}
-                            className={promptEntry.className || ""}
+                            className={[promptEntry.className, getFontSizeClassName(promptEntry.fontSize)].filter(Boolean).join(" ")}
                             prompt={promptEntry.prompt}
                             commands={promptEntry.commands}
                             caseSensitive={promptEntry.caseSensitive}
@@ -115,7 +118,8 @@ const Modal: FC<ModalProps> = (props) => {
                 const textCss = [
                     "__text__",
                     textEntry.className ? textEntry.className : null,
-                ].join(" ").trim();
+                    getFontSizeClassName(textEntry.fontSize) || null,
+                ].filter(Boolean).join(" ");
 
                 return (
                     <div key={index} className={textCss}>

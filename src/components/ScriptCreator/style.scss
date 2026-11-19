@@ -420,6 +420,78 @@ $creator-dark-control-bg: rgba($creator-dark-bg, 0.92);
         }
     }
 
+    // Text Align / Text Speed / Font Size side by side, wrapping when narrow
+    &__field-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.45rem;
+
+        > .script-creator__field {
+            flex: 1 1 150px;
+            min-width: 0;
+        }
+    }
+
+    // custom color classes (config) and the inline "new custom color" form
+    &__custom-colors {
+        display: flex;
+        flex-direction: column;
+        gap: 0.3rem;
+        padding-top: 0.2rem;
+    }
+
+    &__custom-color {
+        display: flex;
+        align-items: center;
+        gap: 0.45rem;
+
+        .script-creator__btn {
+            padding: 0 0.45em;
+        }
+    }
+
+    &__custom-color-name {
+        flex: 1 1 auto;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    &__color-form {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 0.35rem;
+        padding-top: 0.35rem;
+    }
+
+    &__field &__color-form-name {
+        flex: 1 1 8em;
+        min-width: 6em;
+    }
+
+    &__color-form-error {
+        flex-basis: 100%;
+    }
+
+    &__field &__color-input {
+        flex: 0 0 auto;
+        width: 2.2em;
+        height: 1.6em;
+        padding: 0.1em;
+        cursor: pointer;
+    }
+
+    &__chip-swatch {
+        display: inline-block;
+        width: 0.8em;
+        height: 0.8em;
+        margin-right: 0.4em;
+        border: 1px solid var(--creator-fg);
+        vertical-align: -0.05em;
+    }
+
     &__markdown-hint {
         margin-top: 0.18rem;
         font-size: 12pt;
@@ -800,15 +872,7 @@ $creator-dark-control-bg: rgba($creator-dark-bg, 0.92);
             right: auto;
             width: max-content;
             min-width: 100%;
-            max-width: min(640px, 80vw);
-        }
-
-        .script-creator-select__option:disabled {
-            opacity: 0.7;
-            cursor: default;
-            font-size: 11pt;
-            letter-spacing: 0.06em;
-            padding-top: 0.3rem;
+            max-width: min(260px, 80vw);
         }
     }
 

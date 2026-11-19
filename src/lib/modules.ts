@@ -615,7 +615,7 @@ export const saveModule = async (input: SaveModuleInput): Promise<ModuleRecord> 
     const jsonText = JSON.stringify(input.scriptJson);
     const jsonSize = new Blob([jsonText]).size;
     if (jsonSize > MAX_SCRIPT_JSON_BYTES) {
-        throw new Error("Script JSON is too large. Maximum size is 5 MB.");
+        throw new Error("Module JSON is too large. Maximum size is 5 MB.");
     }
 
     const isUpdate = !!input.id;

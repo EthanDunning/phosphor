@@ -116,7 +116,7 @@ const ModulesPanel: FC<ModulesPanelProps> = ({
         if (typeof configName === "string" && configName.trim().length) {
             return configName.trim();
         }
-        return currentScriptLabel || "Untitled script";
+        return currentScriptLabel || "Untitled module";
     }, [currentScript, currentScriptLabel]);
 
     const activeModuleIsOwned = !!activeModule && !!sessionUserId && activeModule.owner_id === sessionUserId;
@@ -339,7 +339,7 @@ const ModulesPanel: FC<ModulesPanelProps> = ({
                 <div className="modules-panel__header">
                     <div>
                         <h2>My Modules</h2>
-                        <p>Manage your modules and subscribed modules, then control what shows in the script dropdown.</p>
+                        <p>Manage your modules and subscriptions, and choose which ones show in the MODULE menu.</p>
                     </div>
                     <div className="modules-panel__header-actions">
                         {!!sessionUserId && (
@@ -406,7 +406,7 @@ const ModulesPanel: FC<ModulesPanelProps> = ({
                 <div className="modules-panel__body">
                     <div className="modules-panel__grid">
                         <section className="modules-panel__section">
-                            <h3>Current Script</h3>
+                            <h3>Current Module</h3>
                             <p><strong>{currentScriptName}</strong></p>
 
                             {activeModule && (
@@ -420,7 +420,7 @@ const ModulesPanel: FC<ModulesPanelProps> = ({
 
                             {!activeModule && (
                                 <p className="modules-panel__muted">
-                                    This script is local right now. Saving will create a new module.
+                                    This module is only saved in this browser right now. Saving creates an online module.
                                 </p>
                             )}
 
@@ -532,7 +532,7 @@ const ModulesPanel: FC<ModulesPanelProps> = ({
                             {!!sessionUserId && !!myModules.length && (
                                 <>
                                     <p className="modules-panel__muted">
-                                        {visibleOwnCount} of {myModules.length} own modules are shown in the script dropdown.
+                                        {visibleOwnCount} of {myModules.length} of your modules are shown in the MODULE menu.
                                     </p>
                                     <div className="modules-panel__list">
                                         {myModules.map((module) => {
@@ -549,7 +549,7 @@ const ModulesPanel: FC<ModulesPanelProps> = ({
                                                         <strong>{module.title}</strong>
                                                         <span className="modules-panel__pill">{module.visibility}</span>
                                                         <span className="modules-panel__pill">
-                                                            {showInScripts ? "Scripts: On" : "Scripts: Off"}
+                                                            {showInScripts ? "Menu: On" : "Menu: Off"}
                                                         </span>
                                                         <p>{module.summary || "No summary provided."}</p>
                                                         <small className="modules-panel__muted">
@@ -636,7 +636,7 @@ const ModulesPanel: FC<ModulesPanelProps> = ({
                                                                 onChange={() => onToggleOwnScriptVisibility(module.id)}
                                                                 disabled={busy}
                                                             />
-                                                            <span>Show in SCRIPT</span>
+                                                            <span>Show in Menu</span>
                                                         </label>
 
                                                         {isModuleLinkShareable(module.visibility) && (
@@ -728,7 +728,7 @@ const ModulesPanel: FC<ModulesPanelProps> = ({
                             {!!subscribedModules.length && (
                                 <>
                                     <p className="modules-panel__muted">
-                                        {visibleSubscribedCount} of {subscribedModules.length} subscribed modules are shown in the script dropdown.
+                                        {visibleSubscribedCount} of {subscribedModules.length} subscribed modules are shown in the MODULE menu.
                                     </p>
                                     <div className="modules-panel__list">
                                         {subscribedModules.map((module) => {
@@ -746,12 +746,12 @@ const ModulesPanel: FC<ModulesPanelProps> = ({
                                                             {isBundledEntry ? "bundled" : module.visibility}
                                                         </span>
                                                         <span className="modules-panel__pill">
-                                                            {showInScripts ? "Scripts: On" : "Scripts: Off"}
+                                                            {showInScripts ? "Menu: On" : "Menu: Off"}
                                                         </span>
                                                         <p>{module.summary || "No summary provided."}</p>
                                                         <small className="modules-panel__muted">
                                                             {isBundledEntry
-                                                                ? "Bundled script"
+                                                                ? "Built-in"
                                                                 : `Updated ${toLocalTimestamp(module.updated_at)}`}
                                                         </small>
                                                     </div>
@@ -786,7 +786,7 @@ const ModulesPanel: FC<ModulesPanelProps> = ({
                                                                 onChange={() => onToggleSubscribedScriptVisibility(module.id)}
                                                                 disabled={busy}
                                                             />
-                                                            <span>Show in SCRIPT</span>
+                                                            <span>Show in Menu</span>
                                                         </label>
                                                         {!isBundledEntry && (
                                                             <button

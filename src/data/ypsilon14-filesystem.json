@@ -1,0 +1,978 @@
+{
+    "config": {
+        "name": "Ypsilon-14 File System",
+        "author": "@redhg & EthanDunning",
+        "theme": "green",
+        "terminalType": "alien",
+        "alien": {
+            "title": "YPSILON-14 // ISHIYAMA DYNAMICS"
+        },
+        "comment": "The Haunting of Ypsilon-14 (v2.0) as a file-system terminal, for the Mothership tabletop roleplaying game. Same station, same data as the YPSILON-14 module, browsed as folders and files. Items marked [A] are administrator-only: players get an authorization error, and the Warden can SHIFT+click (or SHIFT+Enter) to open the administrator node with the AIRLOCKS and SYSTEM controls. SHIFT+click LOG OUT to reset the terminal."
+    },
+    "dialogs": [
+        {
+            "id": "lockedDialog",
+            "type": "alert",
+            "content": [
+                "Error! Authorization required."
+            ]
+        },
+        {
+            "id": "airlockError",
+            "type": "alert",
+            "content": [
+                "ERROR! Lock override in effect.",
+                "Cannot unlock remotely. Manual intervention required."
+            ]
+        }
+    ],
+    "screens": [
+        {
+            "id": "screen0",
+            "type": "screen",
+            "headerTitle": "YPSILON-14 // ISHIYAMA DYNAMICS",
+            "content": [
+                {
+                    "type": "text",
+                    "text": "YPSILON-14",
+                    "className": "system"
+                },
+                "==========",
+                "",
+                "Welcome to the Ypsilon-14 Mining Station, a property of ISHIYAMA DYNAMICS (c), where innovation is our top priority (tm).",
+                "",
+                "======================",
+                {
+                    "type": "link",
+                    "text": "> ACCEPT EULA & LOG IN",
+                    "target": "station"
+                }
+            ]
+        },
+        {
+            "id": "station",
+            "type": "filesystem",
+            "headerTitle": "YPSILON-14 // STATION TERMINAL",
+            "content": [
+                {
+                    "type": "link",
+                    "text": "STATION MAP",
+                    "target": "map"
+                },
+                {
+                    "type": "link",
+                    "text": "DIAGNOSTICS",
+                    "target": "diagnostics"
+                },
+                {
+                    "type": "link",
+                    "text": "SCHEDULE",
+                    "target": "schedule"
+                },
+                {
+                    "type": "link",
+                    "text": "ROSTER",
+                    "target": "roster"
+                },
+                {
+                    "type": "link",
+                    "text": "COMMS",
+                    "target": "comms"
+                },
+                {
+                    "type": "link",
+                    "text": "CONTROLS",
+                    "target": "controls"
+                },
+                {
+                    "type": "link",
+                    "text": "< LOG OUT",
+                    "target": [
+                        {
+                            "type": "link",
+                            "target": "screen0",
+                            "shiftKey": false
+                        },
+                        {
+                            "type": "action",
+                            "action": "resetState",
+                            "target": "screen0",
+                            "shiftKey": true
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "id": "station-admin",
+            "type": "filesystem",
+            "headerTitle": "YPSILON-14 // STATION TERMINAL  [ADMINISTRATOR]",
+            "content": [
+                {
+                    "type": "link",
+                    "text": "STATION MAP",
+                    "target": "map"
+                },
+                {
+                    "type": "link",
+                    "text": "DIAGNOSTICS",
+                    "target": "diagnostics"
+                },
+                {
+                    "type": "link",
+                    "text": "SCHEDULE",
+                    "target": "schedule"
+                },
+                {
+                    "type": "link",
+                    "text": "ROSTER",
+                    "target": "roster"
+                },
+                {
+                    "type": "link",
+                    "text": "COMMS",
+                    "target": "comms"
+                },
+                {
+                    "type": "link",
+                    "text": "CONTROLS",
+                    "target": "controls-admin"
+                },
+                {
+                    "type": "link",
+                    "text": "SYSTEM",
+                    "target": "system"
+                },
+                {
+                    "type": "link",
+                    "text": "< LOG OUT",
+                    "target": [
+                        {
+                            "type": "link",
+                            "target": "screen0",
+                            "shiftKey": false
+                        },
+                        {
+                            "type": "action",
+                            "action": "resetState",
+                            "target": "screen0",
+                            "shiftKey": true
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "id": "map",
+            "type": "screen",
+            "title": "STATION MAP",
+            "content": [
+                {
+                    "type": "bitmap",
+                    "src": "img/ypsilon-map.png",
+                    "alt": "Ypsilon-14 station map",
+                    "className": "lighten"
+                },
+                "",
+                "A copy of the map is now available via data tablet."
+            ]
+        },
+        {
+            "id": "diagnostics",
+            "type": "screen",
+            "title": "DIAGNOSTICS",
+            "content": [
+                "Checking life support.............. Done.",
+                "Checking main systems.............. Done.",
+                "",
+                {
+                    "type": "text",
+                    "text": "WARNING: Airflow 82.4%. Check CREW QUARTERS vent for blockages.",
+                    "className": "alert"
+                },
+                {
+                    "type": "text",
+                    "text": "WARNING: Shower #5 non-functional as of 1 day(s).",
+                    "className": "alert"
+                },
+                "",
+                "NOTICE: Air filters replaced 512 day(s) ago.",
+                "NOTICE: Mineshaft lift maintained 1 day(s) ago.",
+                "",
+                {
+                    "type": "text",
+                    "text": "SUMMARY:",
+                    "className": "system"
+                },
+                "All systems operating within acceptable parameters."
+            ]
+        },
+        {
+            "id": "schedule",
+            "type": "screen",
+            "title": "SCHEDULE",
+            "content": [
+                {
+                    "type": "table",
+                    "title": "DOCKING BAY ACTIVITY // PAST 6 MONTHS",
+                    "border": "single",
+                    "sortable": true,
+                    "pageSize": 8,
+                    "columns": [
+                        "DATE",
+                        {
+                            "label": "TIME",
+                            "align": "right"
+                        },
+                        {
+                            "label": "BAY",
+                            "align": "right"
+                        },
+                        "EVENT",
+                        "VESSEL"
+                    ],
+                    "rows": [
+                        [
+                            "2366-06-12",
+                            "0633",
+                            "2",
+                            "ARRIVE",
+                            "TEMPEST"
+                        ],
+                        [
+                            "2366-06-04",
+                            "0915",
+                            "2",
+                            "DEPART",
+                            "MARRAKESH"
+                        ],
+                        [
+                            "2366-06-01",
+                            "0712",
+                            "2",
+                            "ARRIVE",
+                            "MARRAKESH"
+                        ],
+                        [
+                            "2366-05-03",
+                            "1140",
+                            "2",
+                            "DEPART",
+                            "DUNMORE"
+                        ],
+                        [
+                            "2366-05-01",
+                            "0802",
+                            "2",
+                            "ARRIVE",
+                            "DUNMORE"
+                        ],
+                        [
+                            "2366-04-29",
+                            "0834",
+                            "1",
+                            "ARRIVE",
+                            "HERACLES"
+                        ],
+                        [
+                            "2366-04-05",
+                            "0655",
+                            "1",
+                            "DEPART",
+                            "VOSTOK"
+                        ],
+                        [
+                            "2366-04-01",
+                            "0918",
+                            "1",
+                            "ARRIVE",
+                            "VOSTOK"
+                        ],
+                        [
+                            "2366-03-04",
+                            "1327",
+                            "1",
+                            "DEPART",
+                            "CASSIOPEIA"
+                        ],
+                        [
+                            "2366-03-02",
+                            "1223",
+                            "2",
+                            "DEPART",
+                            "KEY LARGO"
+                        ],
+                        [
+                            "2366-03-01",
+                            "0741",
+                            "1",
+                            "ARRIVE",
+                            "CASSIOPEIA"
+                        ],
+                        [
+                            "2366-02-20",
+                            "1604",
+                            "2",
+                            "ARRIVE",
+                            "KEY LARGO"
+                        ],
+                        [
+                            "2366-02-03",
+                            "1002",
+                            "1",
+                            "DEPART",
+                            "SALT LAKE"
+                        ],
+                        [
+                            "2366-02-01",
+                            "0820",
+                            "1",
+                            "ARRIVE",
+                            "SALT LAKE"
+                        ],
+                        [
+                            "2366-01-04",
+                            "0847",
+                            "2",
+                            "DEPART",
+                            "ULAN BATOR"
+                        ],
+                        [
+                            "2366-01-01",
+                            "0730",
+                            "2",
+                            "ARRIVE",
+                            "ULAN BATOR"
+                        ]
+                    ]
+                },
+                "",
+                {
+                    "type": "text",
+                    "text": "NEXT SCHEDULED CARGO ARRIVAL: 2366-07-01",
+                    "className": "notice"
+                }
+            ]
+        },
+        {
+            "id": "roster",
+            "type": "screen",
+            "title": "ROSTER",
+            "content": [
+                {
+                    "type": "table",
+                    "title": "STATION CREW",
+                    "border": "double",
+                    "footer": false,
+                    "columns": [
+                        {
+                            "label": "#",
+                            "align": "right"
+                        },
+                        "NAME",
+                        "ROLE"
+                    ],
+                    "rows": [
+                        [
+                            "01",
+                            "VERHOEVEN, Sonya",
+                            "Admin"
+                        ],
+                        [
+                            "02",
+                            "SINGH, Ashraf",
+                            "Breaker"
+                        ],
+                        [
+                            "03",
+                            "DE BEERS, Dana",
+                            "Lead drill"
+                        ],
+                        [
+                            "04",
+                            "CHATZKEL, Jerome",
+                            "Asst. drill"
+                        ],
+                        [
+                            "05",
+                            "TOBIN, Rosa",
+                            "Engineer"
+                        ],
+                        [
+                            "06",
+                            "RADIMIR, Mikhail",
+                            "Lead Engineer"
+                        ],
+                        [
+                            "07",
+                            "KANTARO, Kenji",
+                            "Loader"
+                        ],
+                        [
+                            "08",
+                            "BOWE, Morgan",
+                            "Loader"
+                        ],
+                        [
+                            "09",
+                            "NEKTARIOS, Ri",
+                            "Loader"
+                        ],
+                        [
+                            "10",
+                            "n/a",
+                            ""
+                        ]
+                    ]
+                }
+            ]
+        },
+        {
+            "id": "comms",
+            "type": "screen",
+            "content": [
+                "2 vessels detected in proximity.",
+                {
+                    "type": "link",
+                    "text": "> HAIL TEMPEST",
+                    "target": "hailtempest"
+                },
+                {
+                    "type": "link",
+                    "text": "> HAIL HERACLES",
+                    "target": "hailheracles"
+                }
+            ]
+        },
+        {
+            "id": "hailtempest",
+            "type": "screen",
+            "content": [
+                {
+                    "type": "text",
+                    "text": "TRANSMITTING // TEMPEST",
+                    "className": "system"
+                },
+                "",
+                "..........................................",
+                "..........................................",
+                "",
+                {
+                    "type": "text",
+                    "text": "COMMUNICATION CHANNEL OPENED",
+                    "className": "notice"
+                }
+            ]
+        },
+        {
+            "id": "hailheracles",
+            "type": "screen",
+            "content": [
+                {
+                    "type": "text",
+                    "text": "TRANSMITTING // HERACLES",
+                    "className": "system"
+                },
+                "",
+                "..........................................",
+                "..........................................",
+                "..........................................",
+                "..........................................",
+                "",
+                {
+                    "type": "text",
+                    "text": "NO RESPONSE",
+                    "className": "alert"
+                }
+            ]
+        },
+        {
+            "id": "controls",
+            "type": "screen",
+            "content": [
+                "[A] :: Administrator access only",
+                {
+                    "type": "link",
+                    "text": "> MINESHAFT LIFT",
+                    "target": "mineshaft-control"
+                },
+                {
+                    "type": "link",
+                    "text": "> SHOWERS",
+                    "target": "showers"
+                },
+                {
+                    "type": "link",
+                    "text": "> HYDROPONICS LAB",
+                    "target": "greenhouse"
+                },
+                {
+                    "type": "link",
+                    "text": "> FIRE SUPPRESSION",
+                    "target": "fire"
+                },
+                {
+                    "type": "link",
+                    "text": "> AIRLOCKS [A]",
+                    "target": [
+                        {
+                            "type": "dialog",
+                            "target": "lockedDialog",
+                            "shiftKey": false
+                        },
+                        {
+                            "type": "link",
+                            "target": "station-admin",
+                            "shiftKey": true
+                        }
+                    ]
+                },
+                {
+                    "type": "link",
+                    "text": "> SYSTEM [A]",
+                    "target": [
+                        {
+                            "type": "dialog",
+                            "target": "lockedDialog",
+                            "shiftKey": false
+                        },
+                        {
+                            "type": "link",
+                            "target": "station-admin",
+                            "shiftKey": true
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "id": "controls-admin",
+            "type": "screen",
+            "content": [
+                {
+                    "type": "link",
+                    "text": "> MINESHAFT LIFT",
+                    "target": "mineshaft-control"
+                },
+                {
+                    "type": "link",
+                    "text": "> SHOWERS",
+                    "target": "showers"
+                },
+                {
+                    "type": "link",
+                    "text": "> HYDROPONICS LAB",
+                    "target": "greenhouse"
+                },
+                {
+                    "type": "link",
+                    "text": "> FIRE SUPPRESSION",
+                    "target": "fire"
+                },
+                {
+                    "type": "link",
+                    "text": "> AIRLOCKS",
+                    "target": "airlocks"
+                }
+            ]
+        },
+        {
+            "id": "mineshaft-control",
+            "type": "screen",
+            "content": [
+                "FREIGHT ELEVATOR :: WORKSPACE <-> MINE ENTRANCE",
+                "",
+                "NOTICE: Lift maintained 1 day(s) ago.",
+                "NOTICE: Transit time 10 minutes.",
+                "",
+                {
+                    "type": "toggle",
+                    "states": [
+                        {
+                            "text": "> LIFT POSITION :: MINE ENTRANCE",
+                            "active": true
+                        },
+                        {
+                            "text": "> LIFT POSITION :: WORKSPACE",
+                            "active": false
+                        }
+                    ]
+                },
+                {
+                    "type": "toggle",
+                    "states": [
+                        {
+                            "text": "> LIFT LOCK :: OFF",
+                            "active": true
+                        },
+                        {
+                            "text": "> LIFT LOCK :: ON",
+                            "active": false,
+                            "className": "alert"
+                        }
+                    ]
+                },
+                {
+                    "type": "toggle",
+                    "states": [
+                        {
+                            "text": "> SHAFT LIGHTS :: ON",
+                            "active": true
+                        },
+                        {
+                            "text": "> SHAFT LIGHTS :: OFF",
+                            "active": false,
+                            "className": "alert"
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "id": "showers",
+            "type": "screen",
+            "content": [
+                {
+                    "type": "toggle",
+                    "states": [
+                        {
+                            "text": "> SHOWER 1 :: OFF",
+                            "active": true
+                        },
+                        {
+                            "text": "> SHOWER 1 :: ON",
+                            "active": false
+                        }
+                    ]
+                },
+                {
+                    "type": "toggle",
+                    "states": [
+                        {
+                            "text": "> SHOWER 2 :: OFF",
+                            "active": true
+                        },
+                        {
+                            "text": "> SHOWER 2 :: ON",
+                            "active": false
+                        }
+                    ]
+                },
+                {
+                    "type": "toggle",
+                    "states": [
+                        {
+                            "text": "> SHOWER 3 :: OFF",
+                            "active": true
+                        },
+                        {
+                            "text": "> SHOWER 3 :: ON",
+                            "active": false
+                        }
+                    ]
+                },
+                {
+                    "type": "toggle",
+                    "states": [
+                        {
+                            "text": "> SHOWER 4 :: OFF",
+                            "active": true
+                        },
+                        {
+                            "text": "> SHOWER 4 :: ON",
+                            "active": false
+                        }
+                    ]
+                },
+                {
+                    "type": "toggle",
+                    "states": [
+                        {
+                            "text": "> SHOWER 5 :: MALFUNCTIONING",
+                            "active": true,
+                            "className": "alert"
+                        }
+                    ]
+                },
+                {
+                    "type": "toggle",
+                    "states": [
+                        {
+                            "text": "> SHOWER 6 :: OFF",
+                            "active": true
+                        },
+                        {
+                            "text": "> SHOWER 6 :: ON",
+                            "active": false
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "id": "greenhouse",
+            "type": "screen",
+            "content": [
+                {
+                    "type": "toggle",
+                    "states": [
+                        {
+                            "text": "> NUTRIENT SUPPLEMENT DISPERSAL :: OFF",
+                            "active": true
+                        },
+                        {
+                            "text": "> NUTRIENT SUPPLEMENT DISPERSAL :: ON",
+                            "active": false
+                        }
+                    ]
+                },
+                {
+                    "type": "toggle",
+                    "states": [
+                        {
+                            "text": "> MIST HYDRATION SYSTEM :: OFF",
+                            "active": true
+                        },
+                        {
+                            "text": "> MIST HYDRATION SYSTEM :: ON",
+                            "active": false
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "id": "fire",
+            "type": "screen",
+            "content": [
+                {
+                    "type": "text",
+                    "text": "WARNING: CO2 IS A DEADLY GAS WHEN CONSUMED IN LARGE AMOUNTS. ALL CREW ARE REQUIRED TO WEAR AN OXYGEN BREATHING APPARATUS.",
+                    "className": "alert"
+                },
+                "",
+                {
+                    "type": "text",
+                    "text": "WARNING: TRIGGERING AN ATMOSPHERE RECYCLE WILL VENT ALL AIR OUT OF THE STATION. ATMOSPHERE REPLENISHMENT MAY TAKE UP TO THIRTY MINUTES. ALL CREW ARE REQUIRED TO WEAR AN OXYGEN BREATHING APPARATUS.",
+                    "className": "alert"
+                },
+                "",
+                {
+                    "type": "text",
+                    "text": "WARNING: ISHIYAMA DYNAMICS (c) IS NOT RESPONSIBLE FOR ANY ITEMS OR PROPERTY DAMAGED BY ACTIVATION OF SPRINKLER SYSTEMS. USAGE OF SPRINKLER SYSTEMS WILL DRAIN ALL REMAINING WATER RESERVES.",
+                    "className": "alert"
+                },
+                "",
+                {
+                    "type": "toggle",
+                    "states": [
+                        {
+                            "text": "> CO2 MANUAL RELEASE :: OFF",
+                            "active": true
+                        },
+                        {
+                            "text": "> CO2 MANUAL RELEASE :: ON",
+                            "active": false,
+                            "className": "alert"
+                        }
+                    ]
+                },
+                {
+                    "type": "toggle",
+                    "states": [
+                        {
+                            "text": "> MANUAL ATMOSPHERE RECYCLE :: OFF",
+                            "active": true
+                        },
+                        {
+                            "text": "> MANUAL ATMOSPHERE RECYCLE :: ON",
+                            "active": false,
+                            "className": "alert"
+                        }
+                    ]
+                },
+                {
+                    "type": "toggle",
+                    "states": [
+                        {
+                            "text": "> SPRINKLER SYSTEM :: OFF",
+                            "active": true
+                        },
+                        {
+                            "text": "> SPRINKLER SYSTEM :: ON",
+                            "active": false,
+                            "className": "alert"
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "id": "airlocks",
+            "type": "screen",
+            "content": [
+                {
+                    "type": "link",
+                    "text": "> DOCKING BAY 1 :: LOCKED — ERROR",
+                    "target": [
+                        {
+                            "type": "dialog",
+                            "target": "airlockError"
+                        }
+                    ],
+                    "className": "alert"
+                },
+                {
+                    "type": "toggle",
+                    "states": [
+                        {
+                            "text": "> DOCKING BAY 2 :: UNLOCKED",
+                            "active": true
+                        },
+                        {
+                            "text": "> DOCKING BAY 2 :: LOCKED",
+                            "active": false
+                        }
+                    ]
+                },
+                {
+                    "type": "toggle",
+                    "states": [
+                        {
+                            "text": "> MINESHAFT ENTRANCE :: UNLOCKED",
+                            "active": true
+                        },
+                        {
+                            "text": "> MINESHAFT ENTRANCE :: LOCKED",
+                            "active": false
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "id": "system",
+            "type": "screen",
+            "content": [
+                {
+                    "type": "link",
+                    "text": "> LIFE SUPPORT",
+                    "target": "lifesupport"
+                },
+                {
+                    "type": "link",
+                    "text": "> SELF-DESTRUCT",
+                    "target": "selfdestruct"
+                }
+            ]
+        },
+        {
+            "id": "lifesupport",
+            "type": "screen",
+            "content": [
+                {
+                    "type": "text",
+                    "text": "WARNING: Disabling life support is a violation of company policy #2778-A. ISHIYAMA DYNAMICS assumes no responsibilities or liabilities resulting from the improper use of this feature.",
+                    "className": "alert"
+                },
+                "",
+                {
+                    "type": "toggle",
+                    "states": [
+                        {
+                            "text": "> LIFE SUPPORT :: ENABLED",
+                            "active": true
+                        },
+                        {
+                            "text": "> LIFE SUPPORT :: DISABLED",
+                            "active": false,
+                            "className": "alert"
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "id": "selfdestruct",
+            "type": "screen",
+            "content": [
+                {
+                    "type": "text",
+                    "text": "WARNING: Destruction of corporate property is a violation of company policy #2778-B. ISHIYAMA DYNAMICS assumes no responsibilities or liabilities resulting from the improper use of this feature.",
+                    "className": "alert"
+                },
+                "",
+                {
+                    "type": "link",
+                    "text": "> ACTIVATE SELF-DESTRUCT",
+                    "target": "activate-self-destruct",
+                    "className": "alert"
+                }
+            ]
+        },
+        {
+            "id": "activate-self-destruct",
+            "type": "screen",
+            "content": [
+                {
+                    "type": "text",
+                    "text": "ACTIVATE SELF-DESTRUCT",
+                    "className": "alert"
+                },
+                "",
+                {
+                    "type": "text",
+                    "text": "THIS WILL INITIATE A 10-MINUTE STATION SELF-DESTRUCT SEQUENCE.",
+                    "className": "alert"
+                },
+                "",
+                {
+                    "type": "text",
+                    "text": "THIS CANNOT BE UNDONE.",
+                    "className": "alert"
+                },
+                "",
+                {
+                    "type": "prompt",
+                    "prompt": "TYPE 'OK' TO BEGIN COUNTDOWN: ",
+                    "className": "alert",
+                    "cursor": true,
+                    "caseSensitive": false,
+                    "commands": [
+                        {
+                            "command": "ok",
+                            "action": {
+                                "type": "link",
+                                "target": "evacuate"
+                            }
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "id": "evacuate",
+            "type": "screen",
+            "headerTitle": "YPSILON-14 // SELF-DESTRUCT SEQUENCE ACTIVE",
+            "content": [
+                {
+                    "type": "text",
+                    "text": "SELF-DESTRUCT SEQUENCE INITIATED.",
+                    "className": "alert"
+                },
+                {
+                    "type": "text",
+                    "text": "PLEASE EVACUATE AS SOON AS POSSIBLE.",
+                    "className": "alert"
+                },
+                "",
+                "======",
+                {
+                    "type": "link",
+                    "text": "< BACK",
+                    "target": "station-admin"
+                }
+            ]
+        }
+    ]
+}

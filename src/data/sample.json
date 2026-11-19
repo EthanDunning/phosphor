@@ -1,6 +1,10 @@
 {
     "config": {
-        "name": "Phosphor Sample Script",
+        "name": "Phosphor Sample Module",
+        "customColors": {
+            "toxic": "#88ff00",
+            "violet": "#b48cff"
+        },
         "author": "EthanDunning",
         "script": null,
         "defaultTextSpeed": 10
@@ -13,7 +17,7 @@
                 {
                     "type": "text",
                     "className": "alert",
-                    "text": "=== PHOSPHOR SAMPLE SCRIPT ==="
+                    "text": "=== PHOSPHOR SAMPLE MODULE ==="
                 },
                 "",
                 "This guide covers modules, reload behavior, creator workflow, and flow testing.",
@@ -46,12 +50,12 @@
                 },
                 {
                     "type": "link",
-                    "text": "> SCRIPT CREATOR WORKFLOW",
+                    "text": "> MODULE CREATOR WORKFLOW",
                     "target": "creator-workflow"
                 },
                 {
                     "type": "link",
-                    "text": "> SCRIPT STRUCTURE",
+                    "text": "> MODULE STRUCTURE",
                     "target": "script-structure"
                 },
                 {
@@ -107,12 +111,13 @@
                 },
                 "",
                 "Header controls:",
-                "- SCRIPT: switch bundled, custom and module scripts, or upload JSON",
-                "- CREATOR: edit the active script or start a new one",
-                "- MODULES: your modules, subscriptions and Show in Script choices",
+                "- MODULE: switch between built-in, local and online modules, upload",
+                "  JSON, or start a + NEW MODULE",
+                "- CREATOR: edit the active module in the Module Creator",
+                "- MY MODULES: your modules, subscriptions and Show in Menu choices",
                 "- LIBRARY: browse, rate and subscribe to published modules",
                 "- OPTIONS: sound, header, print, reload, clear local data, reset, theme",
-                "- SUPPORT: send feedback, donate, GitHub (+ ADMIN PANEL for admins)",
+                "- SUPPORT: HELP (every keyboard shortcut), feedback, donate, GitHub",
                 "- SIGN IN / PROFILE: email, username, account ID, sign out",
                 "- On narrow screens these fold into the MENU button",
                 "",
@@ -157,9 +162,9 @@
                     "text": "SECTION: KEYBOARD SHORTCUTS"
                 },
                 "",
-                "Every shortcut the app listens for.",
+                "Every shortcut the app listens for (SUPPORT > HELP shows this too).",
                 "Shortcuts are ignored while text is being entered: in a terminal",
-                "prompt or login, and in any text field (script creator, library",
+                "prompt or login, and in any text field (module creator, library",
                 "search, report composer).",
                 "",
                 {
@@ -235,7 +240,7 @@
                     "text": "[MOUSE]"
                 },
                 "Shift + click ...... alternate action on a link, toggle, or list,",
-                "                     where the script defines one",
+                "                     where the module defines one",
                 "Press and hold ..... same as Shift + click, for touch screens",
                 "Tap a prompt ....... opens the phone keyboard (tap elsewhere to close)",
                 "",
@@ -266,10 +271,10 @@
                 "- unlisted: available through direct link and hidden from library listings",
                 "- public: visible in the library and shareable",
                 "",
-                "Modules panel:",
+                "MY MODULES panel:",
                 "- My Modules: load, view in library, copy link, Manage > Edit Details",
                 "- Subscribed Modules: load, view in library",
-                "- Show in Script checkboxes decide what appears in the SCRIPT dropdown;",
+                "- Show in Menu checkboxes decide what appears in the MODULE menu;",
                 "  your choices are saved to your account, so they follow you",
                 "",
                 "Library:",
@@ -287,7 +292,7 @@
                 "",
                 {
                     "type": "link",
-                    "text": "> NEXT: SCRIPT CREATOR WORKFLOW",
+                    "text": "> NEXT: MODULE CREATOR WORKFLOW",
                     "target": "creator-workflow"
                 },
                 {
@@ -309,17 +314,17 @@
                 {
                     "type": "text",
                     "className": "alert",
-                    "text": "SECTION: SCRIPT CREATOR WORKFLOW"
+                    "text": "SECTION: MODULE CREATOR WORKFLOW"
                 },
                 "",
                 "1) Open CREATOR from header.",
-                "2) Use NEW SCRIPT to start clean, or edit the active script.",
+                "2) Use NEW MODULE to start clean, or edit the active module.",
                 "3) Build screens from the left list; dialogs are in a dedicated list mode.",
                 "4) Add elements from the Add Element menu.",
-                "5) Use [CONFIG: ON/OFF] to show or hide script config fields.",
+                "5) Use [CONFIG: ON/OFF] to show or hide module config fields.",
                 "6) Use [SCHEMA] to inspect connection flow across screens/dialogs.",
                 "7) PREVIEW in runtime, then APPLY TO APP.",
-                "8) Save/update as a module from the Modules panel.",
+                "8) Save it online (or update it) from the MY MODULES panel.",
                 "",
                 "Editor helpers:",
                 "- Data Table: [GRID] edits it like a spreadsheet, [TEXT] for pasting",
@@ -327,6 +332,10 @@
                 "- Class Names: chips. + ADD CLASS adds one, x removes it; a new color",
                 "  or blend mode replaces the old one",
                 "- Images: a Background field so blend modes work on dark themes",
+                "- Color classes show their color, e.g. alert (red). + new custom color",
+                "  makes your own; CONFIG > Custom Colors lists and edits them",
+                "- Text Align, Text Speed and Font Size sit on one row; Font Size is",
+                "  also on the CONFIG, screen and dialog settings",
                 "",
                 {
                     "type": "text",
@@ -336,7 +345,7 @@
                 "",
                 {
                     "type": "link",
-                    "text": "> NEXT: SCRIPT STRUCTURE",
+                    "text": "> NEXT: MODULE STRUCTURE",
                     "target": "script-structure"
                 },
                 {
@@ -357,13 +366,13 @@
             "content": [
                 {
                     "type": "text",
-                    "text": "SECTION: SCRIPT STRUCTURE",
+                    "text": "SECTION: MODULE STRUCTURE",
                     "className": "alert"
                 },
                 "",
                 "Top-level shape:",
                 "{",
-                "  \"config\": { \"name\": \"My Script\", \"author\": \"You\" },",
+                "  \"config\": { \"name\": \"My Module\", \"author\": \"You\" },",
                 "  \"screens\": [ ... ],",
                 "  \"dialogs\": [ ... ]",
                 "}",
@@ -372,10 +381,12 @@
                 "  name, author ........ shown in the header and the Library",
                 "  theme ............... blue, amber, green, white, light, or custom",
                 "  customTheme ......... colors when theme is \"custom\" (bgHex, fgHex, ...)",
-                "  defaultTextSpeed .... ms per typed character, whole script",
+                "  defaultTextSpeed .... ms per typed character, whole module",
+                "  defaultFontSize ..... text size in pt (27 = normal), whole module",
+                "  customColors ........ your own color classes, e.g. { \"toxic\": \"#88ff00\" }",
                 "  terminalType ........ \"alien\" wraps every screen in file-system chrome",
                 "  alien.title ......... default title bar text for that chrome",
-                "  script .............. id of an optional terminal script (see ADVANCED)",
+                "  script .............. id of optional module code (see ADVANCED)",
                 "",
                 "Screen shape:",
                 "{",
@@ -384,6 +395,7 @@
                 "  \"content\": [ ... ],",
                 "  \"onDone\": { \"target\": \"next-id\", \"delayMs\": 1200 },",
                 "  \"defaultTextSpeed\": 40,   (this screen only)",
+                "  \"defaultFontSize\": 32,    (this screen only)",
                 "  \"title\": \"...\",           (its label in a file-system list)",
                 "  \"headerTitle\": \"...\"      (file-system title bar text)",
                 "}",
@@ -425,7 +437,7 @@
                 "",
                 {
                     "type": "link",
-                    "text": "> BACK TO SCRIPT STRUCTURE",
+                    "text": "> BACK TO MODULE STRUCTURE",
                     "target": "script-structure"
                 },
                 {
@@ -464,8 +476,8 @@
                 "  finishing it plays a terminal-shutdown ending, so it isn't demoed here)",
                 "",
                 "On any element:",
-                "- className, align, speed, loop (see ADVANCED OPTIONS)",
-                "- scriptId: a name a terminal script uses to find and change it",
+                "- className, align, speed, fontSize, loop (see ADVANCED OPTIONS)",
+                "- scriptId: a name the module's code uses to find and change it",
                 "",
                 {
                     "type": "link",
@@ -484,12 +496,17 @@
                 },
                 {
                     "type": "link",
+                    "text": "> FONT SIZES + CUSTOM COLORS",
+                    "target": "text-styles"
+                },
+                {
+                    "type": "link",
                     "text": "> NEXT: PROMPT BEHAVIOR",
                     "target": "prompt-behavior"
                 },
                 {
                     "type": "link",
-                    "text": "> PREVIOUS: SCRIPT STRUCTURE",
+                    "text": "> PREVIOUS: MODULE STRUCTURE",
                     "target": "script-structure"
                 },
                 {
@@ -936,7 +953,7 @@
                 },
                 {
                     "type": "link",
-                    "text": "> ACTION: RESET SCRIPT STATE + GO HOME",
+                    "text": "> ACTION: RESET MODULE STATE + GO HOME",
                     "target": [
                         {
                             "type": "action",
@@ -1002,8 +1019,8 @@
                 "- fillWidth / scale / animated for bitmap/image",
                 "- align: \"left\" | \"center\" | \"right\" | \"justify\" (any element)",
                 "",
-                "Terminal scripts (bundled scripts only):",
-                "- config.script names a TypeScript module in src/scripts/terminal/",
+                "Module code (built-in modules only):",
+                "- config.script names a TypeScript file in src/scripts/terminal/",
                 "- it can react to screens, prompts, links and toggles, and change any",
                 "  element that has a \"scriptId\" (INCR-SS-ARK uses this)",
                 "",
@@ -1048,6 +1065,11 @@
                     "type": "link",
                     "text": "> PER-SCREEN TEXT SPEED (defaultTextSpeed: 80)",
                     "target": "speed-demo"
+                },
+                {
+                    "type": "link",
+                    "text": "> FONT SIZES + CUSTOM COLORS",
+                    "target": "text-styles"
                 },
                 {
                     "type": "link",
@@ -1167,7 +1189,7 @@
                 {
                     "type": "text",
                     "className": "system",
-                    "text": "[WHOLE-SCRIPT CHROME]"
+                    "text": "[WHOLE-MODULE CHROME]"
                 },
                 "Setting config.terminalType to \"alien\" wraps every screen in the",
                 "same chrome, so classic screens sit inside the framed viewport too.",
@@ -1555,7 +1577,7 @@
                 "Options:",
                 "- src / alt, scale (1 = natural size), fillWidth, animated (GIFs)",
                 "- align: \"left\" | \"center\" | \"right\"",
-                "- className: ONE blend mode, plus footer and/or script-hidden (separate with spaces)",
+                "- className: ONE blend mode, plus footer (separate with spaces)",
                 "- background: a color plate behind the image (fg, bg, alert, notice, emphasis, system, or any CSS color)",
                 "",
                 {
@@ -2039,14 +2061,16 @@
                 "",
                 {
                     "type": "text",
-                    "text": "[TERMINAL + SCRIPTS]",
+                    "text": "[TERMINAL + MODULES]",
                     "className": "system"
                 },
                 "- Data tables: box-drawn record browsers you can sort, search and page",
                 "- Images: blend modes that work, background plates, alignment, footer",
                 "- Class names combine: \"alert small center\"",
+                "- Font sizes per element, screen, dialog or the whole module",
+                "- Custom color classes you name yourself (\"toxic\", \"violet\", ...)",
                 "- File-system screens: links and table rows open files in place",
-                "- LANTERN-7: an original showcase scenario for the file-system screen",
+                "- YPSILON-14 FILE SYSTEM: Ypsilon-14 rebuilt on the file-system screen",
                 "- Phones and tablets: tap a prompt, login or QUERY line to type",
                 "",
                 {
@@ -2058,7 +2082,7 @@
                 "- Usernames: pick one on first sign-in, change it under PROFILE",
                 "- Co-authors: credit other creators by their account ID",
                 "- Star ratings, and you can remove your rating",
-                "- Show in Script choices are saved to your account",
+                "- Show in Menu choices are saved to your account",
                 "",
                 {
                     "type": "text",
@@ -2067,6 +2091,15 @@
                 },
                 "- SUPPORT > FEEDBACK: bug reports, feature requests, general feedback",
                 "- MY FEEDBACK shows each message's status and any reply",
+                "",
+                {
+                    "type": "text",
+                    "text": "[APP]",
+                    "className": "system"
+                },
+                "- Everything is a \"module\" now: built-in, local, or published online",
+                "- SUPPORT > HELP lists every keyboard shortcut",
+                "- MODULE menu > + NEW MODULE starts an empty local module",
                 "",
                 {
                     "type": "text",
@@ -2084,6 +2117,11 @@
                     "type": "link",
                     "text": "> SEE IMAGES + CLASS NAMES",
                     "target": "images"
+                },
+                {
+                    "type": "link",
+                    "text": "> SEE FONT SIZES + CUSTOM COLORS",
+                    "target": "text-styles"
                 },
                 {
                     "type": "link",
@@ -2469,7 +2507,7 @@
                 },
                 "",
                 "This screen sets \"defaultTextSpeed\": 80, so every line on it types",
-                "slowly, whatever the script's own default is.",
+                "slowly, whatever the module's own default is.",
                 {
                     "type": "text",
                     "text": "A single element can still override it with \"speed\".",
@@ -2519,6 +2557,117 @@
                     "type": "link",
                     "text": "> TABLE OF CONTENTS",
                     "target": "hub"
+                }
+            ]
+        },
+        {
+            "id": "text-styles",
+            "type": "screen",
+            "content": [
+                {
+                    "type": "text",
+                    "text": "FONT SIZES + CUSTOM COLORS",
+                    "className": "alert"
+                },
+                "",
+                {
+                    "type": "text",
+                    "text": "[FONT SIZE]  \"fontSize\": text size in pt, on any element",
+                    "className": "system"
+                },
+                {
+                    "type": "text",
+                    "text": "fontSize: 16",
+                    "fontSize": 16
+                },
+                "fontSize: 27 (normal)",
+                {
+                    "type": "text",
+                    "text": "fontSize: 40",
+                    "fontSize": 40
+                },
+                {
+                    "type": "text",
+                    "text": "fontSize: 54",
+                    "className": "alert",
+                    "fontSize": 54
+                },
+                "",
+                "Defaults: \"defaultFontSize\" on the module config, a screen or a",
+                "dialog. The closest setting wins: element, then screen or dialog,",
+                "then module. Sizes don't multiply.",
+                {
+                    "type": "link",
+                    "text": "> A SCREEN WITH defaultFontSize: 35",
+                    "target": "text-styles-screen"
+                },
+                {
+                    "type": "link",
+                    "text": "> A DIALOG WITH defaultFontSize: 19",
+                    "target": [
+                        {
+                            "type": "dialog",
+                            "target": "smallTextDialog"
+                        }
+                    ]
+                },
+                "",
+                {
+                    "type": "text",
+                    "text": "[CUSTOM COLORS]  config.customColors names your own color classes",
+                    "className": "system"
+                },
+                {
+                    "type": "text",
+                    "text": "className: \"toxic\"  (#88ff00, defined in this module's config)",
+                    "className": "toxic"
+                },
+                {
+                    "type": "text",
+                    "text": "className: \"violet small\"  (#b48cff, combined with small)",
+                    "className": "violet small"
+                },
+                "  \"customColors\": { \"toxic\": \"#88ff00\", \"violet\": \"#b48cff\" }",
+                "",
+                "In the Module Creator: Class Names > + ADD CLASS > + new custom color,",
+                "or CONFIG > Custom Colors. Every element can then pick it, like alert.",
+                "",
+                {
+                    "type": "link",
+                    "text": "> BACK TO ELEMENT TYPES",
+                    "target": "element-types"
+                },
+                {
+                    "type": "link",
+                    "text": "> TABLE OF CONTENTS",
+                    "target": "hub"
+                }
+            ]
+        },
+        {
+            "id": "text-styles-screen",
+            "type": "screen",
+            "defaultFontSize": 35,
+            "content": [
+                {
+                    "type": "text",
+                    "text": "defaultFontSize: 35",
+                    "className": "alert"
+                },
+                "",
+                "This screen sets \"defaultFontSize\": 35, so everything on it is",
+                "a bit larger, whatever the module's default is.",
+                {
+                    "type": "text",
+                    "text": "This line sets its own fontSize: 22, which wins.",
+                    "className": "notice",
+                    "fontSize": 22
+                },
+                "",
+                {
+                    "type": "link",
+                    "text": "> BACK TO FONT SIZES",
+                    "target": "text-styles"
                 }
             ]
         },
@@ -2645,11 +2794,11 @@
                     "text": "SECTION: FINAL CHECKLIST"
                 },
                 "",
-                "Before shipping your script/module:",
+                "Before shipping your module:",
                 "- Verify all screen IDs are unique",
                 "- Verify all link/dialog/action targets resolve",
                 "- Preview full flow, including prompts and dialogs",
-                "- Confirm Scripts dropdown visibility choices in Modules panel",
+                "- Confirm your Show in Menu choices in MY MODULES",
                 "- Validate module links from Modules and Library views",
                 "- Export JSON backup when stable",
                 "- Set your username (PROFILE) and credit co-authors (Edit Details)",
@@ -2757,6 +2906,20 @@
                         }
                     ]
                 }
+            ]
+        },
+        {
+            "id": "smallTextDialog",
+            "type": "alert",
+            "defaultFontSize": 19,
+            "content": [
+                "SMALL PRINT",
+                "This dialog sets \"defaultFontSize\": 19, so its text is smaller.",
+                {
+                    "text": "One line can still set its own fontSize (this one is 32).",
+                    "fontSize": 32
+                },
+                "Press ENTER, ESC, or click to close."
             ]
         }
     ]

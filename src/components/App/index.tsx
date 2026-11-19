@@ -7,6 +7,7 @@ import "./style.scss";
 import Phosphor from "../Phosphor";
 import ModulesPanel from "../ModulesPanel";
 import FeedbackDialog from "../FeedbackDialog";
+import HelpDialog from "../HelpDialog";
 import UsernameEditor from "../UsernameEditor";
 import UsernamePrompt from "../UsernamePrompt";
 import { AuthorRef, getUsernameSetup, setModuleCoAuthors } from "../../lib/authors";
@@ -80,9 +81,9 @@ const MODULE_QUERY_PARAM = "module";
 const BUNDLED_SUBSCRIBED_ENTRY_PREFIX = "bundled:";
 // Bundled scripts that appear in the modules menu as "subscribed" entries the
 // user can show/hide from the script dropdown.
-const BUNDLED_SUBSCRIBED_SCRIPT_IDS = ["ypsilon14", "sample", "alien-terminal"] as const;
+const BUNDLED_SUBSCRIBED_SCRIPT_IDS = ["ypsilon14", "sample", "ypsilon14-filesystem"] as const;
 // Subset that starts hidden from the dropdown until the user turns it on.
-// const BUNDLED_HIDDEN_BY_DEFAULT_SCRIPT_IDS = ["alien-terminal"] as const;
+// const BUNDLED_HIDDEN_BY_DEFAULT_SCRIPT_IDS = ["ypsilon14-filesystem"] as const;
 const BUNDLED_HIDDEN_BY_DEFAULT_SCRIPT_IDS = [] as const;
 const BUNDLED_OWNER_ID_PLACEHOLDER = "00000000-0000-0000-0000-000000000000";
 const PRINT_OPTIONS_STORAGE_KEY = "phosphor:print-options:v1";
@@ -164,6 +165,9 @@ const SHUTDOWN_THEME = createCustomTheme({
 
 interface AppState {
     activeScript: BundledScript;
+    // a ?module= link is being fetched: hold the terminal so the default
+    // module doesn't flash first
+    sharedModuleLoading: boolean;
     activeScriptRevision: number;
     activeTerminalScreenId: string | null;
     printPayload: { items: PrintoutItem[]; scriptName: string; screenId: string; timestamp: string } | null;
@@ -188,6 +192,7 @@ interface AppState {
     feedbackOpen: boolean;
     adminOpen: boolean;
     supportDropdownOpen: boolean;
+    helpOpen: boolean;
     usernamePrompt: { userId: string; defaultUsername: string } | null;
     feedbackUnreadCount: number; // admin responses the user hasn't read yet
     previewMode: boolean;
@@ -260,6 +265,7 @@ class App extends Component<any, AppState> {
             feedbackOpen: false,
             adminOpen: false,
             supportDropdownOpen: false,
+            helpOpen: false,
             usernamePrompt: null,
             feedbackUnreadCount: 0,
             previewMode: false,
@@ -267,6 +273,7 @@ class App extends Component<any, AppState> {
             authSession: null,
             profileRole: "user",
             authLoading: isSupabaseConfigured(),
+            sharedModuleLoading: isSupabaseConfigured() && !!this._readModuleIdFromLocation(),
             modulesBusy: false,
             modulesError: null,
             modulesNotice: null,
@@ -310,6 +317,9 @@ class App extends Component<any, AppState> {
         this._handleModulesOpen     = this._handleModulesOpen.bind(this);
         this._handleModulesClose    = this._handleModulesClose.bind(this);
         this._handleFeedbackOpen    = this._handleFeedbackOpen.bind(this);
+        this._handleHelpOpen        = this._handleHelpOpen.bind(this);
+        this._handleNewBlankModule  = this._handleNewBlankModule.bind(this);
+        this._handleHelpClose       = this._handleHelpClose.bind(this);
         this._handleFeedbackClose   = this._handleFeedbackClose.bind(this);
         this._handleFeedbackSubmit  = this._handleFeedbackSubmit.bind(this);
         this._handleAdminOpen       = this._handleAdminOpen.bind(this);
@@ -504,7 +514,7 @@ class App extends Component<any, AppState> {
     }
 
     private _formatLocalUploadLabel(rawLabel: string): string {
-        const normalizedLabel = (rawLabel || "LOCAL SCRIPT")
+        const normalizedLabel = (rawLabel || "LOCAL MODULE")
             .toString()
             .trim()
             .replace(/^\[LOCAL\]\s*/i, "")
@@ -549,7 +559,7 @@ class App extends Component<any, AppState> {
                 id: `${BUNDLED_SUBSCRIBED_ENTRY_PREFIX}${script.id}`,
                 owner_id: BUNDLED_OWNER_ID_PLACEHOLDER,
                 title: script.label,
-                summary: "Bundled script included with Phosphor.",
+                summary: "Built-in module included with Phosphor.",
                 script_json: script.json,
                 cover_image_url: null,
                 visibility: "public",
@@ -821,8 +831,8 @@ class App extends Component<any, AppState> {
             return {
                 ownScriptsVisibilityById: nextVisibilityById,
                 modulesNotice: nextValue
-                    ? `"${module.title}" now appears in the script dropdown.`
-                    : `"${module.title}" hidden from the script dropdown.`,
+                    ? `"${module.title}" now appears in the MODULE menu.`
+                    : `"${module.title}" hidden from the MODULE menu.`,
                 modulesError: null,
             };
         });
@@ -858,7 +868,7 @@ class App extends Component<any, AppState> {
                 return;
             }
             saveHiddenScriptIds(userId, this._collectHiddenScriptIds()).catch((error: any) => {
-                this.setState({ modulesError: `Couldn't save your "Show in Script" choices: ${error?.message || "unknown error"}` });
+                this.setState({ modulesError: `Couldn't save your "Show in Menu" choices: ${error?.message || "unknown error"}` });
             });
         }, 400);
     }
@@ -927,12 +937,12 @@ class App extends Component<any, AppState> {
             persistSubscribedScriptsVisibility(nextVisibilityById);
             this._scheduleHiddenScriptsSave();
 
-            const entryTitle = module?.title || bundledScript?.label || "This script";
+            const entryTitle = module?.title || bundledScript?.label || "This module";
             return {
                 subscribedScriptsVisibilityById: nextVisibilityById,
                 modulesNotice: nextValue
-                    ? `"${entryTitle}" now appears in the script dropdown.`
-                    : `"${entryTitle}" hidden from the script dropdown.`,
+                    ? `"${entryTitle}" now appears in the MODULE menu.`
+                    : `"${entryTitle}" hidden from the MODULE menu.`,
                 modulesError: null,
             };
         });
@@ -1072,6 +1082,9 @@ class App extends Component<any, AppState> {
             });
         } finally {
             this._clearTransientAuthParams();
+            if (this.state.sharedModuleLoading) {
+                this.setState({ sharedModuleLoading: false });
+            }
         }
     }
 
@@ -1784,7 +1797,7 @@ class App extends Component<any, AppState> {
 
         const scriptName = this.state.activeScript.label
             || this.state.activeScript.json?.config?.name
-            || "UNTITLED SCRIPT";
+            || "UNTITLED MODULE";
 
         this.setState(
             {
@@ -2066,6 +2079,66 @@ class App extends Component<any, AppState> {
         });
     }
 
+    // [+ NEW MODULE]: an empty local module (saved in this browser),
+    // made active and opened in the Creator.
+    private _handleNewBlankModule(): void {
+        const takenLabels = new Set(this.state.customScripts.map((script) => script.label));
+        let name = "UNTITLED MODULE";
+        for (let n = 2; takenLabels.has(this._formatLocalUploadLabel(name)) && n < 1000; n++) {
+            name = `UNTITLED MODULE ${n}`;
+        }
+        const json = {
+            config: { name },
+            screens: [
+                {
+                    id: "start",
+                    type: "screen",
+                    content: [
+                        name,
+                        "",
+                        "A blank module. Open the CREATOR to start writing.",
+                    ],
+                },
+            ],
+            dialogs: [] as any[],
+        };
+        const blankModule: BundledScript = {
+            id: `custom:${Date.now()}`,
+            label: this._formatLocalUploadLabel(name),
+            json,
+        };
+        this.setState((prev): Pick<AppState,
+            "activeScript"
+            | "activeScriptRevision"
+            | "activeTerminalScreenId"
+            | "customScripts"
+            | "activeModule"
+            | "scriptDropdownOpen"
+            | "mobileMenuOpen"
+            | "creatorInitialScript"
+            | "previewMode"
+            | "uploadError"
+        > => {
+            const customScripts = this._upsertCustomScripts(prev.customScripts, blankModule);
+            this._persistCustomScripts(customScripts);
+            return {
+                activeScript: blankModule,
+                activeScriptRevision: prev.activeScriptRevision + 1,
+                activeTerminalScreenId: null,
+                customScripts,
+                activeModule: null as ModuleRecord | null,
+                scriptDropdownOpen: false,
+                mobileMenuOpen: false,
+                creatorInitialScript: null,
+                previewMode: false,
+                uploadError: null as string | null,
+            };
+        });
+        this._setModuleQueryParam(null);
+        // queued after the update above, so the Creator opens on the new module
+        this._handleCreatorOpen();
+    }
+
     private _handleFileChange(e: React.ChangeEvent<HTMLInputElement>): void {
         const file = e.target.files?.[0];
         if (!file) {
@@ -2163,6 +2236,14 @@ class App extends Component<any, AppState> {
             customThemeEditorOpen: false,
             mobileMenuOpen: false,
         };
+    }
+
+    private _handleHelpOpen(): void {
+        this.setState({ helpOpen: true, ...this._closeHeaderMenus() });
+    }
+
+    private _handleHelpClose(): void {
+        this.setState({ helpOpen: false });
     }
 
     private _handleFeedbackOpen(): void {
@@ -3109,7 +3190,7 @@ class App extends Component<any, AppState> {
                                     aria-haspopup="listbox"
                                     aria-expanded={scriptDropdownOpen}
                                 >
-                                    [SCRIPT:{activeScript.label} {scriptDropdownOpen ? "▲" : "▼"}]
+                                    [MODULE:{this.state.sharedModuleLoading ? "LOADING…" : activeScript.label} {scriptDropdownOpen ? "▲" : "▼"}]
                                 </button>
 
                         {scriptDropdownOpen && (
@@ -3140,6 +3221,13 @@ class App extends Component<any, AppState> {
                                                 onChange={this._handleFileChange}
                                             />
                                         </label>
+                                        <button
+                                            className="phosphor-header__dropdown-item"
+                                            title="Start an empty module saved in this browser"
+                                            onClick={this._handleNewBlankModule}
+                                        >
+                                            &nbsp;&nbsp;[+ NEW MODULE]
+                                        </button>
                                     </div>
                                 )}
                             </div>
@@ -3151,7 +3239,7 @@ class App extends Component<any, AppState> {
                                 <button
                                     className="phosphor-header__btn"
                                     onClick={this._handlePreviewReturn}
-                                    title="Return to Script Creator"
+                                    title="Return to the Module Creator"
                                 >
                                     [RETURN TO CREATOR]
                                 </button>
@@ -3162,7 +3250,7 @@ class App extends Component<any, AppState> {
                             <button
                                 className="phosphor-header__btn phosphor-header__hide-at-5"
                                 onClick={this._handleCreatorOpen}
-                                title="Open visual JSON script creator (Shift+Click to sync current script/screen)"
+                                title="Open the Module Creator (Shift+Click to keep where you left off)"
                             >
                                 [CREATOR]
                             </button>
@@ -3174,7 +3262,7 @@ class App extends Component<any, AppState> {
                                 onClick={this._handleModulesOpen}
                                 title="Open your module manager"
                             >
-                                [MODULES]
+                                [MY MODULES]
                             </button>
                         )}
 
@@ -3234,7 +3322,7 @@ class App extends Component<any, AppState> {
                                             className="phosphor-header__dropdown-item"
                                             role="menuitem"
                                             onClick={this._handleReloadCurrentScript}
-                                            title="Restart the current script from the beginning"
+                                            title="Restart the current module from the beginning"
                                         >
                                             [RELOAD]
                                         </button>
@@ -3245,7 +3333,7 @@ class App extends Component<any, AppState> {
                                             className="phosphor-header__dropdown-item"
                                             role="menuitem"
                                             onClick={this._handleClearLocalModules}
-                                            title="Remove local uploaded scripts from this browser only"
+                                            title="Remove modules saved only in this browser"
                                         >
                                             [CLEAR LOCAL]
                                         </button>
@@ -3410,6 +3498,14 @@ class App extends Component<any, AppState> {
 
                                 {supportDropdownOpen && (
                                     <div className="phosphor-header__dropdown phosphor-header__dropdown--options" role="menu">
+                                        <button
+                                            className="phosphor-header__dropdown-item"
+                                            role="menuitem"
+                                            title="Every keyboard shortcut in Phosphor"
+                                            onClick={this._handleHelpOpen}
+                                        >
+                                            [HELP]
+                                        </button>
                                         <button
                                             className="phosphor-header__dropdown-item"
                                             role="menuitem"
@@ -3580,7 +3676,7 @@ class App extends Component<any, AppState> {
                                                             className="phosphor-header__dropdown-item"
                                                             role="menuitem"
                                                             onClick={this._handleReloadCurrentScript}
-                                                            title="Restart the current script from the beginning"
+                                                            title="Restart the current module from the beginning"
                                                         >
                                                             [RELOAD]
                                                         </button>
@@ -3591,7 +3687,7 @@ class App extends Component<any, AppState> {
                                                             className="phosphor-header__dropdown-item"
                                                             role="menuitem"
                                                             onClick={this._handleClearLocalModules}
-                                                            title="Remove local uploaded scripts from this browser only"
+                                                            title="Remove modules saved only in this browser"
                                                         >
                                                             [CLEAR LOCAL]
                                                         </button>
@@ -3749,7 +3845,7 @@ class App extends Component<any, AppState> {
                                                 aria-expanded={scriptDropdownOpen}
                                                 onClick={this._handleDropdownToggle}
                                             >
-                                                [SCRIPT:{activeScript.label} {scriptDropdownOpen ? "▲" : "▼"}]
+                                                [MODULE:{this.state.sharedModuleLoading ? "LOADING…" : activeScript.label} {scriptDropdownOpen ? "▲" : "▼"}]
                                             </button>
 
                                             {scriptDropdownOpen && (
@@ -3780,6 +3876,12 @@ class App extends Component<any, AppState> {
                                                             onChange={this._handleFileChange}
                                                         />
                                                     </label>
+                                                    <button
+                                                        className="phosphor-header__dropdown-item"
+                                                        onClick={this._handleNewBlankModule}
+                                                    >
+                                                        &nbsp;&nbsp;[+ NEW MODULE]
+                                                    </button>
                                                 </div>
                                             )}
                                         </div>
@@ -3788,6 +3890,13 @@ class App extends Component<any, AppState> {
                                     {!previewMode && headerOverflowLevel >= 2 && (
                                         <>
                                             <div className="phosphor-header__dropdown-label">[SUPPORT]</div>
+                                            <button
+                                                className="phosphor-header__dropdown-item"
+                                                role="menuitem"
+                                                onClick={this._handleHelpOpen}
+                                            >
+                                                [HELP]
+                                            </button>
                                             <button
                                                 className="phosphor-header__dropdown-item"
                                                 role="menuitem"
@@ -3873,7 +3982,7 @@ class App extends Component<any, AppState> {
                                                     this.setState({ mobileMenuOpen: false });
                                                 }}
                                             >
-                                                [MODULES]
+                                                [MY MODULES]
                                             </button>
                                         </>
                                     )}
@@ -3943,6 +4052,9 @@ class App extends Component<any, AppState> {
                     </header>
                 )}
 
+                {this.state.sharedModuleLoading ? (
+                    <div className="phosphor-module-loading" role="status">LOADING MODULE…</div>
+                ) : (
                 <Phosphor
                     key={`${activeScript.id}:${activeScriptRevision}`}
                     json={activeScript.json}
@@ -3952,6 +4064,7 @@ class App extends Component<any, AppState> {
                     onMainframePhaseChange={this._handleMainframePhaseChange}
                     shutdownPhase={terminalShutdownPhase}
                 />
+                )}
 
                 {this._creatorMounted && (
                     <Suspense fallback={null}>
@@ -4010,6 +4123,8 @@ class App extends Component<any, AppState> {
                         onDone={() => this.setState({ usernamePrompt: null })}
                     />
                 )}
+
+                <HelpDialog open={this.state.helpOpen} onClose={this._handleHelpClose} />
 
                 <FeedbackDialog
                     open={this.state.feedbackOpen}

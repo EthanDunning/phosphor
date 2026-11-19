@@ -1,4 +1,4 @@
-import React, { FC, useEffect, useId, useMemo, useRef, useState } from "react";
+import React, { createContext, FC, useContext, useEffect, useId, useMemo, useRef, useState } from "react";
 import "./style.scss";
 import {
     THEMES,
@@ -6,6 +6,17 @@ import {
     CustomThemeConfig,
     sanitizeCustomTheme,
 } from "../../themes";
+import {
+    describeHexColor,
+    FONT_SIZE_DEFAULT,
+    FONT_SIZE_MAX,
+    FONT_SIZE_MIN,
+    normalizeCustomColorName,
+    normalizeHexColor,
+    parseFontSize,
+    sanitizeCustomColors,
+    validateCustomColorName,
+} from "../../lib/textStyle";
 
 interface ScriptCreatorScriptOption {
     id: string;
@@ -859,7 +870,6 @@ const COLOR_CLASS_GROUP: ClassNameGroup = {
 };
 
 const SMALL_CLASS = { value: "small", hint: "smaller text" };
-const HIDDEN_CLASS = { value: "script-hidden", hint: "hidden until a terminal script shows it" };
 
 const TEXT_CLASS_GROUPS: ClassNameGroup[] = [
     COLOR_CLASS_GROUP,
@@ -870,7 +880,6 @@ const TEXT_CLASS_GROUPS: ClassNameGroup[] = [
             { value: "center", hint: "centered text" },
             { value: "title", hint: "boxed, centered heading" },
             SMALL_CLASS,
-            HIDDEN_CLASS,
         ],
     },
 ];
@@ -884,14 +893,13 @@ const LINK_CLASS_GROUPS: ClassNameGroup[] = [
             { value: "inline", hint: "sits on the same line as the next inline link" },
             { value: "center", hint: "centered text" },
             SMALL_CLASS,
-            HIDDEN_CLASS,
         ],
     },
 ];
 
 const INPUT_CLASS_GROUPS: ClassNameGroup[] = [
     COLOR_CLASS_GROUP,
-    { label: "Style", exclusive: false, options: [SMALL_CLASS, HIDDEN_CLASS] },
+    { label: "Style", exclusive: false, options: [SMALL_CLASS] },
 ];
 
 // Blend modes mix the image with the terminal background behind it. On the
@@ -924,7 +932,6 @@ const BITMAP_CLASS_GROUPS: ClassNameGroup[] = [
         exclusive: false,
         options: [
             { value: "footer", hint: "extra space above the image" },
-            HIDDEN_CLASS,
         ],
     },
 ];
@@ -940,8 +947,6 @@ const IMAGE_BACKGROUND_OPTIONS: CreatorSelectOption[] = [
     { value: "system", label: "system — system color" },
     { value: "#ffffff", label: "#ffffff — white" },
 ];
-
-const CLASS_GROUP_PREFIX = "__group__:";
 
 const splitClassNames = (value: unknown): string[] => {
     if (typeof value !== "string") {
@@ -962,10 +967,125 @@ interface ClassNameChipsProps {
     onChange: (nextClassName: string) => void;
 }
 
+// The module's colors, for labels like "alert (red)" and for custom color
+// classes (config.customColors). Provided by the ScriptCreator root.
+interface ModuleColors {
+    customColors: Record<string, string>;
+    accentHexes: Record<string, string>; // alert / notice / emphasis / system
+    addCustomColor: (name: string, hex: string) => void;
+}
+
+const DEFAULT_ACCENT_HEXES: Record<string, string> = {
+    alert: DEFAULT_CUSTOM_THEME.alertHex,
+    notice: DEFAULT_CUSTOM_THEME.noticeHex,
+    emphasis: DEFAULT_CUSTOM_THEME.emphasisHex,
+    system: DEFAULT_CUSTOM_THEME.systemHex,
+};
+
+const ModuleColorsContext = createContext<ModuleColors>({
+    customColors: {},
+    accentHexes: DEFAULT_ACCENT_HEXES,
+    addCustomColor: () => undefined,
+});
+
+interface CustomColorFormProps {
+    existing: Record<string, string>;
+    onCreate: (name: string, hex: string) => void;
+    onCancel?: () => void;
+    autoFocus?: boolean;
+}
+
+// name + color picker -> a new color class
+const CustomColorForm: FC<CustomColorFormProps> = ({ existing, onCreate, onCancel, autoFocus }) => {
+    const [name, setName] = useState("");
+    const [hex, setHex] = useState("#88ff00");
+    const [error, setError] = useState<string | null>(null);
+
+    const submit = () => {
+        const nextName = normalizeCustomColorName(name);
+        const problem = validateCustomColorName(nextName, existing);
+        if (problem) {
+            setError(problem);
+            return;
+        }
+        const nextHex = normalizeHexColor(hex);
+        if (!nextHex) {
+            setError("Pick a color.");
+            return;
+        }
+        onCreate(nextName, nextHex);
+        setName("");
+        setError(null);
+    };
+
+    return (
+        <div className="script-creator__color-form">
+            <input
+                type="color"
+                className="script-creator__color-input"
+                value={hex}
+                aria-label="Color"
+                onChange={(event) => setHex(event.target.value)}
+            />
+            <input
+                className="script-creator__color-form-name"
+                value={name}
+                placeholder="name, e.g. toxic"
+                maxLength={24}
+                autoFocus={autoFocus}
+                aria-label="Color class name"
+                onChange={(event) => {
+                    setName(event.target.value);
+                    setError(null);
+                }}
+                onKeyDown={(event) => {
+                    if (event.key === "Enter") {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        submit();
+                    } else if (event.key === "Escape" && onCancel) {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        onCancel();
+                    }
+                }}
+            />
+            <button type="button" className="script-creator__btn" onClick={submit}>[ADD COLOR]</button>
+            {onCancel && (
+                <button type="button" className="script-creator__btn" onClick={onCancel}>[CANCEL]</button>
+            )}
+            {error && <div className="script-creator__error script-creator__color-form-error">{error}</div>}
+        </div>
+    );
+};
+
+const NEW_CUSTOM_COLOR_OPTION = "__new-custom-color__";
+
 const ClassNameChips: FC<ClassNameChipsProps> = ({ value, groups, onChange }) => {
+    const { customColors, accentHexes, addCustomColor } = useContext(ModuleColorsContext);
+    const [creatingColor, setCreatingColor] = useState(false);
     const applied = splitClassNames(value);
+
+    // the color group also offers the module's custom colors
+    const hasColorGroup = groups.some((group) => group.label === COLOR_CLASS_GROUP.label);
+    const effectiveGroups = groups.map((group) => (group.label !== COLOR_CLASS_GROUP.label ? group : {
+        ...group,
+        options: [
+            ...group.options,
+            ...Object.keys(customColors).map((name) => ({ value: name, hint: "custom color" })),
+        ],
+    }));
+    const colorGroup = effectiveGroups.find((group) => group.label === COLOR_CLASS_GROUP.label);
+    const isColorToken = (token: string) => !!colorGroup && colorGroup.options.some((option) => option.value === token);
+    const colorHexFor = (token: string): string => customColors[token] || accentHexes[token] || "";
+    // "alert (red)"
+    const describeToken = (token: string): string => {
+        const colorName = isColorToken(token) ? describeHexColor(colorHexFor(token)) : "";
+        return colorName ? `${token} (${colorName})` : token;
+    };
+
     const findHint = (token: string): string | undefined => {
-        for (const group of groups) {
+        for (const group of effectiveGroups) {
             const option = group.options.find((entry) => entry.value === token);
             if (option) {
                 return option.hint;
@@ -974,34 +1094,27 @@ const ClassNameChips: FC<ClassNameChipsProps> = ({ value, groups, onChange }) =>
         return undefined;
     };
 
+    // a plain list: colors read "alert (red)", everything else is just its name
     const addOptions: CreatorSelectOption[] = [];
-    groups.forEach((group) => {
-        const available = group.options.filter((option) => !applied.includes(option.value));
-        if (!available.length) {
-            return;
-        }
-        const current = group.exclusive
-            ? applied.find((token) => group.options.some((option) => option.value === token))
-            : undefined;
-        addOptions.push({
-            value: CLASS_GROUP_PREFIX + group.label,
-            label: `── ${group.label.toUpperCase()}${group.exclusive ? " · PICK ONE" : " · COMBINE ANY"} ──`,
-            disabled: true,
-        });
-        available.forEach((option) => {
-            addOptions.push({
-                value: option.value,
-                label: `${option.value} — ${option.hint}${current ? ` (replaces ${current})` : ""}`,
+    effectiveGroups.forEach((group) => {
+        group.options
+            .filter((option) => !applied.includes(option.value))
+            .forEach((option) => {
+                addOptions.push({ value: option.value, label: describeToken(option.value) });
             });
-        });
     });
+    if (colorGroup) {
+        addOptions.push({ value: NEW_CUSTOM_COLOR_OPTION, label: "+ new custom color…" });
+    }
 
-    const addClass = (token: string) => {
-        const group = groups.find((entry) => entry.exclusive && entry.options.some((option) => option.value === token));
+    const addClass = (token: string, asColor = false) => {
+        const group = asColor
+            ? colorGroup
+            : effectiveGroups.find((entry) => entry.exclusive && entry.options.some((option) => option.value === token));
         const kept = group
             ? applied.filter((existing) => !group.options.some((option) => option.value === existing))
             : applied;
-        onChange([...kept, token].join(" "));
+        onChange([...kept.filter((existing) => existing !== token), token].join(" "));
     };
 
     const removeClass = (token: string) => {
@@ -1009,38 +1122,56 @@ const ClassNameChips: FC<ClassNameChipsProps> = ({ value, groups, onChange }) =>
     };
 
     return (
-        <div className="script-creator__chips">
-            {applied.map((token) => {
-                const hint = findHint(token);
-                return (
-                    <div
-                        key={token}
-                        className={"script-creator__chip" + (hint ? "" : " script-creator__chip--custom")}
-                        title={hint || "Not a built-in class for this element (set in raw JSON)"}
-                    >
-                        {token}
-                        <button
-                            type="button"
-                            className="script-creator__chip-remove"
-                            aria-label={`Remove class ${token}`}
-                            title={`Remove ${token}`}
-                            onClick={() => removeClass(token)}
+        <div className="script-creator__chips-wrap">
+            <div className="script-creator__chips">
+                {applied.map((token) => {
+                    const hint = findHint(token);
+                    const swatch = isColorToken(token) ? colorHexFor(token) : "";
+                    return (
+                        <div
+                            key={token}
+                            className={"script-creator__chip" + (hint ? "" : " script-creator__chip--custom")}
+                            title={hint || "Not a built-in class for this element (set in raw JSON)"}
                         >
-                            ×
-                        </button>
-                    </div>
-                );
-            })}
-            {addOptions.length > 0 && (
-                <CreatorSelect
-                    value=""
-                    options={addOptions}
-                    fallbackLabel="+ ADD CLASS"
-                    className="script-creator__chip-add"
-                    onChange={(nextValue) => {
-                        if (nextValue && !nextValue.startsWith(CLASS_GROUP_PREFIX)) {
-                            addClass(nextValue);
-                        }
+                            {swatch && <i className="script-creator__chip-swatch" style={{ background: swatch }} aria-hidden="true" />}
+                            {describeToken(token)}
+                            <button
+                                type="button"
+                                className="script-creator__chip-remove"
+                                aria-label={`Remove class ${token}`}
+                                title={`Remove ${token}`}
+                                onClick={() => removeClass(token)}
+                            >
+                                ×
+                            </button>
+                        </div>
+                    );
+                })}
+                {addOptions.length > 0 && (
+                    <CreatorSelect
+                        value=""
+                        options={addOptions}
+                        fallbackLabel="+ ADD CLASS"
+                        className="script-creator__chip-add"
+                        onChange={(nextValue) => {
+                            if (nextValue === NEW_CUSTOM_COLOR_OPTION) {
+                                setCreatingColor(true);
+                            } else if (nextValue) {
+                                addClass(nextValue);
+                            }
+                        }}
+                    />
+                )}
+            </div>
+            {hasColorGroup && creatingColor && (
+                <CustomColorForm
+                    autoFocus
+                    existing={customColors}
+                    onCancel={() => setCreatingColor(false)}
+                    onCreate={(name, hex) => {
+                        addCustomColor(name, hex);
+                        addClass(name, true);
+                        setCreatingColor(false);
                     }}
                 />
             )}
@@ -1316,6 +1447,8 @@ interface TableGridEditorProps {
 
 const TableGridEditor: FC<TableGridEditorProps> = ({ element, screenIds, onChange }) => {
     const { columns, rows } = readTableGrid(element);
+    const { customColors } = useContext(ModuleColorsContext);
+    const rowColors = [...TABLE_ROW_COLORS, ...Object.keys(customColors)];
     const gridRef = useRef<HTMLDivElement | null>(null);
     const pendingFocusRef = useRef<{ row: number; column: number } | null>(null);
     const datalistId = useId();
@@ -1418,9 +1551,9 @@ const TableGridEditor: FC<TableGridEditorProps> = ({ element, screenIds, onChang
     const cycleRowColor = (rowIndex: number) => {
         updateRow(rowIndex, (row) => {
             const tokens = splitClassNames(row.className);
-            const current = tokens.find((token) => TABLE_ROW_COLORS.includes(token)) || "";
-            const next = TABLE_ROW_COLORS[(TABLE_ROW_COLORS.indexOf(current) + 1) % TABLE_ROW_COLORS.length];
-            const kept = tokens.filter((token) => !TABLE_ROW_COLORS.includes(token));
+            const current = tokens.find((token) => rowColors.includes(token)) || "";
+            const next = rowColors[(rowColors.indexOf(current) + 1) % rowColors.length];
+            const kept = tokens.filter((token) => !rowColors.includes(token));
             return { ...row, className: [...kept, next].filter(Boolean).join(" ") };
         });
     };
@@ -1501,7 +1634,7 @@ const TableGridEditor: FC<TableGridEditorProps> = ({ element, screenIds, onChang
                     <tbody>
                         {rows.map((row, rowIndex) => {
                             const isActionTarget = Array.isArray(row.target);
-                            const color = splitClassNames(row.className).find((token) => TABLE_ROW_COLORS.includes(token)) || "";
+                            const color = splitClassNames(row.className).find((token) => rowColors.includes(token)) || "";
                             return (
                                 <tr key={rowIndex}>
                                     <td className="script-creator__tg-rowhead">
@@ -1552,6 +1685,7 @@ const TableGridEditor: FC<TableGridEditorProps> = ({ element, screenIds, onChang
                                         <button
                                             type="button"
                                             className={"script-creator__tg-color" + (color ? ` ${color}` : "")}
+                                            style={customColors[color] ? { color: customColors[color] } : undefined}
                                             title="Row color (click to change)"
                                             onClick={() => cycleRowColor(rowIndex)}
                                         >
@@ -1593,14 +1727,14 @@ const createDefaultScript = (): {
     dialogs: any[];
 } => ({
     config: {
-        name: "Custom Script",
+        name: "Custom Module",
         author: "",
     },
     screens: [
         {
             id: "screen0",
             type: "screen",
-            content: ["Welcome to your custom script."],
+            content: ["Welcome to your custom module."],
         },
     ],
     dialogs: [],
@@ -1682,6 +1816,36 @@ const CreatorSpeedInput: FC<CreatorSpeedInputProps> = ({ value, placeholder, onC
     );
 };
 
+interface CreatorFontSizeInputProps {
+    value: number | undefined;
+    placeholder: string;
+    onChange: (nextValue: string) => void;
+}
+
+// points (normal text is 27pt); commits once the draft is a valid size (or empty)
+const CreatorFontSizeInput: FC<CreatorFontSizeInputProps> = ({ value, placeholder, onChange }) => {
+    const [draft, setDraft] = useState<string | null>(null);
+    return (
+        <input
+            type="number"
+            min={FONT_SIZE_MIN}
+            max={FONT_SIZE_MAX}
+            step="1"
+            value={draft ?? (value === undefined ? "" : String(value))}
+            placeholder={placeholder}
+            title={`Size in pt (${FONT_SIZE_MIN}–${FONT_SIZE_MAX}; normal text is ${FONT_SIZE_DEFAULT}pt). Empty = inherit.`}
+            onChange={(event) => {
+                const nextValue = event.target.value;
+                setDraft(nextValue);
+                if (!nextValue.trim().length || parseFontSize(nextValue) !== undefined) {
+                    onChange(nextValue);
+                }
+            }}
+            onBlur={() => setDraft(null)}
+        />
+    );
+};
+
 const normalizeElementTextSpeed = (entry: any): any => {
     if (!entry || typeof entry !== "object" || Array.isArray(entry) || !("speed" in entry)) {
         return entry;
@@ -1709,7 +1873,7 @@ const ensureScriptShape = (raw: any): any => {
         base.config = {};
     }
     if (typeof base.config.name !== "string") {
-        base.config.name = "Custom Script";
+        base.config.name = "Custom Module";
     }
     if (typeof base.config.author !== "string") {
         base.config.author = "";
@@ -1732,6 +1896,22 @@ const ensureScriptShape = (raw: any): any => {
 
     if (base.config.customTheme !== undefined) {
         base.config.customTheme = sanitizeCustomTheme(base.config.customTheme);
+    }
+
+    const defaultFontSize = parseFontSize(base.config.defaultFontSize);
+    if (defaultFontSize === undefined) {
+        delete base.config.defaultFontSize;
+    } else {
+        base.config.defaultFontSize = defaultFontSize;
+    }
+
+    if (base.config.customColors !== undefined) {
+        const customColors = sanitizeCustomColors(base.config.customColors);
+        if (Object.keys(customColors).length) {
+            base.config.customColors = customColors;
+        } else {
+            delete base.config.customColors;
+        }
     }
 
     if (!Array.isArray(base.screens)) {
@@ -1762,6 +1942,12 @@ const ensureScriptShape = (raw: any): any => {
                 delete normalizedScreen.defaultTextSpeed;
             } else {
                 normalizedScreen.defaultTextSpeed = screenDefaultTextSpeed;
+            }
+            const screenDefaultFontSize = parseFontSize(screen.defaultFontSize);
+            if (screenDefaultFontSize === undefined) {
+                delete normalizedScreen.defaultFontSize;
+            } else {
+                normalizedScreen.defaultFontSize = screenDefaultFontSize;
             }
             return normalizedScreen;
         });
@@ -2722,7 +2908,7 @@ const ScriptCreator: FC<ScriptCreatorProps> = ({
     const initialSelectedScreenId = getInitialSelectedScreenId(initialScript);
     const initialSelectedScript = availableScripts.find((script) => script.id === initialScriptId);
     const initialSelectedScriptLabel = initialSelectedScript?.label
-        || String(initialScript?.config?.name || "CUSTOM SCRIPT").toUpperCase();
+        || String(initialScript?.config?.name || "CUSTOM MODULE").toUpperCase();
     const initialSelectedScriptCanSaveModule = !!initialSelectedScript?.canSaveModule;
     const scriptSnapshotsRef = useRef<Record<string, CreatorSelectionSnapshot>>({});
     const [script, setScript] = useState<any>(() => ensureScriptShape(initialScript));
@@ -3000,6 +3186,32 @@ const ScriptCreator: FC<ScriptCreatorProps> = ({
         : String(selectedElementTextSpeedMs);
     const resolvedScreenDefaultTextSpeedMs = selectedScreenDefaultTextSpeedMs ?? resolvedScriptDefaultTextSpeedMs;
     const selectedElementTextSpeedPlaceholder = String(resolvedScreenDefaultTextSpeedMs);
+
+    // font sizes in pt; element > screen / dialog > module
+    const scriptDefaultFontSize = parseFontSize(script?.config?.defaultFontSize);
+    const selectedScreenDefaultFontSize = parseFontSize(selectedScreen?.defaultFontSize);
+    const resolvedScreenDefaultFontSize = selectedScreenDefaultFontSize ?? scriptDefaultFontSize ?? FONT_SIZE_DEFAULT;
+    const selectedElementSupportsFontSize = selectedElement !== undefined && selectedElement !== null
+        && (typeof selectedElement === "string"
+            || (typeof selectedElement === "object" && !["bitmap", "image", "mainframegame"].includes(selectedElementType)));
+    const selectedElementFontSize = selectedElement && typeof selectedElement === "object"
+        ? parseFontSize((selectedElement as any).fontSize)
+        : undefined;
+    const selectedDialogDefaultFontSize = parseFontSize(selectedDialog?.defaultFontSize);
+    const selectedDialogEntryFontSize = selectedDialogContentEntryIsObject
+        ? parseFontSize((selectedDialogContentEntry as any).fontSize)
+        : undefined;
+
+    // colors: theme accents (for "alert (red)" labels) and custom color classes
+    const scriptCustomColors = useMemo(() => sanitizeCustomColors(script?.config?.customColors), [script?.config?.customColors]);
+    const scriptAccentHexes: Record<string, string> = scriptThemePreset === "custom"
+        ? {
+            alert: scriptCustomTheme.alertHex,
+            notice: scriptCustomTheme.noticeHex,
+            emphasis: scriptCustomTheme.emphasisHex,
+            system: scriptCustomTheme.systemHex,
+        }
+        : DEFAULT_ACCENT_HEXES;
     const selectedElementIsLinkLike = selectedElementType === "link" || selectedElementType === "href";
     const selectedLinkTargets = useMemo(() => {
         if (!selectedElementIsLinkLike || !selectedElement || typeof selectedElement !== "object") {
@@ -4233,7 +4445,7 @@ const ScriptCreator: FC<ScriptCreatorProps> = ({
                         id: dialogId,
                         type: "alert",
                         content: [
-                            "New dialog created from Script Creator.",
+                            "New dialog created from the Module Creator.",
                             "Edit this content in raw JSON if needed.",
                         ],
                     },
@@ -4334,6 +4546,127 @@ const ScriptCreator: FC<ScriptCreatorProps> = ({
             nextElement.align = nextAlign;
         }
         updateElement(nextElement);
+    };
+
+    // Text Align for any element; a plain string becomes a text object first
+    const updateAnyElementAlign = (nextAlign: string) => {
+        if (typeof selectedElement === "string") {
+            if (!nextAlign || nextAlign === "left") {
+                return;
+            }
+            updateElement({ type: "text", text: selectedElement, align: nextAlign });
+            return;
+        }
+        updateElementAlign(nextAlign);
+    };
+
+    const updateElementFontSize = (nextSizeRaw: string) => {
+        if (selectedElement === undefined || selectedElement === null) {
+            return;
+        }
+        if (!nextSizeRaw.trim().length) {
+            if (typeof selectedElement === "object") {
+                const nextElement: any = { ...selectedElement };
+                delete nextElement.fontSize;
+                updateElement(nextElement);
+            }
+            return;
+        }
+        const size = parseFontSize(nextSizeRaw);
+        if (size === undefined) {
+            return;
+        }
+        if (typeof selectedElement === "string") {
+            updateElement({ type: "text", text: selectedElement, fontSize: size });
+            return;
+        }
+        updateElement({ ...selectedElement, fontSize: size });
+    };
+
+    const updateDialogEntryFontSize = (nextSizeRaw: string) => {
+        if (selectedDialogContentEntry === undefined || selectedDialogContentEntryIsBitmap) {
+            return;
+        }
+        const size = nextSizeRaw.trim().length ? parseFontSize(nextSizeRaw) : undefined;
+        if (nextSizeRaw.trim().length && size === undefined) {
+            return;
+        }
+        if (typeof selectedDialogContentEntry === "string") {
+            if (size !== undefined) {
+                updateDialogContentEntry({ text: selectedDialogContentEntry, fontSize: size });
+            }
+            return;
+        }
+        const nextEntry: any = { ...(selectedDialogContentEntry as any) };
+        if (size === undefined) {
+            delete nextEntry.fontSize;
+        } else {
+            nextEntry.fontSize = size;
+        }
+        updateDialogContentEntry(nextEntry);
+    };
+
+    const updateConfigFontSize = (nextSizeRaw: string) => {
+        if (!nextSizeRaw.trim().length) {
+            removeConfigKey("defaultFontSize");
+            return;
+        }
+        const size = parseFontSize(nextSizeRaw);
+        if (size !== undefined) {
+            updateConfig("defaultFontSize", size);
+        }
+    };
+
+    const updateScreenFontSize = (nextSizeRaw: string) => {
+        const size = nextSizeRaw.trim().length ? parseFontSize(nextSizeRaw) : undefined;
+        if (nextSizeRaw.trim().length && size === undefined) {
+            return;
+        }
+        updateScreen({ defaultFontSize: size });
+    };
+
+    const updateDialogFontSize = (nextSizeRaw: string) => {
+        const size = nextSizeRaw.trim().length ? parseFontSize(nextSizeRaw) : undefined;
+        if (nextSizeRaw.trim().length && size === undefined) {
+            return;
+        }
+        updateDialog({ defaultFontSize: size });
+    };
+
+    // custom color classes live in config.customColors
+    const addCustomColor = (name: string, hex: string) => {
+        updateScript((prev) => ({
+            ...prev,
+            config: {
+                ...prev.config,
+                customColors: { ...sanitizeCustomColors(prev.config?.customColors), [name]: hex },
+            },
+        }));
+    };
+
+    const setCustomColorHex = (name: string, hex: string) => {
+        const nextHex = normalizeHexColor(hex);
+        if (nextHex) {
+            addCustomColor(name, nextHex);
+        }
+    };
+
+    const removeCustomColor = (name: string) => {
+        updateScript((prev) => {
+            const customColors = { ...sanitizeCustomColors(prev.config?.customColors) };
+            delete customColors[name];
+            const nextConfig = { ...prev.config, customColors };
+            if (!Object.keys(customColors).length) {
+                delete nextConfig.customColors;
+            }
+            return { ...prev, config: nextConfig };
+        });
+    };
+
+    const moduleColors: ModuleColors = {
+        customColors: scriptCustomColors,
+        accentHexes: scriptAccentHexes,
+        addCustomColor,
     };
 
     const updateElementTextSpeed = (nextSpeedRaw: string) => {
@@ -4713,7 +5046,7 @@ const ScriptCreator: FC<ScriptCreatorProps> = ({
         loadScriptIntoCreator(
             freshScript,
             "",
-            String(freshScript.config?.name || "CUSTOM SCRIPT").toUpperCase(),
+            String(freshScript.config?.name || "CUSTOM MODULE").toUpperCase(),
             false
         );
     };
@@ -4723,7 +5056,7 @@ const ScriptCreator: FC<ScriptCreatorProps> = ({
             return;
         }
 
-        if (!window.confirm(`Delete local script "${selectedScriptLabel}"?`)) {
+        if (!window.confirm(`Delete the local module "${selectedScriptLabel}"?`)) {
             return;
         }
 
@@ -4773,7 +5106,7 @@ const ScriptCreator: FC<ScriptCreatorProps> = ({
 
     const openImportPicker = (importedRaw: any) => {
         if (!importedRaw || typeof importedRaw !== "object") {
-            setImportStatus({ tone: "error", text: "That file isn't a valid Phosphor script." });
+            setImportStatus({ tone: "error", text: "That file isn't a valid Phosphor module." });
             return;
         }
 
@@ -5066,6 +5399,7 @@ const ScriptCreator: FC<ScriptCreatorProps> = ({
     };
 
     return (
+        <ModuleColorsContext.Provider value={moduleColors}>
         <section
             className={`script-creator script-creator--${creatorColorMode}${isResizingSidebar ? " script-creator--resizing" : ""}`}
             style={open ? undefined : { display: "none" }}
@@ -5074,7 +5408,7 @@ const ScriptCreator: FC<ScriptCreatorProps> = ({
         >
             <div className="script-creator__panel" onClick={(e) => e.stopPropagation()}>
                 <div className="script-creator__header">
-                    <strong>Script Creator</strong>
+                    <strong>Module Creator</strong>
                     <div className="script-creator__header-actions">
                         <CreatorSelect
                             className="script-creator-select--actions"
@@ -5087,7 +5421,7 @@ const ScriptCreator: FC<ScriptCreatorProps> = ({
                             className="script-creator__btn"
                             onClick={startNewScript}
                         >
-                            [NEW SCRIPT]
+                            [NEW MODULE]
                         </button>
                         <button
                             className="script-creator__btn"
@@ -5201,8 +5535,8 @@ const ScriptCreator: FC<ScriptCreatorProps> = ({
                                     "script-creator__btn script-creator__search-nav"
                                     + (shouldExpandSearchResults ? " script-creator__btn--active" : "")
                                 }
-                                title={shouldExpandSearchResults ? "Show Results Inline" : "Make Results Fill Script"}
-                                aria-label={shouldExpandSearchResults ? "Show Results Inline" : "Make Results Fill Script"}
+                                title={shouldExpandSearchResults ? "Show Results Inline" : "Make Results Fill the Editor"}
+                                aria-label={shouldExpandSearchResults ? "Show Results Inline" : "Make Results Fill the Editor"}
                                 aria-pressed={shouldExpandSearchResults}
                                 disabled={!shouldShowSearchResults}
                                 onClick={() => {
@@ -5337,6 +5671,48 @@ const ScriptCreator: FC<ScriptCreatorProps> = ({
                                     />
                                 </label>
 
+                                <label className="script-creator__field">
+                                    <span>Default Font Size (pt)</span>
+                                    <CreatorFontSizeInput
+                                        value={scriptDefaultFontSize}
+                                        placeholder={String(FONT_SIZE_DEFAULT)}
+                                        onChange={updateConfigFontSize}
+                                    />
+                                </label>
+
+                                <div className="script-creator__field">
+                                    <span>Custom Colors</span>
+                                    <div className="script-creator__custom-colors">
+                                        {Object.entries(scriptCustomColors).map(([name, hex]) => (
+                                            <div key={name} className="script-creator__custom-color">
+                                                <input
+                                                    type="color"
+                                                    className="script-creator__color-input"
+                                                    value={hex}
+                                                    aria-label={`${name} color`}
+                                                    onChange={(event) => setCustomColorHex(name, event.target.value)}
+                                                />
+                                                <div className="script-creator__custom-color-name">
+                                                    {name} ({describeHexColor(hex)})
+                                                </div>
+                                                <button
+                                                    type="button"
+                                                    className="script-creator__btn"
+                                                    title={`Remove ${name}`}
+                                                    aria-label={`Remove color ${name}`}
+                                                    onClick={() => removeCustomColor(name)}
+                                                >
+                                                    ×
+                                                </button>
+                                            </div>
+                                        ))}
+                                        <CustomColorForm existing={scriptCustomColors} onCreate={addCustomColor} />
+                                    </div>
+                                    <small className="script-creator__hint">
+                                        Each color becomes a class any element can use under Class Names.
+                                    </small>
+                                </div>
+
                                 {scriptThemePreset === "custom" && (
                                     <>
                                         <label className="script-creator__field">
@@ -5429,7 +5805,7 @@ const ScriptCreator: FC<ScriptCreatorProps> = ({
                         <div className={"script-creator__list " + (sidebarListMode === "screens" ? "script-creator__list--screens" : "script-creator__list--dialogs")}>
                             {sidebarListMode === "screens" && !visibleScreens.length && (
                                 <span className="script-creator__hint">
-                                    {shouldFilterListsToMatches ? "No matching screens." : "No screens in this script."}
+                                    {shouldFilterListsToMatches ? "No matching screens." : "No screens in this module."}
                                 </span>
                             )}
                             {sidebarListMode === "screens" && visibleScreens.map((screen: any) => (
@@ -5448,7 +5824,7 @@ const ScriptCreator: FC<ScriptCreatorProps> = ({
 
                             {sidebarListMode === "dialogs" && !visibleDialogs.length && (
                                 <span className="script-creator__hint">
-                                    {shouldFilterListsToMatches ? "No matching dialogs." : "No dialogs in this script."}
+                                    {shouldFilterListsToMatches ? "No matching dialogs." : "No dialogs in this module."}
                                 </span>
                             )}
                             {sidebarListMode === "dialogs" && visibleDialogs.map((dialog: any, index: number) => {
@@ -5684,6 +6060,16 @@ const ScriptCreator: FC<ScriptCreatorProps> = ({
                                                     />
                                                 </label>
 
+                                                <label className="script-creator__field">
+                                                    <span>Default Font Size (pt)</span>
+                                                    <CreatorFontSizeInput
+                                                        key={`screen-font-${selectedScreen.id}`}
+                                                        value={selectedScreenDefaultFontSize}
+                                                        placeholder={String(scriptDefaultFontSize ?? FONT_SIZE_DEFAULT)}
+                                                        onChange={updateScreenFontSize}
+                                                    />
+                                                </label>
+
                                                 {showAlienHeaderTitle && (
                                                     <label className="script-creator__field">
                                                         <span>Header Title</span>
@@ -5734,25 +6120,6 @@ const ScriptCreator: FC<ScriptCreatorProps> = ({
                                                             />
                                                         </div>
 
-                                                        <label className="script-creator__field">
-                                                            <span>Text Align</span>
-                                                            <CreatorSelect
-                                                                value="left"
-                                                                options={TEXT_ALIGN_OPTIONS}
-                                                                onChange={(nextAlign) => {
-                                                                    if (!nextAlign || nextAlign === "left") {
-                                                                        return;
-                                                                    }
-                                                                    // A plain string can't hold an align property,
-                                                                    // so promote it to a text object (same as styling).
-                                                                    updateElement({
-                                                                        type: "text",
-                                                                        text: selectedElement,
-                                                                        align: nextAlign,
-                                                                    });
-                                                                }}
-                                                            />
-                                                        </label>
                                                     </>
                                                 )}
 
@@ -6972,27 +7339,42 @@ const ScriptCreator: FC<ScriptCreatorProps> = ({
                                                     </div>
                                                 )}
 
-                                                {selectedElement && typeof selectedElement === "object" && (
-                                                    <label className="script-creator__field">
-                                                        <span>Text Align</span>
-                                                        <CreatorSelect
-                                                            value={selectedElement.align || "left"}
-                                                            options={TEXT_ALIGN_OPTIONS}
-                                                            onChange={updateElementAlign}
-                                                        />
-                                                    </label>
-                                                )}
+                                                {selectedElement !== undefined && selectedElement !== null && (typeof selectedElement === "string" || typeof selectedElement === "object") && (
+                                                    // one row when there's room, wraps on narrow panels
+                                                    <div className="script-creator__field-row">
+                                                        <label className="script-creator__field">
+                                                            <span>Text Align</span>
+                                                            <CreatorSelect
+                                                                value={typeof selectedElement === "object" ? (selectedElement.align || "left") : "left"}
+                                                                options={TEXT_ALIGN_OPTIONS}
+                                                                onChange={updateAnyElementAlign}
+                                                            />
+                                                        </label>
 
-                                                {selectedElementSupportsTextSpeed && (
-                                                    <label className="script-creator__field">
-                                                        <span>Text Speed (ms)</span>
-                                                        <CreatorSpeedInput
-                                                            key={`element-speed-${selectedScreen?.id || ""}-${selectedElementIndex}`}
-                                                            value={selectedElementTextSpeed}
-                                                            placeholder={selectedElementTextSpeedPlaceholder}
-                                                            onChange={updateElementTextSpeed}
-                                                        />
-                                                    </label>
+                                                        {selectedElementSupportsTextSpeed && (
+                                                            <label className="script-creator__field">
+                                                                <span>Text Speed (ms)</span>
+                                                                <CreatorSpeedInput
+                                                                    key={`element-speed-${selectedScreen?.id || ""}-${selectedElementIndex}`}
+                                                                    value={selectedElementTextSpeed}
+                                                                    placeholder={selectedElementTextSpeedPlaceholder}
+                                                                    onChange={updateElementTextSpeed}
+                                                                />
+                                                            </label>
+                                                        )}
+
+                                                        {selectedElementSupportsFontSize && (
+                                                            <label className="script-creator__field">
+                                                                <span>Font Size (pt)</span>
+                                                                <CreatorFontSizeInput
+                                                                    key={`element-font-${selectedScreen?.id || ""}-${selectedElementIndex}`}
+                                                                    value={selectedElementFontSize}
+                                                                    placeholder={String(resolvedScreenDefaultFontSize)}
+                                                                    onChange={updateElementFontSize}
+                                                                />
+                                                            </label>
+                                                        )}
+                                                    </div>
                                                 )}
                                             </>
                                         )}
@@ -7066,6 +7448,16 @@ const ScriptCreator: FC<ScriptCreatorProps> = ({
                                             />
                                             <span>{selectedDialog.showActions === true ? "Enabled" : "Disabled"}</span>
                                         </label>
+                                    </label>
+
+                                    <label className="script-creator__field">
+                                        <span>Default Font Size (pt)</span>
+                                        <CreatorFontSizeInput
+                                            key={`dialog-font-${selectedDialog.id || ""}`}
+                                            value={selectedDialogDefaultFontSize}
+                                            placeholder={String(scriptDefaultFontSize ?? FONT_SIZE_DEFAULT)}
+                                            onChange={updateDialogFontSize}
+                                        />
                                     </label>
                                 </div>
 
@@ -7153,6 +7545,18 @@ const ScriptCreator: FC<ScriptCreatorProps> = ({
                                                             setRawElementError(null);
                                                         }}
                                                     />
+                                                </div>
+
+                                                <div className="script-creator__field-row">
+                                                    <label className="script-creator__field">
+                                                        <span>Font Size (pt)</span>
+                                                        <CreatorFontSizeInput
+                                                            key={`dialog-entry-font-${selectedDialog.id || ""}-${selectedDialogContentIndex}`}
+                                                            value={selectedDialogEntryFontSize}
+                                                            placeholder={String(selectedDialogDefaultFontSize ?? scriptDefaultFontSize ?? FONT_SIZE_DEFAULT)}
+                                                            onChange={updateDialogEntryFontSize}
+                                                        />
+                                                    </label>
                                                 </div>
                                             </>
                                         )}
@@ -7449,6 +7853,7 @@ const ScriptCreator: FC<ScriptCreatorProps> = ({
                 </div>
             )}
         </section>
+        </ModuleColorsContext.Provider>
     );
 };
 

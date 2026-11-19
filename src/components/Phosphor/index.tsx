@@ -46,6 +46,7 @@ import {
     TerminalScriptActionMeta,
     TerminalScriptApi,
 } from "../../scripts/terminal";
+import { buildModuleStyleSheet, getFontSizeClassName, parseFontSize } from "../../lib/textStyle";
 
 // the mainframe game is only used by one script, so it is loaded on demand
 const MainframeGame = React.lazy(() => import("../MainframeGame"));
@@ -144,6 +145,7 @@ interface Screen {
     content: ScreenData[];
     onDone?: ScreenOnDone;
     defaultTextSpeed?: number;
+    defaultFontSize?: number; // % of the normal size, for everything on the screen
     layout?: string; // alien skin: "folders" renders a two-pane master/detail view
     title?: string;  // alien skin: subject shown in the detail title bar when previewed
     headerTitle?: string; // alien skin: text shown in the header bar for this screen
@@ -292,12 +294,20 @@ class Phosphor extends Component<PhosphorProps, AppState> {
         const rootClassName = ["phosphor", isAlien ? "phosphor--alien" : null]
             .filter(Boolean)
             .join(" ");
+        const moduleStyleSheet = this._getModuleStyleSheet();
+        const activeScreen = activeScreenId ? this._getScreen(activeScreenId) : null;
+        const mainClassName = ["__main__", this._getDefaultFontSizeClassName(activeScreen?.defaultFontSize)]
+            .filter(Boolean)
+            .join(" ");
 
         return (
             <div className={rootClassName}>
+                {/* font-size and custom color classes used by this module */}
+                {moduleStyleSheet && <style>{moduleStyleSheet}</style>}
+
                 {isAlien && this._renderAlienHeader()}
 
-                <section className={"__main__"} ref={this._containerRef}>
+                <section className={mainClassName} ref={this._containerRef}>
                     {activeScreenId && (isAlien ? this._renderAlienBody() : this._renderScreen())}
                 </section>
 
@@ -310,6 +320,24 @@ class Phosphor extends Component<PhosphorProps, AppState> {
             </div>
 
         );
+    }
+
+    private _moduleStyleSheetSource: any = null;
+    private _moduleStyleSheet = "";
+
+    // generated once per module json
+    private _getModuleStyleSheet(): string {
+        if (this._moduleStyleSheetSource !== this.props.json) {
+            this._moduleStyleSheetSource = this.props.json;
+            this._moduleStyleSheet = buildModuleStyleSheet(this.props.json);
+        }
+        return this._moduleStyleSheet;
+    }
+
+    // a screen's or dialog's defaultFontSize, else the module's
+    private _getDefaultFontSizeClassName(ownSize: unknown): string {
+        const size = parseFontSize(ownSize) ?? parseFontSize(this.props.json?.config?.defaultFontSize);
+        return getFontSizeClassName(size);
     }
 
     // public react events
@@ -624,9 +652,9 @@ class Phosphor extends Component<PhosphorProps, AppState> {
                 // content folder opens its sub-section list, a content item selects
                 e.preventDefault();
                 if (column === "items") {
-                    this._activateAlienItem(itemIndex);
+                    this._activateAlienItem(itemIndex, e.shiftKey);
                 } else if (this._isAlienButton(folders[folderIndex])) {
-                    this._activateAlienFolder(folderIndex);
+                    this._activateAlienFolder(folderIndex, e.shiftKey);
                 } else if (items.length) {
                     this._setAlienColumn("items");
                 }
@@ -999,7 +1027,8 @@ class Phosphor extends Component<PhosphorProps, AppState> {
     }
 
     // Activate a folder: a button navigates/acts; a content folder selects.
-    private _activateAlienFolder(index: number): void {
+    // shiftKey picks the shiftKey variant of a button's target, like a classic link.
+    private _activateAlienFolder(index: number, shiftKey = false): void {
         const folders = this._getAlienFolders();
         const folder = folders[index];
         if (!folder) {
@@ -1007,7 +1036,7 @@ class Phosphor extends Component<PhosphorProps, AppState> {
         }
 
         if (this._isAlienButton(folder)) {
-            this._handleLinkClick(folder.target, false);
+            this._handleLinkClick(folder.target, shiftKey);
             return;
         }
 
@@ -1015,7 +1044,7 @@ class Phosphor extends Component<PhosphorProps, AppState> {
     }
 
     // Activate a sub-section: a button navigates/acts; a content item selects.
-    private _activateAlienItem(index: number): void {
+    private _activateAlienItem(index: number, shiftKey = false): void {
         const folders = this._getAlienFolders();
         const folder = folders[this.state.alienSelectedIndex];
         const items = folder ? this._getAlienItems(folder) : [];
@@ -1025,7 +1054,7 @@ class Phosphor extends Component<PhosphorProps, AppState> {
         }
 
         if (item.link && this._isAlienButton(item.link)) {
-            this._handleLinkClick(item.link.target, false);
+            this._handleLinkClick(item.link.target, shiftKey);
             return;
         }
 
@@ -1094,7 +1123,7 @@ class Phosphor extends Component<PhosphorProps, AppState> {
                             <div
                                 key={folder.id}
                                 className={className}
-                                onClick={() => this._activateAlienFolder(index)}
+                                onClick={(event) => this._activateAlienFolder(index, event.shiftKey)}
                             >
                                 <span className="phosphor-alien__folder-label">
                                     {this._stripFolderLabel(folder.text || "")}
@@ -1116,7 +1145,7 @@ class Phosphor extends Component<PhosphorProps, AppState> {
                                 <div
                                     key={index}
                                     className={className}
-                                    onClick={() => this._activateAlienItem(index)}
+                                    onClick={(event) => this._activateAlienItem(index, event.shiftKey)}
                                 >
                                     {item.label}
                                 </div>
@@ -1124,7 +1153,10 @@ class Phosphor extends Component<PhosphorProps, AppState> {
                         })}
                     </div>
 
-                    <div className="phosphor-alien__detail-body" key={bodyKey}>
+                    <div
+                        className={["phosphor-alien__detail-body", bodyScreen && parseFontSize(bodyScreen.defaultFontSize) !== undefined ? getFontSizeClassName(bodyScreen.defaultFontSize) : null].filter(Boolean).join(" ")}
+                        key={bodyKey}
+                    >
                         {this._renderAlienFileContent(bodyScreen)}
                     </div>
                 </div>
@@ -1623,6 +1655,7 @@ class Phosphor extends Component<PhosphorProps, AppState> {
             id,
             type,
             content,
+            defaultFontSize: parseFontSize(src?.defaultFontSize),
             showActions: src?.showActions === true,
             actions: Array.isArray(src?.actions)
                 ? src.actions
@@ -2014,6 +2047,7 @@ class Phosphor extends Component<PhosphorProps, AppState> {
             content,
             onDone,
             defaultTextSpeed,
+            defaultFontSize: parseFontSize(src?.defaultFontSize),
             layout,
             title,
             headerTitle,
@@ -2118,6 +2152,13 @@ class Phosphor extends Component<PhosphorProps, AppState> {
                 data.className = data.className
                     ? `${data.className} ${alignClassName}`
                     : alignClassName;
+            }
+            // and its font size the same way
+            const fontSizeClassName = getFontSizeClassName(element.fontSize);
+            if (fontSizeClassName) {
+                data.className = data.className
+                    ? `${data.className} ${fontSizeClassName}`
+                    : fontSizeClassName;
             }
         }
 
@@ -3510,6 +3551,7 @@ class Phosphor extends Component<PhosphorProps, AppState> {
         return (
             <Modal
                 text={dialog.content}
+                className={this._getDefaultFontSizeClassName((dialog as any).defaultFontSize)}
                 onClose={handleClose}
                 actions={(dialog as any).showActions === true && Array.isArray((dialog as any).actions)
                     ? (dialog as any).actions

@@ -1,9 +1,9 @@
 # PHOSPHOR v10.0
 ### A retro terminal simulator for tabletop role-playing games
 
-Phosphor turns a browser into an in-world computer terminal for your players: CRT glow, scanlines, typing sounds, logins, file systems, databases and hidden secrets, all driven by a JSON script you can write without touching code.
+Phosphor turns a browser into an in-world computer terminal for your players: CRT glow, scanlines, typing sounds, logins, file systems, databases and hidden secrets, all driven by a JSON **module** you can write without touching code.
 
-This is a fork of [redhg's original Phosphor project](https://github.com/redhg/phosphor), which was built as a terminal prop for the [Mothership RPG](https://www.mothershiprpg.com/) module [The Haunting of Ypsilon 14](https://www.mothershiprpg.com/pamphlet-adventures/#The_Haunting_Of_Ypsilon_14), inspired by [Quadra's post](https://www.traaa.sh/the-ypsilon-14-terminal) about running that scenario. This fork turns it into a general-purpose tool: a visual Script Creator, an online module library, accounts, and many new element types.
+This is a fork of [redhg's original Phosphor project](https://github.com/redhg/phosphor), which was built as a terminal prop for the [Mothership RPG](https://www.mothershiprpg.com/) module [The Haunting of Ypsilon 14](https://www.mothershiprpg.com/pamphlet-adventures/#The_Haunting_Of_Ypsilon_14), inspired by [Quadra's post](https://www.traaa.sh/the-ypsilon-14-terminal) about running that scenario. This fork turns it into a general-purpose tool: a visual Module Creator, an online module library, accounts, and many new element types.
 
 **[Try it here.](https://dunninganddragons.com/phosphor/)** Pull requests and issues are welcome; you can also send bug reports and feature requests from inside the app (**SUPPORT > FEEDBACK**).
 
@@ -11,24 +11,33 @@ This is a fork of [redhg's original Phosphor project](https://github.com/redhg/p
 
 ## What's new in v10.0
 
-**Terminal and scripts**
-- **Data tables.** A new `table` element prints a box-drawn database grid, then becomes a record browser you can move through, sort, search and page. The Script Creator edits tables in a spreadsheet-style grid.
-- **Class names combine.** `"alert small center"` now works. In the Script Creator each class is a removable chip. A new color or blend mode replaces the old one; layout classes stack.
+**Everything is a module.** What used to be called a "script" is now a **module**, whether it's built in, saved only in your browser, or published to the Library. The header reads **MODULE** (pick one) and **MY MODULES** (manage them), and the editor is the **Module Creator**.
+
+**Terminal and modules**
+- **Data tables.** A new `table` element prints a box-drawn database grid, then becomes a record browser you can move through, sort, search and page. The Module Creator edits tables in a spreadsheet-style grid.
+- **Class names combine.** `"alert small center"` now works. In the Module Creator each class is a removable chip, and color classes show their color, e.g. *alert (red)*. A new color or blend mode replaces the old one; layout classes stack.
+- **Custom colors.** Name your own color classes (`"toxic": "#88ff00"`) in the module config, or create one from the class picker. Every element can then use it like `alert`.
+- **Font sizes.** Set text size in points per element (`fontSize`), or as a default for a screen, a dialog or the whole module (`defaultFontSize`). In the Creator, Text Align, Text Speed and Font Size share one row.
 - **Images reworked.** Blend modes now work as intended, with a `background` plate so the darkening modes stay visible on dark themes. Images also support alignment and a `footer` class (space above), and dialog images use the same classes.
 - **File-system screens.** Links and table rows inside a file now open their target in place instead of leaving the file browser.
-- **LANTERN-7 RIG TERMINAL.** A new original showcase scenario for the file-system screen. It replaces the old *Alien: Isolation* demo.
+- **YPSILON-14 FILE SYSTEM.** *The Haunting of Ypsilon-14* rebuilt on the file-system screen: the same station data as folders, files and sortable tables. It replaces the old *Alien: Isolation* demo.
 - **Phones and tablets.** Tapping a prompt, login or table search line opens the on-screen keyboard; tapping anywhere else closes it.
-- **Sample script.** The bundled **PHOSPHOR SAMPLE SCRIPT** now has a working example of every feature, including a page on what's new.
+- **Sample module.** The built-in **PHOSPHOR SAMPLE MODULE** now has a working example of every feature, including a page on what's new.
 
 **Library and accounts**
 - **Web View** is a new, modern library layout and the default. **Terminal View** is the retro layout, renamed from Retro View. Each view uses its matching font.
 - **Usernames.** Every account gets a random, unique username. On first sign-in you choose to keep it or pick your own, and you can change it any time under **PROFILE**. Modules show as "By *username*".
 - **Co-authors.** Credit other creators on a module by pasting their account ID; each person copies their own ID from **PROFILE**. Nobody can browse or search other users' names, so the app never reveals who has an account.
 - **Ratings.** Ratings show as stars, and you can now remove your rating.
-- **Show in Script.** These choices are saved to your account, so they follow you across devices and no longer reset.
+- **Show in Menu.** Your choice of which modules appear in the MODULE menu is saved to your account, so it follows you across devices and no longer resets.
+
+**App**
+- **SUPPORT > HELP** opens a window listing every keyboard shortcut.
+- **MODULE > + NEW MODULE** starts an empty module saved in your browser and opens it in the Creator.
+- Opening a shared module link no longer flashes the default module while it loads.
 
 **Feedback**
-- A **SUPPORT** menu groups Feedback, Donate, GitHub and (for admins) the Admin Panel.
+- A **SUPPORT** menu groups Help, Feedback, Donate, GitHub and (for admins) the Admin Panel.
 - **FEEDBACK** sends a bug report, feature request or general feedback. **MY FEEDBACK** shows each message's status and any reply. A badge appears when an admin replies.
 - Admins get an inbox to filter, update the status of, reply to and delete feedback.
 
@@ -49,17 +58,17 @@ This is a fork of [redhg's original Phosphor project](https://github.com/redhg/p
 
 | Control | What it does |
 |---|---|
-| **SCRIPT** | Switch between bundled scripts, your own scripts and modules you've subscribed to, or upload a `.json` file. |
-| **CREATOR** | Open the Script Creator to edit the active script or start a new one. |
-| **MODULES** | Your modules and subscriptions. Choose which ones appear in the SCRIPT dropdown (**Show in Script**). |
+| **MODULE** | Switch between built-in modules, your own and ones you've subscribed to. Also **UPLOAD JSON** and **+ NEW MODULE**. |
+| **CREATOR** | Open the Module Creator to edit the active module. |
+| **MY MODULES** | Your modules and subscriptions. Choose which ones appear in the MODULE menu (**Show in Menu**). |
 | **LIBRARY** | Browse, search, rate and subscribe to published modules. |
 | **OPTIONS** | Sound, header visibility, print, reload, clear local data, reset, and color theme. |
-| **SUPPORT** | Feedback, donate, GitHub, and the Admin Panel for admins. |
+| **SUPPORT** | Help (every keyboard shortcut), feedback, donate, GitHub, and the Admin Panel for admins. |
 | **SIGN IN / PROFILE** | Google sign-in. PROFILE shows your username (editable) and account ID. |
 
 On narrow screens these controls fold into a **MENU** button.
 
-**Themes:** Blue, Amber, Green, White, Light, or a script-defined custom palette.
+**Themes:** Blue, Amber, Green, White, Light, or a module-defined custom palette.
 
 ### Keyboard shortcuts
 
@@ -68,36 +77,36 @@ On narrow screens these controls fold into a **MENU** button.
 | `Shift` + `Space` | Skip the typing animation on the current screen |
 | `Shift` + `H` | Show / hide the header |
 | `Ctrl` + `Shift` + `L` | Bypass a login (submits its first credential) |
-| `Shift` + click, or press-and-hold | The alternate action on a link, toggle or list, where the script defines one |
+| `Shift` + click, or press-and-hold | The alternate action on a link, toggle or list, where the module defines one |
 
-Shortcuts are ignored while you're typing in a prompt, login or text field. File-system screens and data tables have their own arrow-key navigation; the sample script's **KEYBOARD SHORTCUTS** page lists everything.
+Shortcuts are ignored while you're typing in a prompt, login or text field. File-system screens and data tables have their own arrow-key navigation; **SUPPORT > HELP** (or the sample module's **KEYBOARD SHORTCUTS** page) lists everything.
 
-### Bundled scripts
+### Built-in modules
 
-- **PHOSPHOR SAMPLE SCRIPT:** an interactive manual with a live example of every element and option. Start here.
-- **LANTERN-7 RIG TERMINAL:** an original sci-fi horror scenario built on the file-system screen. Log in as `MAINT` / `7731`, then dig through the files.
+- **PHOSPHOR SAMPLE MODULE:** an interactive manual with a live example of every element and option. Start here.
+- **YPSILON-14 FILE SYSTEM:** the same Ypsilon-14 station as a file-system terminal. Items marked [A] are admin-only; the Warden can **Shift+click** (or Shift+Enter) them to open the administrator node.
 - **YPSILON-14:** the original terminal from *The Haunting of Ypsilon 14*.
 
 ---
 
 ## Modules and the Library
 
-Sign in with Google to publish scripts as **modules**:
+Modules start out saved in your browser. Sign in with Google to publish them online:
 
 - **Visibility.** `private` modules are yours only. `unlisted` modules open by direct link. `public` modules appear in the Library.
 - **Library.** Search, sort, subscribe and rate modules (1–5 stars; you can remove your rating). Switch between **Web View** and **Terminal View** under **OPTIONS**.
 - **Credits.** Modules show "By *username*" plus any co-authors. To add a co-author, open **MODULES > Manage > Edit Details** and paste their full account ID. Co-authors can remove themselves.
-- **Show in Script.** In the MODULES panel, decide which of your modules and subscriptions appear in the SCRIPT dropdown. The choice is saved to your account.
+- **Show in Menu.** In the MY MODULES panel, decide which of your modules and subscriptions appear in the MODULE menu. The choice is saved to your account.
 
 ---
 
-## Writing your own script
+## Writing your own module
 
-Scripts are JSON. You can write them by hand or build them in the **Script Creator** (header > CREATOR), which shows every element type as a form and offers a live **PREVIEW** in the real renderer. The sample script (`src/data/sample.json`) is the best reference: every page explains a feature and demonstrates it.
+Modules are JSON. You can write them by hand or build them in the **Module Creator** (header > CREATOR, or **MODULE > + NEW MODULE** to start fresh), which shows every element type as a form and offers a live **PREVIEW** in the real renderer. The sample module (`src/data/sample.json`) is the best reference: every page explains a feature and demonstrates it.
 
 ```json
 {
-    "config": { "name": "My Script", "author": "You", "theme": "amber" },
+    "config": { "name": "My Module", "author": "You", "theme": "amber" },
     "screens": [
         { "id": "start", "type": "screen", "content": [
             "Hello, crew.",
@@ -116,16 +125,18 @@ Scripts are JSON. You can write them by hand or build them in the **Script Creat
 | `name`, `author` | Shown in the header and the Library |
 | `theme` | `blue`, `amber`, `green`, `white`, `light` or `custom` |
 | `customTheme` | Colors used when `theme` is `custom` (`bgHex`, `fgHex`, `textHex`, `alertHex`, `noticeHex`, `emphasisHex`, `systemHex`, `hyperlinkHex`) |
-| `defaultTextSpeed` | Milliseconds per typed character for the whole script |
+| `defaultTextSpeed` | Milliseconds per typed character for the whole module |
+| `defaultFontSize` | Text size in pt (normal text is 27pt) for the whole module |
+| `customColors` | Your own color classes, e.g. `{ "toxic": "#88ff00" }` (names: a–z, 0–9, `-`) |
 | `terminalType` | `"alien"` wraps every screen in the file-system frame |
 | `alien.title` | Default title-bar text for that frame |
-| `script` | ID of an optional terminal script in `src/scripts/terminal/` (bundled scripts only) |
+| `script` | ID of optional module code in `src/scripts/terminal/` (built-in modules only) |
 
 ### Screens
 
 Each screen has an `id`, a `type` and a `content` array. Optional keys:
 - `onDone: { "target", "delayMs" }` auto-advances when the screen finishes.
-- `defaultTextSpeed` sets the typing speed for this screen only.
+- `defaultTextSpeed` and `defaultFontSize` set the typing speed and text size for this screen only.
 - `title` and `headerTitle` are used by file-system screens.
 
 | `type` | Behavior |
@@ -156,8 +167,9 @@ Any element also accepts:
 - `className`
 - `align` (`left` / `center` / `right` / `justify`)
 - `speed`, a per-element typing speed
+- `fontSize`, a per-element text size in pt
 - `loop`, to repeat the element N times
-- `scriptId`, a handle for terminal scripts
+- `scriptId`, a handle for module code
 
 **States.** Each state of a `toggle`, `list` or `dropdown` takes `text` and `active`, plus any of these optional keys:
 - `className`
@@ -176,7 +188,7 @@ Add `"shiftKey": true` to an entry to run it only on Shift+click.
 
 **Prompt commands.** Each command's `action` is `link`, `dialog`, `action`, `console` or `logEntry`.
 
-**Dialogs.** Entries in `dialogs[]` with `"type": "alert"` can contain text, images and prompts. `"showActions": true` with `"actions": [{ "label", "target"? }]` adds buttons.
+**Dialogs.** Entries in `dialogs[]` with `"type": "alert"` can contain text, images and prompts. `"showActions": true` with `"actions": [{ "label", "target"? }]` adds buttons, and `defaultFontSize` sizes the dialog's text.
 
 ### File-system screens
 
@@ -193,7 +205,7 @@ A link with a plain string target opens content. A link with an **array** target
 { "type": "link", "text": "‹ LOG OUT", "target": [{ "type": "action", "action": "back" }] }
 ```
 
-Inside a file, a link or table row with a plain string target opens that screen in place. See `src/data/alien-terminal.json` (LANTERN-7) for a complete example.
+Inside a file, a link or table row with a plain string target opens that screen in place. See `src/data/ypsilon14-filesystem.json` (YPSILON-14 FILE SYSTEM) for a complete example.
 
 ### Data tables
 
@@ -227,22 +239,22 @@ Inside a file, a link or table row with a plain string target opens that screen 
 
 **Controls:** `↑` / `↓` select a row, `Enter` opens it, `1`–`9` or a header click sorts, `/` searches, `←` / `→` page.
 
-**In the Script Creator,** **[GRID]** edits a table like a spreadsheet and **[TEXT]** accepts pipe-separated rows (`a | b | c >> screen-id`) for pasting in bulk.
+**In the Module Creator,** **[GRID]** edits a table like a spreadsheet and **[TEXT]** accepts pipe-separated rows (`a | b | c >> screen-id`) for pasting in bulk.
 
 ### Class names and images
 
 `className` holds space-separated classes:
-- **Colors** (`alert`, `notice`, `emphasis`, `system`): one per element.
-- **Layout** (`center`, `title`, `small`, `inline`, `script-hidden`): combine freely.
-- **Images** take one blend mode (`monochrome`, `screen`, `lighten`, `multiply`, `difference`, …) plus `footer` and `script-hidden`.
+- **Colors** (`alert`, `notice`, `emphasis`, `system`, plus your `customColors`): one per element.
+- **Layout** (`center`, `title`, `small`, `inline`): combine freely.
+- **Images** take one blend mode (`monochrome`, `screen`, `lighten`, `multiply`, `difference`, …) plus `footer`.
 
-The darkening blend modes turn images almost black on dark themes. Give the image a `background`, either a theme color (`fg`, `bg`, `alert`, …) or any CSS color, so the blend has something to mix with. The sample script's **IMAGES + CLASS NAMES** section shows every combination.
+The darkening blend modes turn images almost black on dark themes. Give the image a `background`, either a theme color (`fg`, `bg`, `alert`, …) or any CSS color, so the blend has something to mix with. The sample module's **IMAGES + CLASS NAMES** section shows every combination, and **FONT SIZES + CUSTOM COLORS** shows sizes and custom colors.
 
-### Loading your script
+### Loading your module
 
-- **Without building:** use **SCRIPT > UPLOAD JSON**, or save the script as a module. Host images somewhere public (a CDN, Imgur or your own server).
-- **Bundled:** add the JSON to `src/data/`, import it in `src/data/index.ts`, and add it to `BUNDLED_SCRIPTS`.
-- **Terminal scripts:** optional TypeScript modules in `src/scripts/terminal/`, attached through `config.script`. They can react to screens, prompts and toggles, and change any element that has a `scriptId`.
+- **Without building:** use **MODULE > UPLOAD JSON**, or publish it from **MY MODULES**. Host images somewhere public (a CDN, Imgur or your own server).
+- **Built in:** add the JSON to `src/data/`, import it in `src/data/index.ts`, and add it to `BUNDLED_SCRIPTS`.
+- **Module code:** optional TypeScript files in `src/scripts/terminal/`, attached through `config.script`. They can react to screens, prompts and toggles, and change any element that has a `scriptId`.
 
 ---
 
@@ -257,7 +269,7 @@ npm run build      # production build in build/ (served from /phosphor/)
 npm run preview    # serve the production build locally
 ```
 
-The terminal, Script Creator and JSON upload work with no backend. Accounts, modules, the Library and feedback need **Supabase**:
+The terminal, Module Creator and JSON upload work with no backend. Accounts, modules, the Library and feedback need **Supabase**:
 
 1. Create a Supabase project and enable the **Google** auth provider.
 2. Run [`supabase/schema.sql`](supabase/schema.sql) in the SQL editor. It's idempotent, so re-run it after pulling updates.

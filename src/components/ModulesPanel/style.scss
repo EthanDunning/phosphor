@@ -346,6 +346,28 @@ $modules-meta-size: 14pt;
             background: var(--modules-selected-fg);
             color: var(--modules-selected-bg);
         }
+
+        // Edit Details inside the loaded (inverted) module: the fields follow
+        // the inverted colors instead of keeping the dark panel style
+        .modules-panel__field input,
+        .modules-panel__field textarea {
+            border-color: var(--modules-selected-fg);
+            background: transparent;
+            color: var(--modules-selected-fg);
+            -webkit-text-fill-color: var(--modules-selected-fg);
+            caret-color: var(--modules-selected-fg);
+        }
+
+        .author-picker__add,
+        .author-picker__chip {
+            border-color: var(--modules-selected-fg);
+            color: var(--modules-selected-fg);
+        }
+
+        .author-picker__add:hover:not(:disabled) {
+            background: var(--modules-selected-fg);
+            color: var(--modules-selected-bg);
+        }
     }
 
     &__list-main {
