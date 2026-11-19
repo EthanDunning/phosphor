@@ -1,6 +1,7 @@
 import React, { Component, ReactElement, Suspense } from "react";
 import { createPortal } from "react-dom";
 import type { Session } from "@supabase/supabase-js";
+import "./header.scss";
 import "./style.scss";
 
 import Phosphor from "../Phosphor";

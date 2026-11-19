@@ -57,6 +57,7 @@ import {
     persistCustomTheme,
     persistTheme,
 } from "../../themes";
+import "../App/header.scss";
 import "./style.scss";
 
 const SORT_OPTIONS: CreatorSelectOption[] = [
@@ -880,7 +881,17 @@ const ModulesBrowser: FC = () => {
         };
 
         window.addEventListener("resize", handleViewportChange);
+        // The first measurement can run on the fallback font (wider than the
+        // terminal font) and collapse the header into [MENU]; measure again
+        // once the web font is in.
+        let cancelled = false;
+        document.fonts?.ready.then(() => {
+            if (!cancelled) {
+                handleViewportChange();
+            }
+        }).catch((): void => undefined);
         return () => {
+            cancelled = true;
             window.cancelAnimationFrame(rafId);
             window.removeEventListener("resize", handleViewportChange);
         };
