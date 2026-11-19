@@ -1,12 +1,10 @@
 const SOUND_ENABLED_STORAGE_KEY = "phosphor:sound-enabled:v1";
 const HEADER_VISIBLE_STORAGE_KEY = "phosphor:header-visible:v1";
 const MODULES_BROWSER_VIEW_MODE_STORAGE_KEY = "phosphor:modules-browser:view-mode:v1";
-const MODULES_BROWSER_FONT_MODE_STORAGE_KEY = "phosphor:modules-browser:font-mode:v1";
 const OWN_SCRIPTS_VISIBILITY_STORAGE_KEY = "phosphor:own-scripts:visibility:v1";
 const SUBSCRIBED_SCRIPTS_VISIBILITY_STORAGE_KEY = "phosphor:subscribed-scripts:visibility:v1";
 
 export type ModulesBrowserViewMode = "retro" | "web";
-export type ModulesBrowserFontMode = "retro" | "normal";
 
 export const loadPersistedSoundEnabled = (): boolean => {
     try {
@@ -62,23 +60,6 @@ export const loadPersistedModulesBrowserViewMode = (): ModulesBrowserViewMode =>
 export const persistModulesBrowserViewMode = (viewMode: ModulesBrowserViewMode): void => {
     try {
         window.localStorage.setItem(MODULES_BROWSER_VIEW_MODE_STORAGE_KEY, viewMode);
-    } catch {
-        // ignore storage write failures
-    }
-};
-
-export const loadPersistedModulesBrowserFontMode = (): ModulesBrowserFontMode => {
-    try {
-        const savedValue = window.localStorage.getItem(MODULES_BROWSER_FONT_MODE_STORAGE_KEY);
-        return savedValue === "normal" ? "normal" : "retro";
-    } catch {
-        return "retro";
-    }
-};
-
-export const persistModulesBrowserFontMode = (fontMode: ModulesBrowserFontMode): void => {
-    try {
-        window.localStorage.setItem(MODULES_BROWSER_FONT_MODE_STORAGE_KEY, fontMode);
     } catch {
         // ignore storage write failures
     }

@@ -978,3 +978,608 @@ $browser-normal-font-stack: "Trebuchet MS", Verdana, Geneva, sans-serif;
         }
     }
 }
+
+// ---- Web View: a clean, modern skin -------------------------------------------
+// Everything below only applies with [OPTIONS] > Web View; the terminal view
+// above is untouched. Sizes are in px on purpose: the terminal's root font
+// size is huge, so rem-based spacing would balloon.
+
+$web-font-stack: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+$web-mono-stack: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+.modules-browser.modules-browser--web-view {
+    --browser-bg: #ffffff;
+    --browser-fg: #1d2330;
+    --browser-border: #dfe3ea;
+    --browser-soft-border: #eceff4;
+    --browser-overlay: #f3f5f8;
+    --browser-control-bg: #ffffff;
+    --browser-panel-bg: #ffffff;
+    --browser-panel-alt-bg: #f8f9fb;
+    --browser-muted-fg: #667085;
+    --browser-selected-bg: #2f6fdb;
+    --browser-selected-fg: #ffffff;
+    --theme-fg: #1d2330;
+    --web-accent: #2f6fdb;
+    --web-accent-strong: #2459b8;
+    --web-accent-soft: #eaf1fd;
+    --web-hover: #f5f7fa;
+    --web-radius: 10px;
+    --web-radius-sm: 8px;
+    --web-shadow: 0 1px 2px rgba(16, 24, 40, 0.05), 0 2px 8px rgba(16, 24, 40, 0.05);
+    --web-shadow-lg: 0 12px 32px rgba(16, 24, 40, 0.14);
+    --web-focus: 0 0 0 3px rgba(47, 111, 219, 0.22);
+
+    background: var(--browser-overlay);
+    -webkit-font-smoothing: antialiased;
+
+    // "Normal" font in web view = the system UI font
+    &.modules-browser--font-normal {
+        --browser-font-family: #{$web-font-stack};
+    }
+
+    ::-webkit-scrollbar {
+        width: 10px;
+        height: 10px;
+    }
+
+    ::-webkit-scrollbar-thumb {
+        background: #cdd3dd;
+        border: 2px solid transparent;
+        border-radius: 999px;
+        background-clip: padding-box;
+    }
+
+    ::-webkit-scrollbar-track {
+        background: transparent;
+    }
+
+    // ---- header ----
+    .phosphor-header {
+        background: rgba(255, 255, 255, 0.9);
+        backdrop-filter: blur(10px);
+        border-bottom: 1px solid var(--browser-border);
+        box-shadow: 0 1px 3px rgba(16, 24, 40, 0.04);
+        opacity: 1;
+        font-size: 14px;
+    }
+
+    .phosphor-header__title {
+        opacity: 1;
+        font-size: 15px;
+        font-weight: 700;
+        letter-spacing: 0.12em;
+        color: var(--browser-fg);
+        border-radius: var(--web-radius-sm);
+
+        &:hover {
+            background: var(--web-hover);
+            border-color: transparent;
+            color: var(--browser-fg);
+        }
+    }
+
+    .phosphor-header__btn {
+        border: 1px solid transparent;
+        border-radius: var(--web-radius-sm);
+        padding: 6px 12px;
+        font-size: 14px;
+        font-weight: 500;
+        letter-spacing: 0.01em;
+        color: #344054;
+
+        &:hover {
+            background: var(--web-hover);
+            border-color: var(--browser-border);
+            color: var(--browser-fg);
+        }
+    }
+
+    .phosphor-header__dropdown {
+        border: 1px solid var(--browser-border);
+        border-radius: var(--web-radius);
+        box-shadow: var(--web-shadow-lg);
+        padding: 6px;
+        overflow: hidden;
+    }
+
+    .phosphor-header__dropdown-item,
+    .phosphor-header__dropdown-label {
+        border-bottom: none;
+        border-radius: 6px;
+        padding: 7px 10px;
+        letter-spacing: 0.01em;
+        font-size: 14px;
+    }
+
+    .phosphor-header__dropdown-item:hover {
+        background: var(--web-hover);
+        color: var(--browser-fg);
+    }
+
+    .phosphor-header__dropdown-item--active {
+        opacity: 1;
+        color: var(--web-accent);
+        font-weight: 600;
+    }
+
+    .phosphor-header__dropdown-item--separator {
+        border-top: 1px solid var(--browser-soft-border);
+        margin: 4px 0;
+        padding: 0;
+    }
+
+    .phosphor-header__dropdown-label {
+        font-size: 11.5px;
+        font-weight: 600;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--browser-muted-fg);
+        opacity: 1;
+    }
+
+    // ---- layout ----
+    .modules-browser__shell {
+        top: calc(var(--header-height, 50px) + 16px);
+        left: 24px;
+        right: 24px;
+        bottom: 24px;
+        gap: 16px;
+        border: none;
+        background: transparent;
+        box-shadow: none;
+    }
+
+    .modules-browser__toolbar {
+        gap: 12px;
+        padding: 14px 16px;
+        border: 1px solid var(--browser-border);
+        border-radius: var(--web-radius);
+        background: var(--browser-panel-bg);
+        box-shadow: var(--web-shadow);
+    }
+
+    .modules-browser__toolbar-actions {
+        gap: 8px;
+    }
+
+    // one control height across the toolbar so the field labels line up
+    .modules-browser__toolbar input,
+    .modules-browser__toolbar .script-creator-select__trigger,
+    .modules-browser__toolbar .modules-browser__btn {
+        box-sizing: border-box;
+        height: 40px;
+    }
+
+    .modules-browser__content {
+        gap: 16px;
+        padding: 0;
+    }
+
+    .modules-browser__panel {
+        border-radius: var(--web-radius);
+        border-color: var(--browser-border);
+        box-shadow: var(--web-shadow);
+    }
+
+    .modules-browser__panel--detail {
+        padding: 20px 24px;
+    }
+
+    .modules-browser__empty,
+    .modules-browser__notice {
+        border-radius: var(--web-radius-sm);
+        padding: 12px 14px;
+    }
+
+    // ---- fields ----
+    .modules-browser__field {
+        gap: 6px;
+
+        span {
+            font-size: 11.5px;
+            font-weight: 600;
+            letter-spacing: 0.06em;
+            color: var(--browser-muted-fg);
+        }
+
+        input,
+        textarea {
+            border-radius: var(--web-radius-sm);
+            padding: 9px 12px;
+            font-size: 15px;
+            transition: border-color 120ms ease, box-shadow 120ms ease;
+
+            &:focus {
+                outline: none;
+                border-color: var(--web-accent);
+                box-shadow: var(--web-focus);
+            }
+        }
+    }
+
+    .script-creator-select__trigger {
+        border-radius: var(--web-radius-sm);
+        padding: 9px 12px;
+        font-size: 14px;
+    }
+
+    .script-creator-select--open .script-creator-select__trigger {
+        background: var(--browser-control-bg);
+        color: var(--browser-fg);
+        -webkit-text-fill-color: var(--browser-fg);
+        border-color: var(--web-accent);
+        box-shadow: var(--web-focus);
+    }
+
+    .script-creator-select__menu {
+        top: calc(100% + 4px);
+        border-radius: var(--web-radius);
+        box-shadow: var(--web-shadow-lg);
+        padding: 4px;
+    }
+
+    .script-creator-select__option {
+        border-bottom: none;
+        border-radius: 6px;
+        padding: 8px 10px;
+        font-size: 14px;
+
+        &:hover:not(:disabled) {
+            background: var(--web-hover);
+            color: var(--browser-fg);
+            -webkit-text-fill-color: var(--browser-fg);
+        }
+    }
+
+    .script-creator-select__option--active,
+    .script-creator-select__option--active:hover:not(:disabled) {
+        background: var(--web-accent-soft);
+        color: var(--web-accent-strong);
+        -webkit-text-fill-color: var(--web-accent-strong);
+        font-weight: 600;
+    }
+
+    // ---- buttons ----
+    .modules-browser__btn,
+    .modules-browser__rating-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        border-radius: var(--web-radius-sm);
+        border-color: var(--browser-border);
+        padding: 8px 14px;
+        font-size: 14px;
+        font-weight: 500;
+        color: #344054;
+        box-shadow: 0 1px 2px rgba(16, 24, 40, 0.05);
+        transition: background 120ms ease, border-color 120ms ease, color 120ms ease;
+
+        &:hover:not(:disabled) {
+            background: var(--web-hover);
+            border-color: #cfd5df;
+            color: var(--browser-fg);
+        }
+
+        &:focus-visible {
+            outline: none;
+            box-shadow: var(--web-focus);
+        }
+    }
+
+    .modules-browser__btn--primary {
+        background: var(--web-accent);
+        border-color: var(--web-accent);
+        color: #ffffff;
+
+        &:hover:not(:disabled) {
+            background: var(--web-accent-strong);
+            border-color: var(--web-accent-strong);
+            color: #ffffff;
+        }
+    }
+
+    .modules-browser__btn--active,
+    .modules-browser__rating-btn--active {
+        background: var(--web-accent-soft);
+        border-color: #b9cff5;
+        color: var(--web-accent-strong);
+
+        &:hover:not(:disabled) {
+            background: #dde8fb;
+            border-color: #a9c3f2;
+            color: var(--web-accent-strong);
+        }
+    }
+
+    // the toolbar toggles read as pills
+    .modules-browser__toolbar-actions .modules-browser__btn {
+        border-radius: 999px;
+        padding: 8px 16px;
+    }
+
+    .modules-browser__rating-btn {
+        justify-content: center;
+        min-width: 40px;
+        padding: 6px 10px;
+    }
+
+    .modules-browser__rating-btn--active,
+    .modules-browser__rating-btn--active:hover:not(:disabled) {
+        background: var(--web-accent);
+        border-color: var(--web-accent);
+        color: #ffffff;
+    }
+
+    // ---- list ----
+    .modules-browser__list-item {
+        gap: 4px;
+        padding: 14px 18px;
+        border: none;
+        border-bottom: 1px solid var(--browser-soft-border);
+        background: var(--browser-panel-bg);
+        transition: background 120ms ease, box-shadow 120ms ease;
+
+        &:hover {
+            background: var(--web-hover);
+            color: var(--browser-fg);
+        }
+    }
+
+    .modules-browser__list-item--active,
+    .modules-browser__list-item--active:hover {
+        background: var(--web-accent-soft);
+        color: var(--browser-fg);
+        box-shadow: inset 3px 0 0 var(--web-accent);
+    }
+
+    .modules-browser__list-header {
+        align-items: center;
+        gap: 10px;
+    }
+
+    .modules-browser__list-title-group {
+        align-items: center;
+        gap: 8px;
+    }
+
+    .modules-browser__list-name {
+        font-size: 16.5px;
+        font-weight: 600;
+        line-height: 1.3;
+    }
+
+    .modules-browser__list-author {
+        font-size: 13px;
+        color: var(--browser-muted-fg);
+        opacity: 1;
+    }
+
+    .modules-browser__list-meta {
+        font-size: 13px;
+        color: var(--browser-muted-fg);
+        opacity: 1;
+    }
+
+    .modules-browser__list-summary {
+        font-size: 14px;
+        line-height: 1.45;
+        color: #3d4555;
+    }
+
+    .modules-browser__no-summary {
+        color: #98a2b3;
+    }
+
+    .modules-browser__stars {
+        color: #f5a524;
+        letter-spacing: 0.04em;
+    }
+
+    .modules-browser__stars-empty {
+        color: #d0d5dd;
+    }
+
+    // uploader id: a small monospace chip instead of an underlined link
+    .modules-browser__owner-tag {
+        padding: 1px 7px;
+        border-radius: 6px;
+        background: #f1f3f7;
+        color: var(--browser-muted-fg);
+        font-family: $web-mono-stack;
+        font-size: 12px;
+        text-decoration: none;
+        letter-spacing: 0;
+        opacity: 1;
+
+        &:hover,
+        &:focus-visible,
+        &--active {
+            background: var(--web-accent-soft);
+            color: var(--web-accent-strong);
+            font-weight: 600;
+        }
+    }
+
+    // ---- flags / pills ----
+    .modules-browser__list-flag,
+    .modules-browser__pill {
+        display: inline-flex;
+        align-items: center;
+        padding: 2px 9px;
+        border: none;
+        border-radius: 999px;
+        background: #f1f3f7;
+        color: #475467;
+        font-size: 11.5px;
+        font-weight: 600;
+        letter-spacing: 0.04em;
+        line-height: 1.6;
+        opacity: 1;
+    }
+
+    .modules-browser__list-flag--private,
+    .modules-browser__pill--private {
+        background: #fdecec;
+        color: #b42318;
+    }
+
+    .modules-browser__list-flag--unlisted,
+    .modules-browser__pill--unlisted {
+        background: #fff4e5;
+        color: #b54708;
+    }
+
+    .modules-browser__list-flag--subscribed,
+    .modules-browser__pill--subscribed {
+        background: #e7f6ee;
+        color: #067647;
+    }
+
+    // ---- detail ----
+    .modules-browser__detail {
+        gap: 16px;
+    }
+
+    .modules-browser__detail-header {
+        padding-bottom: 16px;
+    }
+
+    .modules-browser__detail-title-group h2 {
+        font-size: 24px;
+        font-weight: 700;
+        line-height: 1.25;
+        letter-spacing: -0.01em;
+    }
+
+    .modules-browser__detail-title-row {
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 4px 10px;
+        margin-bottom: 6px;
+    }
+
+    .modules-browser__detail-author {
+        font-size: 14px;
+        color: var(--browser-muted-fg);
+        opacity: 1;
+    }
+
+    .modules-browser__meta {
+        gap: 4px 14px;
+        font-size: 13.5px;
+    }
+
+    .modules-browser__detail-actions {
+        gap: 8px;
+    }
+
+    .modules-browser__detail-card,
+    .modules-browser__detail-stat {
+        border: 1px solid var(--browser-soft-border);
+        border-radius: var(--web-radius);
+        background: var(--browser-panel-alt-bg);
+        padding: 14px 16px;
+    }
+
+    .modules-browser__detail-stats {
+        gap: 12px;
+    }
+
+    .modules-browser__detail-card-label,
+    .modules-browser__detail-stat span,
+    .modules-browser__rating-label {
+        margin-bottom: 6px;
+        font-size: 11.5px;
+        font-weight: 600;
+        letter-spacing: 0.06em;
+        color: var(--browser-muted-fg);
+    }
+
+    .modules-browser__detail-stat strong {
+        font-size: 15px;
+        font-weight: 500;
+    }
+
+    .modules-browser__detail-summary {
+        font-size: 15px;
+        line-height: 1.6;
+        color: #344054;
+    }
+
+    .modules-browser__rating-row {
+        gap: 10px 12px;
+    }
+
+    .modules-browser__rating-label {
+        margin-bottom: 0;
+    }
+
+    .modules-browser__rating-actions {
+        gap: 6px;
+    }
+
+    .modules-browser__hint {
+        font-size: 13px;
+    }
+
+    .modules-browser__profile-row {
+        padding: 8px 10px;
+    }
+
+    .modules-browser__profile-key {
+        font-size: 11.5px;
+        font-weight: 600;
+    }
+}
+
+// Share / owner menus are portaled to <body>, outside .modules-browser.
+.modules-browser__owner-menu-dropdown--web-view,
+.modules-browser__share-menu-dropdown--web-view {
+    --browser-bg: #ffffff;
+    --browser-fg: #1d2330;
+    --browser-border: #dfe3ea;
+    --browser-soft-border: #eceff4;
+    --browser-selected-bg: #f5f7fa;
+    --browser-selected-fg: #1d2330;
+
+    border-radius: 10px;
+    box-shadow: 0 12px 32px rgba(16, 24, 40, 0.14);
+    padding: 6px;
+    overflow: hidden;
+
+    &.modules-browser__owner-menu-dropdown--font-normal,
+    &.modules-browser__share-menu-dropdown--font-normal {
+        --browser-font-family: #{$web-font-stack};
+    }
+
+    .phosphor-header__dropdown-item {
+        border-bottom: none;
+        border-radius: 6px;
+        padding: 8px 10px;
+        font-size: 14px;
+    }
+
+    .phosphor-header__dropdown-label {
+        font-size: 11.5px;
+        font-weight: 600;
+        letter-spacing: 0.06em;
+        color: #667085;
+        border-bottom: none;
+    }
+
+    .phosphor-header__dropdown-item--separator {
+        border-top: 1px solid #eceff4;
+        margin: 4px 0;
+    }
+}
+
+@media (max-width: 1020px) {
+    .modules-browser.modules-browser--web-view .modules-browser__shell {
+        top: calc(var(--header-height, 50px) + 10px);
+        left: 12px;
+        right: 12px;
+        bottom: 12px;
+        gap: 12px;
+    }
+}

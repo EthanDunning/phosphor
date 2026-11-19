@@ -35,12 +35,9 @@ import {
     updateModuleMetadata,
 } from "../../lib/modules";
 import {
-    ModulesBrowserFontMode,
     ModulesBrowserViewMode,
-    loadPersistedModulesBrowserFontMode,
     loadPersistedModulesBrowserViewMode,
     loadPersistedSoundEnabled,
-    persistModulesBrowserFontMode,
     persistModulesBrowserViewMode,
     persistSoundEnabled,
 } from "../../lib/preferences";
@@ -70,10 +67,6 @@ const RATING_VALUES = [1, 2, 3, 4, 5];
 const BROWSER_VIEW_OPTIONS: Array<{ value: ModulesBrowserViewMode; label: string }> = [
     { value: "retro", label: "Retro View" },
     { value: "web", label: "Web View" },
-];
-const BROWSER_FONT_OPTIONS: Array<{ value: ModulesBrowserFontMode; label: string }> = [
-    { value: "retro", label: "VGA Font" },
-    { value: "normal", label: "Normal Font" },
 ];
 const TRANSIENT_AUTH_PARAMS = [
     "code",
@@ -252,6 +245,14 @@ const getModuleRatingAscii = (ratingAverage: number): string => {
     return `[${"*".repeat(filledSlots)}${"-".repeat(MAX_RATING - filledSlots)}]`;
 };
 
+const getModuleRatingStars = (ratingAverage: number): string => {
+    const normalizedRating = Number.isFinite(ratingAverage)
+        ? Math.max(0, Math.min(MAX_RATING, ratingAverage))
+        : 0;
+    const filledSlots = Math.round(normalizedRating);
+    return "★".repeat(filledSlots) + "☆".repeat(MAX_RATING - filledSlots);
+};
+
 const getModuleRatingTitle = (ratingAverage: number): string => {
     const normalizedRating = Number.isFinite(ratingAverage)
         ? Math.max(0, Math.min(MAX_RATING, ratingAverage))
@@ -305,7 +306,8 @@ const ModulesBrowser: FC = () => {
     const [customTheme, setCustomTheme] = useState<CustomThemeConfig>(() => loadPersistedCustomTheme());
     const [soundEnabled, setSoundEnabled] = useState<boolean>(() => loadPersistedSoundEnabled());
     const [viewMode, setViewMode] = useState<ModulesBrowserViewMode>(() => loadPersistedModulesBrowserViewMode());
-    const [fontMode, setFontMode] = useState<ModulesBrowserFontMode>(() => loadPersistedModulesBrowserFontMode());
+    // the font follows the view: Web View reads in the normal font, Retro in VGA
+    const fontMode: "normal" | "retro" = viewMode === "web" ? "normal" : "retro";
     const [session, setSession] = useState<Session | null>(null);
     const [authLoading, setAuthLoading] = useState<boolean>(supabaseReady);
     const [catalogLoading, setCatalogLoading] = useState<boolean>(supabaseReady);
@@ -486,6 +488,26 @@ const ModulesBrowser: FC = () => {
             fontMode === "normal" ? "modules-browser--font-normal" : "",
         ].filter(Boolean).join(" ");
     }, [fontMode, viewMode]);
+    // Web View is the "modern" skin: plain labels instead of [TERMINAL] brackets,
+    // stars instead of [***--], dots instead of pipes.
+    const isWebView = viewMode === "web";
+    const tag = (text: string): string => (isWebView ? text : `[${text}]`);
+    const metaSeparator = isWebView ? " · " : " | ";
+    const renderRating = (ratingAverage: number, ratingNumeric: string) => {
+        if (!isWebView) {
+            return <>Rating {getModuleRatingAscii(ratingAverage)} ({ratingNumeric})</>;
+        }
+        const stars = getModuleRatingStars(ratingAverage);
+        const filled = stars.replace(/☆/g, "");
+        return (
+            <>
+                <span className="modules-browser__stars" aria-hidden="true">
+                    {filled}<span className="modules-browser__stars-empty">{stars.slice(filled.length)}</span>
+                </span>
+                {" "}{ratingNumeric}
+            </>
+        );
+    };
     const headerRef = useRef<HTMLElement | null>(null);
     const headerTitleRef = useRef<HTMLAnchorElement | null>(null);
     const headerControlsRef = useRef<HTMLDivElement | null>(null);
@@ -1143,10 +1165,6 @@ const ModulesBrowser: FC = () => {
         setViewMode(nextViewMode);
     };
 
-    const handleFontModeChange = (nextFontMode: ModulesBrowserFontMode): void => {
-        persistModulesBrowserFontMode(nextFontMode);
-        setFontMode(nextFontMode);
-    };
 
     const handleThemeSelect = (themeId: string): void => {
         if (themeId === "custom") {
@@ -1436,12 +1454,12 @@ const ModulesBrowser: FC = () => {
                 role="menuitem"
                 onClick={handleSoundToggle}
             >
-                [SOUND:{soundEnabled ? "ON" : "OFF"}]
+                {isWebView ? `Sound: ${soundEnabled ? "On" : "Off"}` : `[SOUND:${soundEnabled ? "ON" : "OFF"}]`}
             </button>
 
             <div className="phosphor-header__dropdown-item phosphor-header__dropdown-item--separator" />
 
-            <div className="phosphor-header__dropdown-label">[DISPLAY]</div>
+            <div className="phosphor-header__dropdown-label">{tag("DISPLAY")}</div>
             {BROWSER_VIEW_OPTIONS.map((option) => (
                 <button
                     key={option.value}
@@ -1456,24 +1474,10 @@ const ModulesBrowser: FC = () => {
                     {viewMode === option.value ? "► " : "  "}{option.label}
                 </button>
             ))}
-            {BROWSER_FONT_OPTIONS.map((option) => (
-                <button
-                    key={option.value}
-                    role="menuitemradio"
-                    aria-checked={fontMode === option.value}
-                    className={
-                        "phosphor-header__dropdown-item"
-                        + (fontMode === option.value ? " phosphor-header__dropdown-item--active" : "")
-                    }
-                    onClick={() => handleFontModeChange(option.value)}
-                >
-                    {fontMode === option.value ? "► " : "  "}{option.label}
-                </button>
-            ))}
 
             <div className="phosphor-header__dropdown-item phosphor-header__dropdown-item--separator" />
 
-            <div className="phosphor-header__dropdown-label">[THEME]</div>
+            <div className="phosphor-header__dropdown-label">{tag("THEME")}</div>
             {THEMES.map((theme) => (
                 <button
                     key={theme.id}
@@ -1590,18 +1594,18 @@ const ModulesBrowser: FC = () => {
 
     const renderProfileMenuItems = () => (
         <>
-            <div className="phosphor-header__dropdown-label">[ACCOUNT]</div>
+            <div className="phosphor-header__dropdown-label">{tag("ACCOUNT")}</div>
             <div className="modules-browser__profile-row">
-                <span className="modules-browser__profile-key">[EMAIL]</span>
+                <span className="modules-browser__profile-key">{tag("EMAIL")}</span>
                 <span className="modules-browser__profile-value">{sessionEmail}</span>
             </div>
             <div className="modules-browser__profile-row">
-                <span className="modules-browser__profile-key">[MODULES CREATED]</span>
+                <span className="modules-browser__profile-key">{tag("MODULES CREATED")}</span>
                 <span className="modules-browser__profile-value">{createdModuleCount}</span>
             </div>
             {isAdmin && (
                 <div className="modules-browser__profile-row">
-                    <span className="modules-browser__profile-key">[ROLE]</span>
+                    <span className="modules-browser__profile-key">{tag("ROLE")}</span>
                     <span className="modules-browser__profile-value">admin</span>
                 </div>
             )}
@@ -1611,7 +1615,7 @@ const ModulesBrowser: FC = () => {
                 role="menuitem"
                 onClick={() => void handleSignOut()}
             >
-                [SIGN OUT]
+                {tag("SIGN OUT")}
             </button>
         </>
     );
@@ -1674,7 +1678,7 @@ const ModulesBrowser: FC = () => {
                             setCustomThemeEditorOpen(false);
                         }}
                     >
-                        [TERMINAL]
+                        {tag("TERMINAL")}
                     </a>
 
                     <div ref={optionsRef} className="phosphor-header__options-wrapper phosphor-header__hide-at-3">
@@ -1685,7 +1689,7 @@ const ModulesBrowser: FC = () => {
                             aria-expanded={optionsDropdownOpen}
                             title="Theme and sound options"
                         >
-                            [OPTIONS {optionsDropdownOpen ? "▲" : "▼"}]
+                            {tag(`OPTIONS ${optionsDropdownOpen ? "▲" : "▼"}`)}
                         </button>
 
                         {optionsDropdownOpen && (
@@ -1701,12 +1705,12 @@ const ModulesBrowser: FC = () => {
                         target="_blank"
                         rel="noopener noreferrer"
                     >
-                        [DONATE]
+                        {tag("DONATE")}
                     </a>
 
                     {!authLoading && !sessionEmail && (
                         <button className="phosphor-header__btn phosphor-header__hide-at-1" onClick={() => void handleSignIn()}>
-                            [SIGN IN]
+                            {tag("SIGN IN")}
                         </button>
                     )}
 
@@ -1722,7 +1726,7 @@ const ModulesBrowser: FC = () => {
                                 aria-haspopup="menu"
                                 aria-expanded={profileOpen}
                             >
-                                [PROFILE {profileOpen ? "▲" : "▼"}]
+                                {tag(`PROFILE ${profileOpen ? "▲" : "▼"}`)}
                             </button>
 
                             {profileOpen && (
@@ -1752,7 +1756,7 @@ const ModulesBrowser: FC = () => {
                             aria-expanded={mobileMenuOpen}
                             title="Toggle library controls"
                         >
-                            [MENU {mobileMenuOpen ? "▲" : "▼"}]
+                            {tag(`MENU ${mobileMenuOpen ? "▲" : "▼"}`)}
                         </button>
 
                         {mobileMenuOpen && (
@@ -1772,7 +1776,7 @@ const ModulesBrowser: FC = () => {
                                             setCustomThemeEditorOpen(false);
                                         }}
                                     >
-                                        [TERMINAL]
+                                        {tag("TERMINAL")}
                                     </a>
                                 )}
 
@@ -1784,7 +1788,7 @@ const ModulesBrowser: FC = () => {
                                             aria-expanded={optionsDropdownOpen}
                                             onClick={handleOptionsDropdownToggle}
                                         >
-                                            [OPTIONS {optionsDropdownOpen ? "▲" : "▼"}]
+                                            {tag(`OPTIONS ${optionsDropdownOpen ? "▲" : "▼"}`)}
                                         </button>
 
                                         {optionsDropdownOpen && renderOptionsMenuItems()}
@@ -1805,7 +1809,7 @@ const ModulesBrowser: FC = () => {
                                             setCustomThemeEditorOpen(false);
                                         }}
                                     >
-                                        [DONATE]
+                                        {tag("DONATE")}
                                     </a>
                                 )}
 
@@ -1818,7 +1822,7 @@ const ModulesBrowser: FC = () => {
                                             void handleSignIn();
                                         }}
                                     >
-                                        [SIGN IN]
+                                        {tag("SIGN IN")}
                                     </button>
                                 )}
 
@@ -1834,7 +1838,7 @@ const ModulesBrowser: FC = () => {
                                                 setCustomThemeEditorOpen(false);
                                             }}
                                         >
-                                            [PROFILE {profileOpen ? "▲" : "▼"}]
+                                            {tag(`PROFILE ${profileOpen ? "▲" : "▼"}`)}
                                         </button>
 
                                         {profileOpen && renderProfileMenuItems()}
@@ -1968,7 +1972,6 @@ const ModulesBrowser: FC = () => {
                                         ? "Private"
                                         : (module.visibility === "unlisted" ? "Unlisted" : null);
                                     const author = getModuleAuthor(module);
-                                    const ratingDisplay = getModuleRatingAscii(module.rating_average);
                                     const ratingNumeric = getModuleRatingNumeric(module.rating_average);
                                     const ratingTitle = getModuleRatingTitle(module.rating_average);
 
@@ -2017,27 +2020,27 @@ const ModulesBrowser: FC = () => {
                                                 </div>
                                                 <div className="modules-browser__list-flags">
                                                     {!!visibilityFlag && (
-                                                        <span className="modules-browser__list-flag">{visibilityFlag}</span>
+                                                        <span className={`modules-browser__list-flag modules-browser__list-flag--${module.visibility}`}>{visibilityFlag}</span>
                                                     )}
                                                     {isSubscribed && (
-                                                        <span className="modules-browser__list-flag">Subscribed</span>
+                                                        <span className="modules-browser__list-flag modules-browser__list-flag--subscribed">Subscribed</span>
                                                     )}
                                                 </div>
                                             </div>
                                             <span className="modules-browser__list-meta">
                                                 <span className="modules-browser__list-meta-primary">
                                                     {module.subscription_count} subscribers
-                                                    {" | "}
+                                                    {metaSeparator}
                                                     Published {formatTimestamp(module.published_at || module.updated_at)}
                                                 </span>
                                                 <span className="modules-browser__list-meta-rating" title={ratingTitle}>
-                                                    Rating {ratingDisplay} ({ratingNumeric})
-                                                    {" | "}
+                                                    {renderRating(module.rating_average, ratingNumeric)}
+                                                    {metaSeparator}
                                                     {module.rating_count} ratings
                                                 </span>
                                             </span>
                                             <span className="modules-browser__list-summary">
-                                                {module.summary || "[NO SUMMARY PROVIDED]"}
+                                                {module.summary || (isWebView ? <em className="modules-browser__no-summary">No summary provided</em> : "[NO SUMMARY PROVIDED]")}
                                             </span>
                                         </button>
                                     );
@@ -2061,7 +2064,6 @@ const ModulesBrowser: FC = () => {
                             const isBusy = actionModuleId === selectedModule.id;
                             const isEditing = editingModuleId === selectedModule.id;
                             const author = getModuleAuthor(selectedModule);
-                            const ratingDisplay = getModuleRatingAscii(selectedModule.rating_average);
                             const ratingNumeric = getModuleRatingNumeric(selectedModule.rating_average);
                             const ratingTitle = getModuleRatingTitle(selectedModule.rating_average);
 
@@ -2088,7 +2090,7 @@ const ModulesBrowser: FC = () => {
                                                 </button>
                                             </div>
                                             <div className="modules-browser__meta">
-                                                <span title={ratingTitle}>Rating {ratingDisplay} ({ratingNumeric})</span>
+                                                <span title={ratingTitle}>{renderRating(selectedModule.rating_average, ratingNumeric)}</span>
                                                 <span>{selectedModule.rating_count} ratings</span>
                                                 <span>{selectedModule.subscription_count} subscribers</span>
                                                 <span>Published {formatTimestamp(selectedModule.published_at || selectedModule.updated_at)}</span>
@@ -2097,20 +2099,20 @@ const ModulesBrowser: FC = () => {
 
                                         <div className="modules-browser__detail-badges">
                                             {selectedModule.visibility === "private" && (
-                                                <span className="modules-browser__pill">Private</span>
+                                                <span className="modules-browser__pill modules-browser__pill--private">Private</span>
                                             )}
                                             {selectedModule.visibility === "unlisted" && (
-                                                <span className="modules-browser__pill">Unlisted</span>
+                                                <span className="modules-browser__pill modules-browser__pill--unlisted">Unlisted</span>
                                             )}
                                             {isSubscribed && (
-                                                <span className="modules-browser__pill">Subscribed</span>
+                                                <span className="modules-browser__pill modules-browser__pill--subscribed">Subscribed</span>
                                             )}
                                         </div>
                                     </div>
 
                                     <div className="modules-browser__detail-actions">
                                         <a
-                                            className="modules-browser__btn"
+                                            className="modules-browser__btn modules-browser__btn--primary"
                                             href={getTerminalAppUrl(selectedModule.id)}
                                         >
                                             Open in Phosphor
@@ -2204,7 +2206,7 @@ const ModulesBrowser: FC = () => {
                                     <section className="modules-browser__detail-card modules-browser__detail-card--summary">
                                         <span className="modules-browser__detail-card-label">Description</span>
                                         <p className="modules-browser__detail-summary">
-                                            {selectedModule.summary || "[NO SUMMARY PROVIDED]"}
+                                            {selectedModule.summary || (isWebView ? <em className="modules-browser__no-summary">No summary provided</em> : "[NO SUMMARY PROVIDED]")}
                                         </p>
                                     </section>
 
