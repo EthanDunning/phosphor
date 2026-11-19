@@ -146,14 +146,17 @@ $font-bump: 4pt;
         background: var(--bg);
         border: 1px solid var(--fg);
         z-index: 200;
-        min-width: 14em;
+        // as wide as the longest item, but never narrower than its button
+        width: max-content;
+        min-width: 100%;
+        max-width: calc(100vw - 1rem);
+        box-sizing: border-box;
         overflow: hidden;
     }
 
     &__dropdown--options {
         right: 0;
         left: auto;
-        min-width: 16.5em;
     }
 
     &__dropdown--scripts {
@@ -313,7 +316,6 @@ $font-bump: 4pt;
         left: auto;
         z-index: 220;
         margin-top: 0;
-        min-width: 16.5em;
     }
 
     &--compact {

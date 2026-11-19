@@ -65,8 +65,8 @@ const SORT_OPTIONS: CreatorSelectOption[] = [
 
 const RATING_VALUES = [1, 2, 3, 4, 5];
 const BROWSER_VIEW_OPTIONS: Array<{ value: ModulesBrowserViewMode; label: string }> = [
-    { value: "retro", label: "Retro View" },
     { value: "web", label: "Web View" },
+    { value: "retro", label: "Terminal View" },
 ];
 const TRANSIENT_AUTH_PARAMS = [
     "code",
@@ -77,9 +77,7 @@ const TRANSIENT_AUTH_PARAMS = [
     "provider_token",
     "provider_refresh_token",
 ] as const;
-const OWNER_MENU_WIDTH = 224;
 const OWNER_MENU_HEIGHT = 188;
-const SHARE_MENU_WIDTH = 224;
 const SHARE_MENU_HEIGHT = 90;
 const MAX_AUTHOR_LENGTH = 25;
 const OWNER_SHORT_ID_LENGTH = 8;
@@ -331,9 +329,9 @@ const ModulesBrowser: FC = () => {
     const [mobileMenuOpen, setMobileMenuOpen] = useState<boolean>(false);
     const [headerOverflowLevel, setHeaderOverflowLevel] = useState<number>(0);
     const [ownerMenuOpen, setOwnerMenuOpen] = useState<boolean>(false);
-    const [ownerMenuPosition, setOwnerMenuPosition] = useState<{ top: number; left: number } | null>(null);
+    const [ownerMenuPosition, setOwnerMenuPosition] = useState<{ top: number; right: number } | null>(null);
     const [shareMenuOpen, setShareMenuOpen] = useState<boolean>(false);
-    const [shareMenuPosition, setShareMenuPosition] = useState<{ top: number; left: number } | null>(null);
+    const [shareMenuPosition, setShareMenuPosition] = useState<{ top: number; right: number } | null>(null);
     const [editingModuleId, setEditingModuleId] = useState<string | null>(null);
     const [editTitle, setEditTitle] = useState<string>("");
     const [editSummary, setEditSummary] = useState<string>("");
@@ -595,18 +593,16 @@ const ModulesBrowser: FC = () => {
             return;
         }
 
+        // right-aligned under the button; the menu sizes to its own content
         const rect = anchor.getBoundingClientRect();
-        const nextLeft = Math.max(
-            8,
-            Math.min(rect.right - OWNER_MENU_WIDTH, window.innerWidth - OWNER_MENU_WIDTH - 8)
-        );
+        const nextRight = Math.max(8, window.innerWidth - rect.right);
         const nextTop = rect.bottom + 4 + OWNER_MENU_HEIGHT > window.innerHeight - 8
             ? Math.max(8, rect.top - OWNER_MENU_HEIGHT - 4)
             : rect.bottom + 4;
 
         setOwnerMenuPosition({
             top: nextTop,
-            left: nextLeft,
+            right: nextRight,
         });
     }, []);
 
@@ -616,18 +612,16 @@ const ModulesBrowser: FC = () => {
             return;
         }
 
+        // right-aligned under the button; the menu sizes to its own content
         const rect = anchor.getBoundingClientRect();
-        const nextLeft = Math.max(
-            8,
-            Math.min(rect.right - SHARE_MENU_WIDTH, window.innerWidth - SHARE_MENU_WIDTH - 8)
-        );
+        const nextRight = Math.max(8, window.innerWidth - rect.right);
         const nextTop = rect.bottom + 4 + SHARE_MENU_HEIGHT > window.innerHeight - 8
             ? Math.max(8, rect.top - SHARE_MENU_HEIGHT - 4)
             : rect.bottom + 4;
 
         setShareMenuPosition({
             top: nextTop,
-            left: nextLeft,
+            right: nextRight,
         });
     }, []);
 
@@ -2270,7 +2264,7 @@ const ModulesBrowser: FC = () => {
                     role="menu"
                     style={{
                         top: `${ownerMenuPosition.top}px`,
-                        left: `${ownerMenuPosition.left}px`,
+                        right: `${ownerMenuPosition.right}px`,
                     }}
                 >
                     <button
@@ -2323,7 +2317,7 @@ const ModulesBrowser: FC = () => {
                     role="menu"
                     style={{
                         top: `${shareMenuPosition.top}px`,
-                        left: `${shareMenuPosition.left}px`,
+                        right: `${shareMenuPosition.right}px`,
                     }}
                 >
                     <button

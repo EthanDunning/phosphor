@@ -50,10 +50,11 @@ export const persistHeaderVisible = (headerVisible: boolean): void => {
 
 export const loadPersistedModulesBrowserViewMode = (): ModulesBrowserViewMode => {
     try {
+        // Web View is the default; "retro" (shown as Terminal View) only when chosen
         const savedValue = window.localStorage.getItem(MODULES_BROWSER_VIEW_MODE_STORAGE_KEY);
-        return savedValue === "web" ? "web" : "retro";
+        return savedValue === "retro" ? "retro" : "web";
     } catch {
-        return "retro";
+        return "web";
     }
 };
 

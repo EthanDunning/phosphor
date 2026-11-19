@@ -161,7 +161,6 @@ $browser-normal-font-stack: "Trebuchet MS", Verdana, Geneva, sans-serif;
     }
 
     &__profile-menu {
-        min-width: 23rem;
         max-width: min(30rem, calc(100vw - 2rem));
     }
 
@@ -531,8 +530,9 @@ $browser-normal-font-stack: "Trebuchet MS", Verdana, Geneva, sans-serif;
         --browser-size-scale: 1;
 
         position: fixed;
-        min-width: 10.5rem;
-        max-width: min(13rem, calc(100vw - 1rem));
+        width: max-content;
+        min-width: 0; // fixed to the viewport: the shared "min-width: 100%" would mean the whole window
+        max-width: calc(100vw - 1rem);
         z-index: 520;
         font-family: var(--browser-font-family);
         font-size: calc(16pt * var(--browser-size-scale));
@@ -610,8 +610,9 @@ $browser-normal-font-stack: "Trebuchet MS", Verdana, Geneva, sans-serif;
         --browser-size-scale: 1;
 
         position: fixed;
-        min-width: 10.5rem;
-        max-width: min(13rem, calc(100vw - 1rem));
+        width: max-content;
+        min-width: 0; // fixed to the viewport: the shared "min-width: 100%" would mean the whole window
+        max-width: calc(100vw - 1rem);
         z-index: 520;
         font-family: var(--browser-font-family);
         font-size: calc(16pt * var(--browser-size-scale));
@@ -1009,6 +1010,10 @@ $web-mono-stack: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
     --web-shadow: 0 1px 2px rgba(16, 24, 40, 0.05), 0 2px 8px rgba(16, 24, 40, 0.05);
     --web-shadow-lg: 0 12px 32px rgba(16, 24, 40, 0.14);
     --web-focus: 0 0 0 3px rgba(47, 111, 219, 0.22);
+    // no CRT glow anywhere (the shared header's hover states use --bg-glow)
+    --bg-glow: none;
+    --fg-glow: none;
+    --theme-fg-glow: none;
 
     background: var(--browser-overlay);
     -webkit-font-smoothing: antialiased;
@@ -1051,11 +1056,20 @@ $web-mono-stack: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
         letter-spacing: 0.12em;
         color: var(--browser-fg);
         border-radius: var(--web-radius-sm);
+        text-shadow: none;
+        transition: color 120ms ease;
 
+        // it's a link back to the terminal: tint it, no box
         &:hover {
-            background: var(--web-hover);
+            background: none;
             border-color: transparent;
-            color: var(--browser-fg);
+            color: var(--web-accent);
+            text-shadow: none;
+        }
+
+        &:focus-visible {
+            outline: none;
+            box-shadow: var(--web-focus);
         }
     }
 
