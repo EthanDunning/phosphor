@@ -1,0 +1,198 @@
+@use "../../assets/sass/fonts" as *;
+
+// Reuses the Modules panel's overlay, colors, fields and buttons
+// (.modules-panel); only the centered box and its layout live here.
+.modules-panel.feedback-dialog {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    box-sizing: border-box;
+}
+
+.feedback-dialog {
+    &__box {
+        display: flex;
+        flex-direction: column;
+        width: min(720px, 100%);
+        max-height: calc(100dvh - 32px);
+        overflow: hidden;
+        border: 1px solid var(--modules-fg);
+        background: var(--modules-bg);
+        box-sizing: border-box;
+    }
+
+    &__tabs {
+        display: flex;
+        gap: 0.25rem;
+        padding: 0.35rem 0.35rem 0;
+    }
+
+    &__tab--active {
+        background: var(--modules-selected-bg);
+        color: var(--modules-selected-fg);
+        text-shadow: none;
+    }
+
+    &__badge,
+    &__new {
+        margin-left: 0.4em;
+        padding: 0 0.3em;
+        background: var(--alert, rgb(255, 110, 90));
+        color: var(--modules-bg);
+        text-shadow: none;
+        font-size: 12pt;
+        letter-spacing: 0.06em;
+    }
+
+    &__body {
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+        overflow: auto;
+        padding: 0.35rem 0.35rem 0;
+
+        // the history list fills the box at a steady size
+        &--history {
+            height: min(30rem, calc(100dvh - 15rem));
+        }
+    }
+
+    &__message textarea {
+        min-height: 11rem;
+    }
+
+    &__meta {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 0.75rem;
+        font-size: 14pt;
+        line-height: 1.2;
+        opacity: 0.8;
+    }
+
+    &__count {
+        flex-shrink: 0;
+    }
+
+    .modules-panel__notice {
+        margin: 0.35rem 0 0;
+    }
+
+    &__empty {
+        margin: 0;
+        padding: 0.35rem 0;
+        opacity: 0.75;
+    }
+
+    // ---- MY FEEDBACK ----
+    &__history {
+        margin: 0;
+        padding: 0;
+        list-style: none;
+    }
+
+    &__entry {
+        padding: 0.35rem 0;
+        border-bottom: 1px dashed rgba(127, 127, 127, 0.6);
+
+        &:first-child {
+            padding-top: 0;
+        }
+    }
+
+    &__entry-head,
+    &__response-head {
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+        font-size: 14pt;
+    }
+
+    &__date {
+        margin-left: auto;
+        opacity: 0.75;
+        font-size: 13pt;
+    }
+
+    &__status {
+        padding: 0 0.25rem;
+        border: 1px solid currentColor;
+        font-size: 12pt;
+        letter-spacing: 0.06em;
+
+        &--new {
+            color: var(--alert, rgb(255, 110, 90));
+        }
+
+        &--in_progress {
+            color: var(--notice, inherit);
+        }
+
+        &--resolved,
+        &--closed {
+            opacity: 0.75;
+        }
+    }
+
+    // the message: three lines until clicked
+    &__entry-text {
+        display: -webkit-box;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 3;
+        overflow: hidden;
+        width: 100%;
+        margin: 0.15rem 0 0;
+        padding: 0;
+        border: none;
+        background: transparent;
+        color: var(--modules-fg);
+        font-family: $font-family;
+        font-size: inherit;
+        line-height: 1.25;
+        text-align: left;
+        text-shadow: inherit;
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+        cursor: pointer;
+
+        &.is-expanded {
+            display: block;
+            -webkit-line-clamp: unset;
+        }
+    }
+
+    &__response {
+        margin: 0.3rem 0 0 1rem;
+        padding: 0.2rem 0.35rem;
+        border-left: 3px double var(--modules-fg);
+    }
+
+    &__response-head {
+        opacity: 0.85;
+        letter-spacing: 0.04em;
+    }
+
+    &__response-text {
+        margin-top: 0.1rem;
+        line-height: 1.25;
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+    }
+
+    &__no-response {
+        margin: 0.25rem 0 0 1rem;
+        font-size: 14pt;
+        opacity: 0.6;
+    }
+
+    &__actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 0.35rem;
+        margin-top: 0.35rem;
+        padding: 0.35rem;
+        border-top: 1px solid var(--modules-fg);
+    }
+}

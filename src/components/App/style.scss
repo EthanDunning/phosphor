@@ -75,6 +75,18 @@ $font-bump: 4pt;
         display: flex;
     }
 
+    // inverse-video count, e.g. unread responses to the user's feedback
+    &__badge {
+        display: inline-block;
+        margin-left: 0.35em;
+        padding: 0 0.3em;
+        background: var(--alert, var(--theme-fg, var(--fg)));
+        color: var(--bg);
+        text-shadow: none;
+        letter-spacing: 0.04em;
+        line-height: 1.15;
+    }
+
     &__btn {
         display: inline-block;
         box-sizing: border-box;

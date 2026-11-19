@@ -644,4 +644,182 @@ create policy "users can delete their own subscriptions"
     to authenticated
     using (auth.uid() = user_id);
 
+-- ---------------------------------------------------------------------------
+-- Feedback: bug reports, feature requests and general feedback sent from the
+-- app's [FEEDBACK] button. Any signed-in user can send feedback and read
+-- their own (with its status and the admins' response); only admins can read
+-- everyone's, set the status, respond, or delete.
+-- ---------------------------------------------------------------------------
+create table if not exists public.feedback (
+    id uuid primary key default gen_random_uuid(),
+    user_id uuid default auth.uid() references auth.users (id) on delete set null,
+    contact_email text,
+    kind text not null,
+    message text not null,
+    context jsonb not null default '{}'::jsonb,
+    status text not null default 'new',
+    response text,
+    responded_at timestamptz,
+    responded_by uuid references auth.users (id) on delete set null,
+    created_at timestamptz not null default now(),
+    updated_at timestamptz not null default now(),
+    constraint feedback_kind_check check (kind in ('bug', 'feature', 'general')),
+    constraint feedback_status_check check (status in ('new', 'in_progress', 'resolved', 'closed')),
+    constraint feedback_message_length check (char_length(btrim(message)) between 1 and 4000),
+    constraint feedback_context_shape check (jsonb_typeof(context) = 'object' and pg_column_size(context) <= 4096)
+);
+
+create index if not exists feedback_created_at_idx on public.feedback (created_at desc);
+create index if not exists feedback_user_id_idx on public.feedback (user_id, created_at desc);
+
+-- response columns for tables created before responses existed
+alter table public.feedback add column if not exists response text;
+alter table public.feedback add column if not exists responded_at timestamptz;
+alter table public.feedback add column if not exists responded_by uuid references auth.users (id) on delete set null;
+
+alter table public.feedback drop constraint if exists feedback_response_length;
+alter table public.feedback
+    add constraint feedback_response_length check (response is null or char_length(response) <= 4000);
+
+-- Inserts from the app: the sender is always the signed-in caller (their email
+-- is copied from auth.users so admins can reply), a new message always starts
+-- as 'new' with no response, and a user can send at most 10 per hour. Updates
+-- (admins only, via RLS) may change just the status and the response; the
+-- responder and time are stamped here. Security definer so it can read
+-- auth.users and count the caller's recent rows.
+create or replace function public.handle_feedback_write()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+    recent_count integer;
+begin
+    if tg_op = 'INSERT' then
+        if auth.uid() is not null then
+            new.user_id := auth.uid();
+            new.contact_email := (select u.email from auth.users u where u.id = auth.uid());
+            new.status := 'new';
+            new.response := null;
+            new.responded_at := null;
+            new.responded_by := null;
+            new.created_at := now();
+            new.updated_at := new.created_at;
+
+            select count(*) into recent_count
+            from public.feedback f
+            where f.user_id = auth.uid()
+              and f.created_at > now() - interval '1 hour';
+
+            if recent_count >= 10 then
+                raise exception 'Too much feedback sent in the last hour. Please try again later.'
+                    using errcode = 'P0001';
+            end if;
+        end if;
+        return new;
+    end if;
+
+    -- UPDATE: keep everything the sender wrote; only the status and the
+    -- response move, and the response is stamped with who wrote it and when
+    new.id := old.id;
+    new.user_id := old.user_id;
+    new.contact_email := old.contact_email;
+    new.kind := old.kind;
+    new.message := old.message;
+    new.context := old.context;
+    new.created_at := old.created_at;
+    new.updated_at := now();
+
+    new.response := nullif(btrim(coalesce(new.response, '')), '');
+    if new.response is distinct from old.response then
+        if new.response is null then
+            new.responded_at := null;
+            new.responded_by := null;
+        else
+            new.responded_at := now();
+            new.responded_by := auth.uid();
+        end if;
+    else
+        new.responded_at := old.responded_at;
+        new.responded_by := old.responded_by;
+    end if;
+    return new;
+end;
+$$;
+
+drop trigger if exists feedback_handle_write on public.feedback;
+create trigger feedback_handle_write
+    before insert or update on public.feedback
+    for each row execute procedure public.handle_feedback_write();
+
+alter table public.feedback enable row level security;
+
+-- nothing for signed-out visitors
+revoke all on table public.feedback from anon;
+
+drop policy if exists "signed-in users can send feedback" on public.feedback;
+create policy "signed-in users can send feedback"
+    on public.feedback
+    for insert
+    to authenticated
+    with check (user_id = auth.uid() and status = 'new');
+
+drop policy if exists "users can read their own feedback" on public.feedback;
+create policy "users can read their own feedback"
+    on public.feedback
+    for select
+    to authenticated
+    using (user_id = auth.uid());
+
+drop policy if exists "admins can read feedback" on public.feedback;
+create policy "admins can read feedback"
+    on public.feedback
+    for select
+    to authenticated
+    using (
+        exists (
+            select 1
+            from public.profiles p
+            where p.id = auth.uid()
+              and p.role = 'admin'::public.profile_role
+        )
+    );
+
+drop policy if exists "admins can update feedback" on public.feedback;
+create policy "admins can update feedback"
+    on public.feedback
+    for update
+    to authenticated
+    using (
+        exists (
+            select 1
+            from public.profiles p
+            where p.id = auth.uid()
+              and p.role = 'admin'::public.profile_role
+        )
+    )
+    with check (
+        exists (
+            select 1
+            from public.profiles p
+            where p.id = auth.uid()
+              and p.role = 'admin'::public.profile_role
+        )
+    );
+
+drop policy if exists "admins can delete feedback" on public.feedback;
+create policy "admins can delete feedback"
+    on public.feedback
+    for delete
+    to authenticated
+    using (
+        exists (
+            select 1
+            from public.profiles p
+            where p.id = auth.uid()
+              and p.role = 'admin'::public.profile_role
+        )
+    );
+
 commit;

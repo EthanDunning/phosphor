@@ -5,11 +5,19 @@ import "./style.scss";
 
 import Phosphor from "../Phosphor";
 import ModulesPanel from "../ModulesPanel";
+import FeedbackDialog from "../FeedbackDialog";
+import { FeedbackKind, fetchMyFeedback, getUnreadResponseIds, submitFeedback } from "../../lib/feedback";
 
 // The Script Creator is large and most visitors never open it: load its code
 // on first open, and don't mount it (or re-render it on every App update)
 // until then.
 const ScriptCreator = React.lazy(() => import("../ScriptCreator"));
+// admin-only: never downloaded for other visitors
+const AdminPanel = React.lazy(() => import("../AdminPanel"));
+
+// set while a sign-in started from the feedback popup is in flight (see _handleFeedbackSignIn)
+const FEEDBACK_AFTER_SIGN_IN_KEY = "phosphor:open-feedback-after-sign-in:v1";
+const FEEDBACK_AFTER_SIGN_IN_MAX_AGE_MS = 15 * 60 * 1000;
 import { BUNDLED_SCRIPTS, BundledScript, DEFAULT_SCRIPT } from "../../data";
 import {
     THEMES,
@@ -172,6 +180,10 @@ interface AppState {
     creatorInitialScript: any | null;
     creatorRemountVersion: number;
     modulesOpen: boolean;
+    feedbackOpen: boolean;
+    adminOpen: boolean;
+    supportDropdownOpen: boolean;
+    feedbackUnreadCount: number; // admin responses the user hasn't read yet
     previewMode: boolean;
     uploadError: string | null;
     authSession: Session | null;
@@ -238,7 +250,11 @@ class App extends Component<any, AppState> {
             creatorOpen: false,
             creatorInitialScript: null,
             creatorRemountVersion: 0,
-            modulesOpen: this._hasAuthReturnParams(),
+            modulesOpen: this._hasAuthReturnParams() && !this._hasPendingFeedbackSignIn(),
+            feedbackOpen: false,
+            adminOpen: false,
+            supportDropdownOpen: false,
+            feedbackUnreadCount: 0,
             previewMode: false,
             uploadError: null,
             authSession: null,
@@ -286,6 +302,13 @@ class App extends Component<any, AppState> {
         this._handlePhosphorScreenChanged = this._handlePhosphorScreenChanged.bind(this);
         this._handleModulesOpen     = this._handleModulesOpen.bind(this);
         this._handleModulesClose    = this._handleModulesClose.bind(this);
+        this._handleFeedbackOpen    = this._handleFeedbackOpen.bind(this);
+        this._handleFeedbackClose   = this._handleFeedbackClose.bind(this);
+        this._handleFeedbackSubmit  = this._handleFeedbackSubmit.bind(this);
+        this._handleAdminOpen       = this._handleAdminOpen.bind(this);
+        this._handleAdminClose      = this._handleAdminClose.bind(this);
+        this._handleSupportDropdownToggle = this._handleSupportDropdownToggle.bind(this);
+        this._handleFeedbackSignIn  = this._handleFeedbackSignIn.bind(this);
         this._handleModulesDismissError = this._handleModulesDismissError.bind(this);
         this._handleModulesDismissNotice = this._handleModulesDismissNotice.bind(this);
         this._handleGoogleSignIn    = this._handleGoogleSignIn.bind(this);
@@ -314,6 +337,10 @@ class App extends Component<any, AppState> {
         document.addEventListener("keydown", this._handleGlobalKeyDown);
         window.addEventListener("resize", this._handleWindowResize);
         this._scheduleHeaderLayoutUpdate();
+        // The first measurement can run on the fallback font (wider than the
+        // terminal font), which would leave buttons stuck in [MENU]; measure
+        // again once the web font is in.
+        document.fonts?.ready.then(() => this._scheduleHeaderLayoutUpdate()).catch((): void => undefined);
         void this._initializeModules();
     }
 
@@ -930,8 +957,14 @@ class App extends Component<any, AppState> {
                     subscribedModules: [],
                     profileRole: "user",
                     profileDropdownOpen: false,
+                    feedbackUnreadCount: 0,
                 });
             });
+
+            const reopenFeedback = this._consumeFeedbackAfterSignIn();
+            if (reopenFeedback && session?.user?.id) {
+                this.setState({ feedbackOpen: true, modulesOpen: false });
+            }
 
             if (session?.user?.id) {
                 await this._handleRefreshModules(session.user.id);
@@ -1139,6 +1172,7 @@ class App extends Component<any, AppState> {
         if (!this.state.scriptDropdownOpen
             && !this.state.optionsDropdownOpen
             && !this.state.profileDropdownOpen
+            && !this.state.supportDropdownOpen
             && !this.state.mobileMenuOpen) {
             return;
         }
@@ -1167,6 +1201,10 @@ class App extends Component<any, AppState> {
             nextState.profileDropdownOpen = false;
         }
 
+        if (this.state.supportDropdownOpen && !target.closest(".phosphor-header__support-wrapper")) {
+            nextState.supportDropdownOpen = false;
+        }
+
         if (this.state.mobileMenuOpen && !target.closest(".phosphor-header")) {
             nextState.mobileMenuOpen = false;
             nextState.scriptDropdownOpen = false;
@@ -1180,6 +1218,7 @@ class App extends Component<any, AppState> {
                 "scriptDropdownOpen"
                 | "optionsDropdownOpen"
                 | "profileDropdownOpen"
+                | "supportDropdownOpen"
                 | "mobileMenuOpen"
                 | "customThemeEditorOpen"
             >);
@@ -1189,6 +1228,7 @@ class App extends Component<any, AppState> {
     private _handleDropdownToggle(): void {
         this.setState((prev) => ({
             scriptDropdownOpen: !prev.scriptDropdownOpen,
+            supportDropdownOpen: false,
             optionsDropdownOpen: false,
             profileDropdownOpen: false,
             customThemeEditorOpen: false,
@@ -1198,6 +1238,7 @@ class App extends Component<any, AppState> {
     private _handleOptionsDropdownToggle(): void {
         this.setState((prev) => ({
             optionsDropdownOpen: !prev.optionsDropdownOpen,
+            supportDropdownOpen: false,
             scriptDropdownOpen: false,
             profileDropdownOpen: false,
             customThemeEditorOpen: prev.optionsDropdownOpen ? false : prev.customThemeEditorOpen,
@@ -1205,8 +1246,19 @@ class App extends Component<any, AppState> {
         }));
     }
 
+    private _handleSupportDropdownToggle(): void {
+        this.setState((prev) => ({
+            supportDropdownOpen: !prev.supportDropdownOpen,
+            scriptDropdownOpen: false,
+            optionsDropdownOpen: false,
+            profileDropdownOpen: false,
+            customThemeEditorOpen: false,
+        }));
+    }
+
     private _handleProfileDropdownToggle(): void {
         this.setState((prev) => ({
+            supportDropdownOpen: false,
             profileDropdownOpen: !prev.profileDropdownOpen,
             scriptDropdownOpen: false,
             optionsDropdownOpen: false,
@@ -2013,6 +2065,95 @@ class App extends Component<any, AppState> {
         this.setState({ modulesOpen: false });
     }
 
+    private _closeHeaderMenus() {
+        return {
+            supportDropdownOpen: false,
+            scriptDropdownOpen: false,
+            optionsDropdownOpen: false,
+            profileDropdownOpen: false,
+            customThemeEditorOpen: false,
+            mobileMenuOpen: false,
+        };
+    }
+
+    private _handleFeedbackOpen(): void {
+        this.setState({ feedbackOpen: true, ...this._closeHeaderMenus() });
+    }
+
+    private _handleFeedbackClose(): void {
+        this.setState({ feedbackOpen: false });
+    }
+
+    // Signed-out [FEEDBACK] -> [SIGN IN]: remember to reopen the popup once the
+    // Google sign-in redirect brings the user back signed in.
+    private _handleFeedbackSignIn(): void {
+        try {
+            window.sessionStorage.setItem(FEEDBACK_AFTER_SIGN_IN_KEY, String(Date.now()));
+        } catch {
+            // storage blocked: they'll just have to reopen it themselves
+        }
+        void this._handleGoogleSignIn();
+    }
+
+    // True (once) when a sign-in was started from the feedback popup recently.
+    private _consumeFeedbackAfterSignIn(): boolean {
+        try {
+            const raw = window.sessionStorage.getItem(FEEDBACK_AFTER_SIGN_IN_KEY);
+            if (raw === null) {
+                return false;
+            }
+            window.sessionStorage.removeItem(FEEDBACK_AFTER_SIGN_IN_KEY);
+            const startedAt = Number(raw);
+            return Number.isFinite(startedAt) && Date.now() - startedAt < FEEDBACK_AFTER_SIGN_IN_MAX_AGE_MS;
+        } catch {
+            return false;
+        }
+    }
+
+    private _hasPendingFeedbackSignIn(): boolean {
+        try {
+            return window.sessionStorage.getItem(FEEDBACK_AFTER_SIGN_IN_KEY) !== null;
+        } catch {
+            return false;
+        }
+    }
+
+    // Sent along with the message so bug reports say where they happened.
+    private _handleFeedbackSubmit(kind: FeedbackKind, message: string): Promise<void> {
+        const { activeScript, activeTerminalScreenId } = this.state;
+        return submitFeedback(kind, message, {
+            script: activeScript ? `${activeScript.label} (${activeScript.id})` : "",
+            screen: activeTerminalScreenId || "",
+            page: window.location.pathname,
+            viewport: `${window.innerWidth}x${window.innerHeight}`,
+            browser: navigator.userAgent,
+        });
+    }
+
+    // How many admin responses the user hasn't read (drives the header badge).
+    // Quietly 0 if the feedback table isn't set up yet.
+    private async _refreshFeedbackUnread(userId: string): Promise<void> {
+        try {
+            const records = await fetchMyFeedback(userId);
+            if (this._getSessionUserId() === userId) {
+                this.setState({ feedbackUnreadCount: getUnreadResponseIds(records, userId).length });
+            }
+        } catch {
+            this.setState({ feedbackUnreadCount: 0 });
+        }
+    }
+
+    private _handleAdminOpen(): void {
+        if (this.state.profileRole !== "admin") {
+            return;
+        }
+        this.setState({ adminOpen: true, ...this._closeHeaderMenus() });
+    }
+
+    private _handleAdminClose(): void {
+        this.setState({ adminOpen: false });
+    }
+
     private _handleModulesDismissError(): void {
         this.setState({ modulesError: null });
     }
@@ -2076,6 +2217,8 @@ class App extends Component<any, AppState> {
         if (!userId) {
             return;
         }
+
+        void this._refreshFeedbackUnread(userId);
 
         this.setState({
             modulesBusy: true,
@@ -2752,6 +2895,9 @@ class App extends Component<any, AppState> {
         const renderHeader = headerVisible && !shutdownActive;
         const sessionEmail = authSession?.user?.email || null;
         const sessionUserId = authSession?.user?.id || null;
+        const isAdmin = !authLoading && !!sessionUserId && profileRole === "admin";
+        const supportDropdownOpen = this.state.supportDropdownOpen;
+        const feedbackUnreadCount = sessionUserId ? this.state.feedbackUnreadCount : 0;
         const ownedActiveModule = this._getOwnedActiveModule(sessionUserId);
         const bundledSubscribedModules = this._buildBundledSubscribedModules();
         const subscribedModulesForPanel = [...subscribedModules, ...bundledSubscribedModules];
@@ -3120,25 +3266,68 @@ class App extends Component<any, AppState> {
                         </div>
 
                         {!previewMode && (
-                            <a
-                                className="phosphor-header__btn phosphor-header__hide-at-2"
-                                href="https://ko-fi.com/ethandunning"
-                                target="_blank"
-                                rel="noopener noreferrer"
-                            >
-                                [DONATE]
-                            </a>
-                        )}
+                            <div className="phosphor-header__options-wrapper phosphor-header__support-wrapper phosphor-header__hide-at-2">
+                                <button
+                                    className="phosphor-header__btn"
+                                    onClick={this._handleSupportDropdownToggle}
+                                    aria-haspopup="menu"
+                                    aria-expanded={supportDropdownOpen}
+                                >
+                                    [SUPPORT {supportDropdownOpen ? "▲" : "▼"}]
+                                    {feedbackUnreadCount > 0 && (
+                                        <span className="phosphor-header__badge" title="New response to your feedback">{feedbackUnreadCount}</span>
+                                    )}
+                                </button>
 
-                        {!previewMode && (
-                            <a
-                                className="phosphor-header__btn phosphor-header__hide-at-2"
-                                href="https://github.com/EthanDunning/phosphor"
-                                target="_blank"
-                                rel="noopener noreferrer"
-                            >
-                                [GITHUB]
-                            </a>
+                                {supportDropdownOpen && (
+                                    <div className="phosphor-header__dropdown phosphor-header__dropdown--options" role="menu">
+                                        <button
+                                            className="phosphor-header__dropdown-item"
+                                            role="menuitem"
+                                            title="Report a bug, request a feature, or send feedback"
+                                            onClick={this._handleFeedbackOpen}
+                                        >
+                                            [FEEDBACK]
+                                            {feedbackUnreadCount > 0 && (
+                                                <span className="phosphor-header__badge">{feedbackUnreadCount} NEW</span>
+                                            )}
+                                        </button>
+                                        <a
+                                            className="phosphor-header__dropdown-item"
+                                            href="https://ko-fi.com/ethandunning"
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            role="menuitem"
+                                            onClick={() => this.setState({ supportDropdownOpen: false })}
+                                        >
+                                            [DONATE]
+                                        </a>
+                                        <a
+                                            className="phosphor-header__dropdown-item"
+                                            href="https://github.com/EthanDunning/phosphor"
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            role="menuitem"
+                                            onClick={() => this.setState({ supportDropdownOpen: false })}
+                                        >
+                                            [GITHUB]
+                                        </a>
+                                        {isAdmin && (
+                                            <>
+                                                <div className="phosphor-header__dropdown-item phosphor-header__dropdown-item--separator" />
+                                                <button
+                                                    className="phosphor-header__dropdown-item"
+                                                    role="menuitem"
+                                                    title="Only admins see this"
+                                                    onClick={this._handleAdminOpen}
+                                                >
+                                                    [ADMIN PANEL]
+                                                </button>
+                                            </>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
                         )}
 
                         {!authLoading && !sessionEmail && (
@@ -3200,6 +3389,9 @@ class App extends Component<any, AppState> {
                                 title="Open menu"
                             >
                                 [MENU {mobileMenuOpen ? "▲" : "▼"}]
+                                {feedbackUnreadCount > 0 && headerOverflowLevel >= 2 && (
+                                    <span className="phosphor-header__badge" title="New response to your feedback">{feedbackUnreadCount}</span>
+                                )}
                             </button>
 
                             {mobileMenuOpen && (
@@ -3456,6 +3648,18 @@ class App extends Component<any, AppState> {
 
                                     {!previewMode && headerOverflowLevel >= 2 && (
                                         <>
+                                            <div className="phosphor-header__dropdown-label">[SUPPORT]</div>
+                                            <button
+                                                className="phosphor-header__dropdown-item"
+                                                role="menuitem"
+                                                onClick={this._handleFeedbackOpen}
+                                            >
+                                                [FEEDBACK]
+                                                {feedbackUnreadCount > 0 && (
+                                                    <span className="phosphor-header__badge">{feedbackUnreadCount} NEW</span>
+                                                )}
+                                            </button>
+
                                             <a
                                                 className="phosphor-header__dropdown-item"
                                                 href="https://ko-fi.com/ethandunning"
@@ -3477,6 +3681,16 @@ class App extends Component<any, AppState> {
                                             >
                                                 [GITHUB]
                                             </a>
+
+                                            {isAdmin && (
+                                                <button
+                                                    className="phosphor-header__dropdown-item"
+                                                    role="menuitem"
+                                                    onClick={this._handleAdminOpen}
+                                                >
+                                                    [ADMIN PANEL]
+                                                </button>
+                                            )}
 
                                             {!authLoading && !sessionEmail && (
                                                 <button
@@ -3639,6 +3853,26 @@ class App extends Component<any, AppState> {
                     onDeleteModule={this._handleModuleDelete}
                     onToggleSubscribedScriptVisibility={this._handleToggleSubscribedScriptVisibility}
                 />
+
+                <FeedbackDialog
+                    open={this.state.feedbackOpen}
+                    supabaseReady={isSupabaseConfigured()}
+                    signedIn={!!sessionUserId}
+                    sessionUserId={sessionUserId}
+                    sessionEmail={sessionEmail}
+                    startTab={feedbackUnreadCount > 0 ? "history" : "new"}
+                    onResponsesSeen={() => this.setState({ feedbackUnreadCount: 0 })}
+                    onClose={this._handleFeedbackClose}
+                    onSubmit={this._handleFeedbackSubmit}
+                    onSignIn={this._handleFeedbackSignIn}
+                />
+
+                {/* admins only (the database enforces this too) */}
+                {profileRole === "admin" && this.state.adminOpen && (
+                    <Suspense fallback={null}>
+                        <AdminPanel open onClose={this._handleAdminClose} />
+                    </Suspense>
+                )}
 
                 {this.state.printPayload && createPortal(
                     <div
