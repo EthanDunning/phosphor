@@ -785,3 +785,19 @@ export const rateModule = async (moduleId: string, userId: string, rating: numbe
         throw error;
     }
 };
+
+// Take back your rating. The database recalculates the module's rating
+// stats on delete (module_ratings_refresh_stats trigger), and RLS only lets
+// users delete their own rating.
+export const removeModuleRating = async (moduleId: string, userId: string): Promise<void> => {
+    const client = requireSupabase();
+    const { error } = await client
+        .from("module_ratings")
+        .delete()
+        .eq("module_id", moduleId)
+        .eq("user_id", userId);
+
+    if (error) {
+        throw error;
+    }
+};

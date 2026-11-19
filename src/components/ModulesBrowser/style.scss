@@ -752,6 +752,29 @@ $browser-normal-font-stack: "Trebuchet MS", Verdana, Geneva, sans-serif;
         gap: 0.08rem;
     }
 
+    // take back your rating
+    &__rating-remove {
+        border: 1px solid transparent;
+        background: none;
+        color: var(--browser-muted-fg);
+        font-family: var(--browser-font-family);
+        font-size: calc(13pt * var(--browser-size-scale));
+        line-height: 1.2;
+        padding: 0.04rem 0.18rem;
+        text-shadow: var(--browser-text-shadow);
+        cursor: pointer;
+
+        &:hover:not(:disabled) {
+            border-color: currentColor;
+            color: rgb(255, 110, 90);
+        }
+
+        &:disabled {
+            opacity: 0.42;
+            cursor: default;
+        }
+    }
+
     &__rating-label {
         font-size: calc(14pt * var(--browser-size-scale));
         letter-spacing: 0.08em;
@@ -1531,6 +1554,23 @@ $web-mono-stack: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 
     .modules-browser__rating-actions {
         gap: 6px;
+    }
+
+    .modules-browser__rating-remove {
+        border: none;
+        border-radius: var(--web-radius-sm);
+        padding: 6px 10px;
+        font-size: 13.5px;
+        font-weight: 500;
+        color: var(--browser-muted-fg);
+        text-decoration: underline;
+        text-underline-offset: 3px;
+
+        &:hover:not(:disabled) {
+            background: #fdecec;
+            color: #b42318;
+            text-decoration: none;
+        }
     }
 
     .modules-browser__hint {

@@ -26,6 +26,7 @@ import {
     listUserSubscriptions,
     onAuthStateChange,
     rateModule,
+    removeModuleRating,
     searchDiscoverableModules,
     searchModulesByOwner,
     signInWithGoogle,
@@ -1287,6 +1288,26 @@ const ModulesBrowser: FC = () => {
         }
     };
 
+    const handleRemoveRating = async (module: ModuleRecord): Promise<void> => {
+        if (!sessionUserId) {
+            return;
+        }
+
+        setActionModuleId(module.id);
+        setErrorMessage(null);
+        setNoticeMessage(null);
+        try {
+            await removeModuleRating(module.id, sessionUserId);
+            const personalState = await loadPersonalState(sessionUserId);
+            await refreshCatalog(sessionUserId, personalState.subscribedIds, personalState.ownModules, personalState.role);
+            setNoticeMessage(`Removed your rating of "${module.title}".`);
+        } catch (error: any) {
+            setErrorMessage(error?.message || "Could not remove your rating.");
+        } finally {
+            setActionModuleId(null);
+        }
+    };
+
     const handleCopyPhosphorLink = async (module: ModuleRecord): Promise<void> => {
         setShareMenuOpen(false);
         const shareUrl = getTerminalAppUrl(module.id);
@@ -2234,7 +2255,21 @@ const ModulesBrowser: FC = () => {
                                                         </button>
                                                     ))}
                                                 </div>
+                                                {myRating > 0 && !!sessionUserId && (
+                                                    <button
+                                                        type="button"
+                                                        className="modules-browser__rating-remove"
+                                                        disabled={isBusy}
+                                                        title="Take back your rating"
+                                                        onClick={() => void handleRemoveRating(selectedModule)}
+                                                    >
+                                                        {isWebView ? "Remove rating" : "[REMOVE]"}
+                                                    </button>
+                                                )}
                                             </div>
+                                            {myRating > 0 && !!sessionUserId && (
+                                                <small className="modules-browser__hint">You rated this {myRating}/5.</small>
+                                            )}
                                             {!sessionUserId && (
                                                 <small className="modules-browser__hint">Sign in to rate or subscribe.</small>
                                             )}
