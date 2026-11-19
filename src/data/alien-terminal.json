@@ -76,12 +76,7 @@
                 "",
                 {
                     "type": "text",
-                    "text": "FIELD NOTE: the maintenance login is MAINT / 7731. The supervisor's",
-                    "className": "small"
-                },
-                {
-                    "type": "text",
-                    "text": "password is hidden somewhere in the files.",
+                    "text": "FIELD NOTE: the maintenance login is MAINT / 7731. The supervisor's password is hidden somewhere in the files.",
                     "className": "small"
                 },
                 "",
@@ -264,14 +259,11 @@
                 "DATE: DAY 211  21:40",
                 "SUBJ: RE: THE HUM",
                 "---",
-                "Yes, I hear it too. Everybody hears it. It started when the bit broke",
-                "through at 4,112 m and it hasn't stopped since.",
+                "Yes, I hear it too. Everybody hears it. It started when the bit broke through at 4,112 m and it hasn't stopped since.",
                 "",
-                "It is **not** the pumps. I shut every pump on the rig down for twenty",
-                "minutes last night and it carried on. Same pitch. Same rhythm.",
+                "It is **not** the pumps. I shut every pump on the rig down for twenty minutes last night and it carried on. Same pitch. Same rhythm.",
                 "",
-                "Sato says it's coming *up the shaft*. I told him that's impossible.",
-                "There's nothing down there but water and dark.",
+                "Sato says it's coming *up the shaft*. I told him that's impossible. There's nothing down there but water and dark.",
                 "",
                 "Ear protectors are in the locker by the Drill Bay airlock. Wear them.",
                 {
@@ -294,11 +286,9 @@
                 "---",
                 "Effective immediately Deck 3 is off the rota.",
                 "",
-                "Dr. Vasquez-Ren has sealed Med Bay from the inside and asked that",
-                "nobody open it until she says so. She sounded calm. Respect it.",
+                "Dr. Vasquez-Ren has sealed Med Bay from the inside and asked that nobody open it until she says so. She sounded calm. Respect it.",
                 "",
-                "Sato's body is in cold storage. I've asked Liaison Brandt to request",
-                "an evacuation. I'll let you know the moment I hear back.",
+                "Sato's body is in cold storage. I've asked Liaison Brandt to request an evacuation. I'll let you know the moment I hear back.",
                 "",
                 "- Hale"
             ]
@@ -393,9 +383,7 @@
                     "text": "TICKET 0221 // RESOLUTION NOTE",
                     "className": "system"
                 },
-                "Reset the Supervisor's password back to his usual one. Boss, please stop",
-                "using your kid's name for everything. It's the first thing anyone would",
-                "try. - A.L."
+                "Reset the Supervisor's password back to his usual one. Boss, please stop using your kid's name for everything. It's the first thing anyone would try. - A.L."
             ]
         },
         {
@@ -561,17 +549,11 @@
                 "LAST LOCATION.. DRILL BAY",
                 "NEXT OF KIN.... MIRA HALE (DAUGHTER), TETHYS ORBITAL SCHOOLS",
                 "",
-                "Twenty-two years with Orrin-Vale. Requested evacuation of all crew on",
-                "Day 212. Request denied by the Company Liaison the same day.",
+                "Twenty-two years with Orrin-Vale. Requested evacuation of all crew on Day 212. Request denied by the Company Liaison the same day.",
                 "",
                 {
                     "type": "text",
-                    "text": "Found Day 214 in the Drill Bay, ear protectors removed, 40 m of shaft",
-                    "className": "alert"
-                },
-                {
-                    "type": "text",
-                    "text": "cable unspooled by hand. Cause of death: exposure.",
+                    "text": "Found Day 214 in the Drill Bay, ear protectors removed, 40 m of shaft cable unspooled by hand. Cause of death: exposure.",
                     "className": "alert"
                 },
                 "",
@@ -605,8 +587,7 @@
                 },
                 "LAST LOCATION.. SHAFT COLLAR",
                 "",
-                "Last badge read: Shaft Collar, Day 216, 02:10.",
-                "Shaft elevator logged a descent to -4,000 m at 02:14.",
+                "Last badge read: Shaft Collar, Day 216, 02:10. Shaft elevator logged a descent to -4,000 m at 02:14.",
                 {
                     "type": "text",
                     "text": "The cage came back up at 02:51. It was empty.",
@@ -680,8 +661,7 @@
                 },
                 "LAST LOCATION.. CORE STORE",
                 "",
-                "Logged 31 hours in the Core Store across Days 212-213.",
-                "Final notebook entry, photographed by Netcore:",
+                "Logged 31 hours in the Core Store across Days 212-213. Final notebook entry, photographed by Netcore:",
                 "",
                 {
                     "type": "text",
@@ -757,8 +737,7 @@
                 "LAST LOCATION.. COMMS MAST",
                 "BIOSIGN........ INTERMITTENT",
                 "",
-                "Has kept the comms array transmitting a bare carrier on every band",
-                "for 19 days. No voice traffic. Console will not release.",
+                "Has kept the comms array transmitting a bare carrier on every band for 19 days. No voice traffic. Console will not release.",
                 {
                     "type": "text",
                     "text": "The carrier pulses at 19 Hz.",
@@ -796,8 +775,7 @@
                 "LAST LOCATION.. LIFEBOAT 1",
                 "",
                 "Company Liaison, Special Projects.",
-                "Left the rig on Lifeboat 1, Day 213, with core sample 4117-A and a",
-                "full copy of the rig's data core. Did not notify the Rig Supervisor.",
+                "Left the rig on Lifeboat 1, Day 213, with core sample 4117-A and a full copy of the rig's data core. Did not notify the Rig Supervisor.",
                 "",
                 "Closed work order 0218 the evening before launch.",
                 "",
@@ -980,8 +958,7 @@
                     "scale": 0.5
                 },
                 "",
-                "Scanned from the construction archive. Room labels were never",
-                "digitized. Med Bay is the sealed block at the north wall."
+                "Scanned from the construction archive. Room labels were never digitized. Med Bay is the sealed block at the north wall."
             ]
         },
         {
@@ -1248,8 +1225,7 @@
                     "className": "notice"
                 },
                 "",
-                "The core rose four kilometres through 2 °C water and came up warm.",
-                "Pryor asked for a second opinion. There isn't one to be had out here.",
+                "The core rose four kilometres through 2 °C water and came up warm. Pryor asked for a second opinion. There isn't one to be had out here.",
                 "",
                 {
                     "type": "text",
@@ -1284,8 +1260,7 @@
                     "text": "CREW LOG // NEW ENTRY",
                     "className": "system"
                 },
-                "Leave a note for whoever reads this terminal next.",
-                "Type your entry and press ENTER. It is kept on this terminal.",
+                "Leave a note for whoever reads this terminal next. Type your entry and press ENTER. It is kept on this terminal.",
                 "",
                 {
                     "type": "prompt",
@@ -1438,8 +1413,7 @@
                     "text": "APPENDED BY HALE, R. (DAY 213):",
                     "className": "system"
                 },
-                "I didn't sign up for this and neither did they. I'm sending Mira a",
-                "message on the private band tonight, while there's still a band."
+                "I didn't sign up for this and neither did they. I'm sending Mira a message on the private band tonight, while there's still a band."
             ]
         },
         {
@@ -1497,8 +1471,7 @@
                     ]
                 },
                 "",
-                "Mass is increasing with no measurable intake. The oscillation is",
-                "mechanical, continuous, and originates in the core's interior.",
+                "Mass is increasing with no measurable intake. The oscillation is mechanical, continuous, and originates in the core's interior.",
                 "",
                 {
                     "type": "text",
@@ -1524,12 +1497,7 @@
                 "",
                 {
                     "type": "text",
-                    "text": "Note to retrieval team: the remaining crew are, at this point,",
-                    "className": "alert"
-                },
-                {
-                    "type": "text",
-                    "text": "part of the sample.",
+                    "text": "Note to retrieval team: the remaining crew are, at this point, part of the sample.",
                     "className": "alert"
                 }
             ]
@@ -1678,8 +1646,7 @@
                     "text": "SCUTTLE // RIG DESTRUCT",
                     "className": "alert"
                 },
-                "Floods the shaft and collapses the drill casing. Cannot be undone.",
-                "Type SCUTTLE and press ENTER to arm.",
+                "Floods the shaft and collapses the drill casing. Cannot be undone. Type SCUTTLE and press ENTER to arm.",
                 "",
                 {
                     "type": "prompt",

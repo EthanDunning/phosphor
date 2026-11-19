@@ -100,7 +100,7 @@ Give leaf/content screens a `title` to label them in the list. Navigate with the
 { "type": "link", "text": "‹ LOG OUT", "target": [ { "type": "action", "action": "back" } ] }
 ```
 
-(A plain string `target` opens content; an array `target` is a button.) Screens **without** `layout: "folders"` (boot screens, login prompts, etc.) render with the normal teletype flow inside the same chrome. See `src/data/alien-terminal.json` for a complete, playable example.
+(A plain string `target` opens content; an array `target` is a button.) The same rule applies to links and table rows *inside* a file: a plain string target opens that screen in the body without leaving the file system (it selects the matching file if the screen is one of the listed files), while an array target such as `[{ "type": "link", "target": "x" }]` navigates away. Screens **without** `layout: "folders"` (boot screens, login prompts, etc.) render with the normal teletype flow inside the same chrome. See `src/data/alien-terminal.json` (**LANTERN-7 RIG TERMINAL**, an original sci-fi horror scenario: log in as `MAINT` / `7731`, then find the supervisor's password in the files) for a complete, playable example.
 
 #### Data tables
 
