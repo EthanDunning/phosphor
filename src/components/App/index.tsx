@@ -10,6 +10,7 @@ import FeedbackDialog from "../FeedbackDialog";
 import UsernameEditor from "../UsernameEditor";
 import UsernamePrompt from "../UsernamePrompt";
 import { AuthorRef, getUsernameSetup, setModuleCoAuthors } from "../../lib/authors";
+import { fetchHiddenScriptIds, saveHiddenScriptIds } from "../../lib/scriptVisibility";
 import { FeedbackKind, fetchMyFeedback, getUnreadResponseIds, submitFeedback } from "../../lib/feedback";
 
 // The Script Creator is large and most visitors never open it: load its code
@@ -775,10 +776,12 @@ class App extends Component<any, AppState> {
         myModules: ModuleRecord[],
         currentVisibilityById: Record<string, boolean>
     ): Record<string, boolean> {
+        // start from the existing choices so a partial (or momentarily empty)
+        // module list can never wipe what someone hid
         return myModules.reduce((acc: Record<string, boolean>, module) => {
             acc[module.id] = currentVisibilityById[module.id] !== false;
             return acc;
-        }, {});
+        }, { ...currentVisibilityById });
     }
 
     private _buildSubscribedScriptVisibility(
@@ -789,7 +792,7 @@ class App extends Component<any, AppState> {
         const bundledVisibility = bundledEntries.reduce((acc: Record<string, boolean>, module) => {
             acc[module.id] = currentVisibilityById[module.id] !== false;
             return acc;
-        }, {});
+        }, { ...currentVisibilityById });
 
         return subscribedModules.reduce((acc: Record<string, boolean>, module) => {
             acc[module.id] = currentVisibilityById[module.id] !== false;
@@ -814,6 +817,7 @@ class App extends Component<any, AppState> {
                 [moduleId]: nextValue,
             };
             persistOwnScriptsVisibility(nextVisibilityById);
+            this._scheduleHiddenScriptsSave();
             return {
                 ownScriptsVisibilityById: nextVisibilityById,
                 modulesNotice: nextValue
@@ -821,6 +825,84 @@ class App extends Component<any, AppState> {
                     : `"${module.title}" hidden from the script dropdown.`,
                 modulesError: null,
             };
+        });
+    }
+
+    // ---- "Show in Script" choices saved to the account -----------------------
+    private _hiddenScriptsSyncSupported = true;
+    private _hiddenScriptsChangedSinceFetch = false;
+    private _hiddenScriptsSaveTimer: number | null = null;
+
+    private _collectHiddenScriptIds(): string[] {
+        return [
+            ...Object.entries(this.state.ownScriptsVisibilityById),
+            ...Object.entries(this.state.subscribedScriptsVisibilityById),
+        ]
+            .filter(([, visible]) => visible === false)
+            .map(([id]) => id);
+    }
+
+    // After each toggle: save the hidden list to the account (debounced).
+    private _scheduleHiddenScriptsSave(): void {
+        const userId = this._getSessionUserId();
+        if (!userId || !this._hiddenScriptsSyncSupported) {
+            return;
+        }
+        this._hiddenScriptsChangedSinceFetch = true;
+        if (this._hiddenScriptsSaveTimer !== null) {
+            window.clearTimeout(this._hiddenScriptsSaveTimer);
+        }
+        this._hiddenScriptsSaveTimer = window.setTimeout(() => {
+            this._hiddenScriptsSaveTimer = null;
+            if (this._getSessionUserId() !== userId) {
+                return;
+            }
+            saveHiddenScriptIds(userId, this._collectHiddenScriptIds()).catch((error: any) => {
+                this.setState({ modulesError: `Couldn't save your "Show in Script" choices: ${error?.message || "unknown error"}` });
+            });
+        }, 400);
+    }
+
+    // After signing in / refreshing: apply the account's saved list. The first
+    // time (nothing saved yet) this browser's choices are uploaded instead.
+    private async _syncHiddenScripts(userId: string): Promise<void> {
+        this._hiddenScriptsChangedSinceFetch = false;
+        let saved;
+        try {
+            saved = await fetchHiddenScriptIds(userId);
+        } catch {
+            return;
+        }
+        if (this._getSessionUserId() !== userId) {
+            return;
+        }
+        if (saved.status === "unsupported") {
+            this._hiddenScriptsSyncSupported = false;
+            return;
+        }
+        this._hiddenScriptsSyncSupported = true;
+        if (saved.status === "none" || this._hiddenScriptsChangedSinceFetch) {
+            void saveHiddenScriptIds(userId, this._collectHiddenScriptIds()).catch((): void => undefined);
+            return;
+        }
+
+        const hidden = new Set(saved.ids);
+        this.setState((prev): Pick<AppState, "ownScriptsVisibilityById" | "subscribedScriptsVisibilityById"> => {
+            const ownScriptsVisibilityById = { ...prev.ownScriptsVisibilityById };
+            [...Object.keys(ownScriptsVisibilityById), ...prev.myModules.map((module) => module.id)].forEach((id) => {
+                ownScriptsVisibilityById[id] = !hidden.has(id);
+            });
+            const subscribedScriptsVisibilityById = { ...prev.subscribedScriptsVisibilityById };
+            [
+                ...Object.keys(subscribedScriptsVisibilityById),
+                ...prev.subscribedModules.map((module) => module.id),
+                ...this._buildBundledSubscribedModules().map((module) => module.id),
+            ].forEach((id) => {
+                subscribedScriptsVisibilityById[id] = !hidden.has(id);
+            });
+            persistOwnScriptsVisibility(ownScriptsVisibilityById);
+            persistSubscribedScriptsVisibility(subscribedScriptsVisibilityById);
+            return { ownScriptsVisibilityById, subscribedScriptsVisibilityById };
         });
     }
 
@@ -843,6 +925,7 @@ class App extends Component<any, AppState> {
                 [moduleId]: nextValue,
             };
             persistSubscribedScriptsVisibility(nextVisibilityById);
+            this._scheduleHiddenScriptsSave();
 
             const entryTitle = module?.title || bundledScript?.label || "This script";
             return {
@@ -2282,6 +2365,8 @@ class App extends Component<any, AppState> {
                     activeModule: refreshedActiveModule,
                     modulesBusy: false,
                 };
+            }, () => {
+                void this._syncHiddenScripts(userId);
             });
         } catch (error: any) {
             this.setState({

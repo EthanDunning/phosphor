@@ -26,6 +26,11 @@
                 "Sections:",
                 {
                     "type": "link",
+                    "text": "> WHAT'S NEW IN v10.0",
+                    "target": "whats-new"
+                },
+                {
+                    "type": "link",
                     "text": "> USING THE APP",
                     "target": "using-app"
                 },
@@ -97,17 +102,28 @@
             "content": [
                 {
                     "type": "text",
-                    "className": "alert",
-                    "text": "SECTION: USING THE APP"
+                    "text": "SECTION: USING THE APP",
+                    "className": "alert"
                 },
                 "",
-                "Core header controls:",
-                "- SCRIPT: switch bundled/custom/module scripts",
-                "- MODULES: manage your own and subscribed modules",
-                "- CREATOR: edit the active script or start a script",
-                "- RELOAD: restart the active script runtime from the beginning",
-                "- RESET: clear broader local app state (more aggressive)",
-                "- THEME + SOUND controls",
+                "Header controls:",
+                "- SCRIPT: switch bundled, custom and module scripts, or upload JSON",
+                "- CREATOR: edit the active script or start a new one",
+                "- MODULES: your modules, subscriptions and Show in Script choices",
+                "- LIBRARY: browse, rate and subscribe to published modules",
+                "- OPTIONS: sound, header, print, reload, clear local data, reset, theme",
+                "- SUPPORT: send feedback, donate, GitHub (+ ADMIN PANEL for admins)",
+                "- SIGN IN / PROFILE: email, username, account ID, sign out",
+                "- On narrow screens these fold into the MENU button",
+                "",
+                "Feedback:",
+                "- SUPPORT > FEEDBACK sends a bug report, feature request or general feedback",
+                "- MY FEEDBACK lists what you've sent, its status, and any reply",
+                "- A number on SUPPORT means an admin has replied",
+                "",
+                "Phones and tablets:",
+                "- Tap a prompt, login or table QUERY line to bring up the keyboard",
+                "- Tap anywhere else to close it",
                 "",
                 "Preview mode details:",
                 "- Header shows [PREVIEW MODE] + [RETURN TO CREATOR]",
@@ -203,12 +219,25 @@
                 "",
                 {
                     "type": "text",
+                    "text": "[DATA TABLES]",
+                    "className": "system"
+                },
+                "Up / Down .......... move the row cursor",
+                "Enter .............. open the selected row",
+                "1 - 9 .............. sort by that column (again to reverse)",
+                "/ .................. open the QUERY line (or click / tap it)",
+                "Esc ................ clear the query",
+                "Left / Right ....... previous / next page (PgUp / PgDn too)",
+                "",
+                {
+                    "type": "text",
                     "className": "system",
                     "text": "[MOUSE]"
                 },
                 "Shift + click ...... alternate action on a link, toggle, or list,",
                 "                     where the script defines one",
                 "Press and hold ..... same as Shift + click, for touch screens",
+                "Tap a prompt ....... opens the phone keyboard (tap elsewhere to close)",
                 "",
                 {
                     "type": "link",
@@ -228,8 +257,8 @@
             "content": [
                 {
                     "type": "text",
-                    "className": "alert",
-                    "text": "SECTION: MODULES + LIBRARY WORKFLOW"
+                    "text": "SECTION: MODULES + LIBRARY WORKFLOW",
+                    "className": "alert"
                 },
                 "",
                 "Visibility modes:",
@@ -237,14 +266,24 @@
                 "- unlisted: available through direct link and hidden from library listings",
                 "- public: visible in the library and shareable",
                 "",
-                "Modules panel capabilities:",
-                "- My Modules: load, view in library, copy link (shareable only)",
-                "- Subscribed Modules: load, view in library, manage script dropdown visibility",
-                "- Show in SCRIPT checkboxes decide what appears in the SCRIPT dropdown",
+                "Modules panel:",
+                "- My Modules: load, view in library, copy link, Manage > Edit Details",
+                "- Subscribed Modules: load, view in library",
+                "- Show in Script checkboxes decide what appears in the SCRIPT dropdown;",
+                "  your choices are saved to your account, so they follow you",
                 "",
-                "Share links:",
-                "- Public and unlisted modules support link-based loading",
-                "- Unlisted is ideal for direct sharing without catalog exposure",
+                "Library:",
+                "- OPTIONS > Web View (the default) or Terminal View",
+                "- Search, sort, subscribe, and rate 1-5 (Remove rating takes it back)",
+                "- Public and unlisted modules have share links",
+                "",
+                "Usernames and credits:",
+                "- Every account gets a random username. You're asked once to keep it",
+                "  or choose your own, and can change it any time under PROFILE",
+                "- The Library shows modules as \"By <username>\"",
+                "- Credit co-authors under Edit Details by pasting their account ID",
+                "  (they copy it from PROFILE > ACCOUNT ID). Anyone credited can",
+                "  remove themselves",
                 "",
                 {
                     "type": "link",
@@ -282,6 +321,13 @@
                 "7) PREVIEW in runtime, then APPLY TO APP.",
                 "8) Save/update as a module from the Modules panel.",
                 "",
+                "Editor helpers:",
+                "- Data Table: [GRID] edits it like a spreadsheet, [TEXT] for pasting",
+                "  pipe-separated rows (a | b | c >> screen-id)",
+                "- Class Names: chips. + ADD CLASS adds one, x removes it; a new color",
+                "  or blend mode replaces the old one",
+                "- Images: a Background field so blend modes work on dark themes",
+                "",
                 {
                     "type": "text",
                     "className": "notice",
@@ -311,8 +357,8 @@
             "content": [
                 {
                     "type": "text",
-                    "className": "alert",
-                    "text": "SECTION: SCRIPT STRUCTURE"
+                    "text": "SECTION: SCRIPT STRUCTURE",
+                    "className": "alert"
                 },
                 "",
                 "Top-level shape:",
@@ -322,13 +368,24 @@
                 "  \"dialogs\": [ ... ]",
                 "}",
                 "",
+                "Config options:",
+                "  name, author ........ shown in the header and the Library",
+                "  theme ............... blue, amber, green, white, light, or custom",
+                "  customTheme ......... colors when theme is \"custom\" (bgHex, fgHex, ...)",
+                "  defaultTextSpeed .... ms per typed character, whole script",
+                "  terminalType ........ \"alien\" wraps every screen in file-system chrome",
+                "  alien.title ......... default title bar text for that chrome",
+                "  script .............. id of an optional terminal script (see ADVANCED)",
+                "",
                 "Screen shape:",
                 "{",
                 "  \"id\": \"unique-id\",",
                 "  \"type\": \"screen\" | \"static\" | \"filesystem\",",
                 "  \"content\": [ ... ],",
                 "  \"onDone\": { \"target\": \"next-id\", \"delayMs\": 1200 },",
-                "  \"headerTitle\": \"...\"   (filesystem title bar text)",
+                "  \"defaultTextSpeed\": 40,   (this screen only)",
+                "  \"title\": \"...\",           (its label in a file-system list)",
+                "  \"headerTitle\": \"...\"      (file-system title bar text)",
                 "}",
                 "",
                 "screen = progressive render, static = immediate render",
@@ -402,11 +459,28 @@
                 "- Report Composer -> { \"type\": \"reportComposer\", \"titleTemplate\": \"...\", \"template\": \"...\" }",
                 "- Report List -> { \"type\": \"reportList\", \"composerId\": \"...\" }",
                 "- Dialog Link (+ Dialog) -> link target entry { \"type\": \"dialog\", \"target\": \"dialogId\" } + dialogs[] row",
+                "- Href -> { \"type\": \"href\", ... } is the same as a link",
+                "- Mainframe Game -> { \"type\": \"mainframegame\" } (the APHELION arena game;",
+                "  finishing it plays a terminal-shutdown ending, so it isn't demoed here)",
+                "",
+                "On any element:",
+                "- className, align, speed, loop (see ADVANCED OPTIONS)",
+                "- scriptId: a name a terminal script uses to find and change it",
                 "",
                 {
                     "type": "link",
                     "text": "> LIVE ELEMENT EXAMPLES",
                     "target": "live-elements"
+                },
+                {
+                    "type": "link",
+                    "text": "> MARKDOWN FORMATTING",
+                    "target": "markdown-demo"
+                },
+                {
+                    "type": "link",
+                    "text": "> TOGGLE / LIST / DROPDOWN BEHAVIORS",
+                    "target": "state-behaviors"
                 },
                 {
                     "type": "link",
@@ -748,6 +822,16 @@
                 },
                 {
                     "type": "link",
+                    "text": "> PROMPT COMMAND ACTIONS (help / home / back / debug)",
+                    "target": "prompt-actions"
+                },
+                {
+                    "type": "link",
+                    "text": "> LOGIN OPTIONS (noMatchTarget + credential actions)",
+                    "target": "login-demo"
+                },
+                {
+                    "type": "link",
                     "text": "> NEXT: LINK TARGETS + ACTIONS",
                     "target": "links-dialogs"
                 },
@@ -807,6 +891,11 @@
                 "- { type: \"dialog\", target: \"dialogId\" }",
                 "- { type: \"href\", target: \"https://...\" }",
                 "- { type: \"action\", action: \"back\"|\"dialog\"|\"resetState\", target?: \"screenId\" }",
+                "- add \"shiftKey\": true / false to pick an entry by Shift+click",
+                "",
+                "Dialogs (dialogs[] entries with type \"alert\"):",
+                "- content: strings, text objects, bitmaps and prompts",
+                "- \"showActions\": true + \"actions\": [{ \"label\", \"target\"? }] adds buttons",
                 "",
                 {
                     "type": "link",
@@ -856,6 +945,26 @@
                         }
                     ]
                 },
+                {
+                    "type": "link",
+                    "text": "> DIALOG WITH BUTTONS (showActions)",
+                    "target": [
+                        {
+                            "type": "dialog",
+                            "target": "actionsDialog"
+                        }
+                    ]
+                },
+                {
+                    "type": "link",
+                    "text": "> DIALOG WITH A PROMPT INSIDE",
+                    "target": [
+                        {
+                            "type": "dialog",
+                            "target": "promptDialog"
+                        }
+                    ]
+                },
                 "",
                 {
                     "type": "link",
@@ -893,6 +1002,11 @@
                 "- fillWidth / scale / animated for bitmap/image",
                 "- align: \"left\" | \"center\" | \"right\" | \"justify\" (any element)",
                 "",
+                "Terminal scripts (bundled scripts only):",
+                "- config.script names a TypeScript module in src/scripts/terminal/",
+                "- it can react to screens, prompts, links and toggles, and change any",
+                "  element that has a \"scriptId\" (INCR-SS-ARK uses this)",
+                "",
                 {
                     "type": "text",
                     "className": "notice",
@@ -929,6 +1043,11 @@
                     "type": "link",
                     "text": "> WATCH onDone AUTO-ADVANCE",
                     "target": "auto-advance-demo"
+                },
+                {
+                    "type": "link",
+                    "text": "> PER-SCREEN TEXT SPEED (defaultTextSpeed: 80)",
+                    "target": "speed-demo"
                 },
                 {
                     "type": "link",
@@ -1315,6 +1434,93 @@
                     ]
                 },
                 "",
+                "Keyed rows, colored cells, a default sort, and a row that runs an action",
+                "(the medical stores row opens a dialog):",
+                {
+                    "type": "table",
+                    "title": "CARGO HOLD // MANIFEST",
+                    "border": "ascii",
+                    "sortable": true,
+                    "sort": {
+                        "column": "mass",
+                        "direction": "desc"
+                    },
+                    "columns": [
+                        {
+                            "key": "bay",
+                            "label": "BAY",
+                            "align": "right"
+                        },
+                        {
+                            "key": "item",
+                            "label": "ITEM"
+                        },
+                        {
+                            "key": "mass",
+                            "label": "MASS T",
+                            "align": "right"
+                        },
+                        {
+                            "key": "status",
+                            "label": "STATUS"
+                        }
+                    ],
+                    "rows": [
+                        {
+                            "bay": "A1",
+                            "item": "Water ice",
+                            "mass": "412",
+                            "status": "SECURE"
+                        },
+                        {
+                            "bay": "A2",
+                            "item": "Ore slurry",
+                            "mass": "1090",
+                            "status": {
+                                "text": "LEAKING",
+                                "className": "alert"
+                            }
+                        },
+                        {
+                            "bay": "B1",
+                            "item": "Medical stores",
+                            "mass": "18",
+                            "status": {
+                                "text": "COLD CHAIN OK",
+                                "className": "notice"
+                            },
+                            "target": [
+                                {
+                                    "type": "dialog",
+                                    "target": "quickHelpDialog"
+                                }
+                            ]
+                        },
+                        {
+                            "bay": "B2",
+                            "item": "Unknown container",
+                            "mass": "7",
+                            "status": {
+                                "text": "UNREGISTERED",
+                                "className": "system"
+                            }
+                        }
+                    ]
+                },
+                "",
+                "An empty table shows its emptyText:",
+                {
+                    "type": "table",
+                    "title": "QUARANTINE LOG",
+                    "columns": [
+                        "TIME",
+                        "EVENT"
+                    ],
+                    "rows": [],
+                    "emptyText": "NO QUARANTINE EVENTS RECORDED",
+                    "footer": false
+                },
+                "",
                 "JSON shape:",
                 "{ \"type\": \"table\", \"title\": \"...\", \"columns\": [\"ID\", { \"label\": \"LOAD\", \"align\": \"right\" }],",
                 "  \"rows\": [[\"001\", \"MORLEY\"], { \"cells\": [...], \"target\": \"screenId\", \"className\": \"alert\" }],",
@@ -1388,6 +1594,17 @@
                     "scale": 0.25,
                     "className": "footer"
                 },
+                {
+                    "type": "text",
+                    "text": "[FILL WIDTH]  \"fillWidth\": true  (stretches to the screen width)",
+                    "className": "system"
+                },
+                {
+                    "type": "bitmap",
+                    "src": "img/ypsilon-map.png",
+                    "alt": "Ypsilon 14 map",
+                    "fillWidth": true
+                },
                 "",
                 "Blend modes mix the image with what is behind it. Some look great on the dark",
                 "terminal; the darkening ones need a background color to show up.",
@@ -1406,6 +1623,11 @@
                     "type": "link",
                     "text": "> BACKGROUND COLORS + COMBINED CLASSES",
                     "target": "images-backdrops"
+                },
+                {
+                    "type": "link",
+                    "text": "> ANIMATED GIF (\"animated\": true)",
+                    "target": "images-animated"
                 },
                 {
                     "type": "link",
@@ -1806,6 +2028,501 @@
             ]
         },
         {
+            "id": "whats-new",
+            "type": "screen",
+            "content": [
+                {
+                    "type": "text",
+                    "text": "WHAT'S NEW IN PHOSPHOR v10.0",
+                    "className": "alert"
+                },
+                "",
+                {
+                    "type": "text",
+                    "text": "[TERMINAL + SCRIPTS]",
+                    "className": "system"
+                },
+                "- Data tables: box-drawn record browsers you can sort, search and page",
+                "- Images: blend modes that work, background plates, alignment, footer",
+                "- Class names combine: \"alert small center\"",
+                "- File-system screens: links and table rows open files in place",
+                "- LANTERN-7: an original showcase scenario for the file-system screen",
+                "- Phones and tablets: tap a prompt, login or QUERY line to type",
+                "",
+                {
+                    "type": "text",
+                    "text": "[LIBRARY + ACCOUNTS]",
+                    "className": "system"
+                },
+                "- A modern Web View (now the default) alongside Terminal View",
+                "- Usernames: pick one on first sign-in, change it under PROFILE",
+                "- Co-authors: credit other creators by their account ID",
+                "- Star ratings, and you can remove your rating",
+                "- Show in Script choices are saved to your account",
+                "",
+                {
+                    "type": "text",
+                    "text": "[FEEDBACK]",
+                    "className": "system"
+                },
+                "- SUPPORT > FEEDBACK: bug reports, feature requests, general feedback",
+                "- MY FEEDBACK shows each message's status and any reply",
+                "",
+                {
+                    "type": "text",
+                    "text": "[UNDER THE HOOD]",
+                    "className": "system"
+                },
+                "- Security hardening, faster loading, updated dependencies",
+                "",
+                {
+                    "type": "link",
+                    "text": "> SEE DATA TABLES",
+                    "target": "data-tables"
+                },
+                {
+                    "type": "link",
+                    "text": "> SEE IMAGES + CLASS NAMES",
+                    "target": "images"
+                },
+                {
+                    "type": "link",
+                    "text": "> SEE THE FILE SYSTEM DEMO",
+                    "target": "filesystem-intro"
+                },
+                {
+                    "type": "link",
+                    "text": "> TABLE OF CONTENTS",
+                    "target": "hub"
+                }
+            ]
+        },
+        {
+            "id": "markdown-demo",
+            "type": "screen",
+            "content": [
+                {
+                    "type": "text",
+                    "text": "MARKDOWN FORMATTING",
+                    "className": "alert"
+                },
+                "",
+                "Text lines support a small set of markdown:",
+                "",
+                "# A heading line",
+                "**bold**, *italic*, __underline__ and ~~strikethrough~~",
+                "[an external link](https://example.com)",
+                "- a bullet point",
+                "> a quoted line",
+                "---",
+                "\\> a line that starts with a literal > (escaped)",
+                "",
+                {
+                    "type": "text",
+                    "text": "[SOURCE OF THE LINES ABOVE]",
+                    "className": "system"
+                },
+                "\\# A heading line",
+                "\\*\\*bold\\*\\*, \\*italic\\*, \\_\\_underline\\_\\_ and \\~\\~strikethrough\\~\\~",
+                "\\[an external link\\](https://example.com)",
+                "\\- a bullet point",
+                "\\> a quoted line",
+                "\\-\\-\\-",
+                "(a backslash before a markdown character shows it as-is)",
+                "",
+                {
+                    "type": "link",
+                    "text": "> BACK TO ELEMENT TYPES",
+                    "target": "element-types"
+                },
+                {
+                    "type": "link",
+                    "text": "> TABLE OF CONTENTS",
+                    "target": "hub"
+                }
+            ]
+        },
+        {
+            "id": "state-behaviors",
+            "type": "screen",
+            "content": [
+                {
+                    "type": "text",
+                    "text": "TOGGLE / LIST / DROPDOWN BEHAVIORS",
+                    "className": "alert"
+                },
+                "",
+                "A state can do more than change the text. Click each one:",
+                "",
+                {
+                    "type": "text",
+                    "text": "[COLORED STATES]  each state has its own className",
+                    "className": "system"
+                },
+                {
+                    "type": "toggle",
+                    "states": [
+                        {
+                            "active": true,
+                            "text": "> REACTOR: ONLINE",
+                            "className": "notice"
+                        },
+                        {
+                            "active": false,
+                            "text": "> REACTOR: SCRAM",
+                            "className": "alert"
+                        }
+                    ]
+                },
+                "",
+                {
+                    "type": "text",
+                    "text": "[OPENS A DIALOG]  \"dialog\": switching to this state shows a dialog",
+                    "className": "system"
+                },
+                {
+                    "type": "toggle",
+                    "states": [
+                        {
+                            "active": true,
+                            "text": "> ALARM: SILENT"
+                        },
+                        {
+                            "active": false,
+                            "text": "> ALARM: SOUNDING",
+                            "className": "alert",
+                            "dialog": "alarmDialog"
+                        }
+                    ]
+                },
+                "",
+                {
+                    "type": "text",
+                    "text": "[GUARDED]  \"dialog\" + \"requireShift\": click shows the dialog, Shift+click switches",
+                    "className": "system"
+                },
+                {
+                    "type": "toggle",
+                    "states": [
+                        {
+                            "active": true,
+                            "text": "> BULKHEAD 7: SEALED",
+                            "className": "system"
+                        },
+                        {
+                            "active": false,
+                            "text": "> BULKHEAD 7: OPEN",
+                            "className": "alert",
+                            "dialog": "bulkheadDialog",
+                            "requireShift": true
+                        }
+                    ]
+                },
+                "",
+                {
+                    "type": "text",
+                    "text": "[NAVIGATES]  \"target\": switching to this state opens a screen",
+                    "className": "system"
+                },
+                {
+                    "type": "toggle",
+                    "states": [
+                        {
+                            "active": true,
+                            "text": "> HATCH: CLOSED"
+                        },
+                        {
+                            "active": false,
+                            "text": "> HATCH: OPEN (CLIMB THROUGH)",
+                            "target": "state-behaviors-hatch"
+                        }
+                    ]
+                },
+                "",
+                {
+                    "type": "text",
+                    "text": "[RUNS AN ACTION]  \"action\": \"back\" (or dialog / resetState)",
+                    "className": "system"
+                },
+                {
+                    "type": "toggle",
+                    "states": [
+                        {
+                            "active": true,
+                            "text": "> RETURN SWITCH: OFF"
+                        },
+                        {
+                            "active": false,
+                            "text": "> RETURN SWITCH: ON (GOES BACK)",
+                            "action": "back"
+                        }
+                    ]
+                },
+                "",
+                {
+                    "type": "text",
+                    "text": "[LIST WITH COLORED ITEMS]",
+                    "className": "system"
+                },
+                {
+                    "type": "list",
+                    "states": [
+                        {
+                            "active": true,
+                            "text": "PRIORITY: LOW",
+                            "className": "system"
+                        },
+                        {
+                            "active": false,
+                            "text": "PRIORITY: MEDIUM",
+                            "className": "notice"
+                        },
+                        {
+                            "active": false,
+                            "text": "PRIORITY: HIGH",
+                            "className": "alert"
+                        }
+                    ]
+                },
+                "",
+                {
+                    "type": "link",
+                    "text": "> BACK TO ELEMENT TYPES",
+                    "target": "element-types"
+                },
+                {
+                    "type": "link",
+                    "text": "> TABLE OF CONTENTS",
+                    "target": "hub"
+                }
+            ]
+        },
+        {
+            "id": "state-behaviors-hatch",
+            "type": "screen",
+            "content": [
+                {
+                    "type": "text",
+                    "text": "BEYOND THE HATCH",
+                    "className": "alert"
+                },
+                "",
+                "The toggle's state had \"target\": \"state-behaviors-hatch\", so switching",
+                "to it brought you here.",
+                "",
+                {
+                    "type": "link",
+                    "text": "> BACK TO BEHAVIORS",
+                    "target": "state-behaviors"
+                },
+                {
+                    "type": "link",
+                    "text": "> TABLE OF CONTENTS",
+                    "target": "hub"
+                }
+            ]
+        },
+        {
+            "id": "prompt-actions",
+            "type": "screen",
+            "content": [
+                {
+                    "type": "text",
+                    "text": "PROMPT COMMAND ACTIONS",
+                    "className": "alert"
+                },
+                "",
+                "Each command's action can be:",
+                "- { \"type\": \"link\", \"target\": \"screenId\" } ......... HOME",
+                "- { \"type\": \"dialog\", \"target\": \"dialogId\" } ...... HELP",
+                "- { \"type\": \"action\", \"action\": \"back\" } ........... BACK",
+                "- { \"type\": \"console\" } (writes to the browser console) ... DEBUG",
+                "- { \"type\": \"logEntry\" } (saves a user log; see PROMPT BEHAVIOR)",
+                "",
+                "Try HELP, HOME, BACK or DEBUG (any letter case):",
+                {
+                    "type": "prompt",
+                    "prompt": "cmd> ",
+                    "cursor": true,
+                    "caseSensitive": false,
+                    "commands": [
+                        {
+                            "command": "help",
+                            "action": {
+                                "type": "dialog",
+                                "target": "quickHelpDialog"
+                            }
+                        },
+                        {
+                            "command": "home",
+                            "action": {
+                                "type": "link",
+                                "target": "hub"
+                            }
+                        },
+                        {
+                            "command": "back",
+                            "action": {
+                                "type": "action",
+                                "action": "back"
+                            }
+                        },
+                        {
+                            "command": "debug",
+                            "action": {
+                                "type": "console"
+                            }
+                        }
+                    ]
+                },
+                "",
+                {
+                    "type": "link",
+                    "text": "> BACK TO PROMPT BEHAVIOR",
+                    "target": "prompt-behavior"
+                },
+                {
+                    "type": "link",
+                    "text": "> TABLE OF CONTENTS",
+                    "target": "hub"
+                }
+            ]
+        },
+        {
+            "id": "login-demo",
+            "type": "screen",
+            "content": [
+                {
+                    "type": "text",
+                    "text": "LOGIN OPTIONS",
+                    "className": "alert"
+                },
+                "",
+                "- guest / guest ... a credential with a \"target\" screen",
+                "- help / help ..... a credential with an \"action\" (opens a dialog)",
+                "- anything else ... \"noMatchTarget\" sends you to a denied screen",
+                "(usernames and passwords are case-insensitive here)",
+                "",
+                {
+                    "type": "login",
+                    "usernamePrompt": "user> ",
+                    "passwordPrompt": "pass> ",
+                    "usernameCaseSensitive": false,
+                    "passwordCaseSensitive": false,
+                    "credentials": [
+                        {
+                            "username": "guest",
+                            "password": "guest",
+                            "target": "hub"
+                        },
+                        {
+                            "username": "help",
+                            "password": "help",
+                            "action": {
+                                "type": "dialog",
+                                "target": "quickHelpDialog"
+                            }
+                        }
+                    ],
+                    "noMatchTarget": "login-denied-demo"
+                },
+                "",
+                {
+                    "type": "link",
+                    "text": "> BACK TO PROMPT BEHAVIOR",
+                    "target": "prompt-behavior"
+                },
+                {
+                    "type": "link",
+                    "text": "> TABLE OF CONTENTS",
+                    "target": "hub"
+                }
+            ]
+        },
+        {
+            "id": "login-denied-demo",
+            "type": "screen",
+            "onDone": {
+                "target": "login-demo",
+                "delayMs": 2500
+            },
+            "content": [
+                "",
+                {
+                    "type": "text",
+                    "text": "ACCESS DENIED",
+                    "className": "alert"
+                },
+                "Those credentials didn't match, so the login's noMatchTarget sent",
+                "you here. Returning to the login..."
+            ]
+        },
+        {
+            "id": "speed-demo",
+            "type": "screen",
+            "defaultTextSpeed": 80,
+            "content": [
+                {
+                    "type": "text",
+                    "text": "PER-SCREEN TEXT SPEED",
+                    "className": "alert"
+                },
+                "",
+                "This screen sets \"defaultTextSpeed\": 80, so every line on it types",
+                "slowly, whatever the script's own default is.",
+                {
+                    "type": "text",
+                    "text": "A single element can still override it with \"speed\".",
+                    "className": "notice",
+                    "speed": 5
+                },
+                "",
+                {
+                    "type": "link",
+                    "text": "> BACK TO ADVANCED OPTIONS",
+                    "target": "advanced-options"
+                },
+                {
+                    "type": "link",
+                    "text": "> TABLE OF CONTENTS",
+                    "target": "hub"
+                }
+            ]
+        },
+        {
+            "id": "images-animated",
+            "type": "screen",
+            "content": [
+                {
+                    "type": "text",
+                    "text": "IMAGES: ANIMATED GIF",
+                    "className": "alert"
+                },
+                "",
+                "\"animated\": true plays a GIF as-is instead of resolving it pixel by",
+                "pixel (files ending in .gif are detected automatically).",
+                "",
+                {
+                    "type": "bitmap",
+                    "src": "img/Aphelion_glitch.gif",
+                    "alt": "Glitching eye",
+                    "animated": true,
+                    "scale": 0.6
+                },
+                "",
+                {
+                    "type": "link",
+                    "text": "> BACK TO IMAGES",
+                    "target": "images"
+                },
+                {
+                    "type": "link",
+                    "text": "> TABLE OF CONTENTS",
+                    "target": "hub"
+                }
+            ]
+        },
+        {
             "id": "crew-record-chen",
             "type": "screen",
             "content": [
@@ -1935,6 +2652,8 @@
                 "- Confirm Scripts dropdown visibility choices in Modules panel",
                 "- Validate module links from Modules and Library views",
                 "- Export JSON backup when stable",
+                "- Set your username (PROFILE) and credit co-authors (Edit Details)",
+                "- Check your module's Library page in Web View and Terminal View",
                 "",
                 {
                     "type": "text",
@@ -1979,6 +2698,65 @@
                 "This is an alert dialog from dialogs[].",
                 "Open it with a link target entry using type=dialog.",
                 "Press ENTER, ESC, or click to close."
+            ]
+        },
+        {
+            "id": "alarmDialog",
+            "type": "alert",
+            "content": [
+                "ALARM",
+                "The toggle switched to a state with \"dialog\": \"alarmDialog\".",
+                "Press ENTER, ESC, or click to close."
+            ]
+        },
+        {
+            "id": "bulkheadDialog",
+            "type": "alert",
+            "content": [
+                "BULKHEAD 7 IS GUARDED",
+                "This state has \"requireShift\": true. Shift+click the toggle to open it.",
+                "Press ENTER, ESC, or click to close."
+            ]
+        },
+        {
+            "id": "actionsDialog",
+            "type": "alert",
+            "content": [
+                "DIALOG WITH BUTTONS",
+                "\"showActions\": true adds these buttons. A button with a target opens that screen; one without just closes."
+            ],
+            "showActions": true,
+            "actions": [
+                {
+                    "label": "TABLE OF CONTENTS",
+                    "target": "hub"
+                },
+                {
+                    "label": "STAY HERE"
+                }
+            ]
+        },
+        {
+            "id": "promptDialog",
+            "type": "alert",
+            "content": [
+                "DIALOG WITH A PROMPT",
+                "Type YES and press ENTER to open the final checklist, or press ESC.",
+                {
+                    "type": "prompt",
+                    "prompt": "> ",
+                    "cursor": true,
+                    "caseSensitive": false,
+                    "commands": [
+                        {
+                            "command": "yes",
+                            "action": {
+                                "type": "link",
+                                "target": "final-checklist"
+                            }
+                        }
+                    ]
+                }
             ]
         }
     ]

@@ -1,119 +1,210 @@
-# PHOSPHOR
+# PHOSPHOR v10.0
 ### A retro terminal simulator for tabletop role-playing games
 
-This is a fork of [redhg's original Phosphor project](https://github.com/redhg/phosphor). The original was built as a bespoke terminal prop for the [Mothership RPG](https://www.mothershiprpg.com/) module [The Haunting of Ypsilon 14](https://www.mothershiprpg.com/pamphlet-adventures/#The_Haunting_Of_Ypsilon_14), inspired by [Quadra's post](https://www.traaa.sh/the-ypsilon-14-terminal) about running that scenario. This fork expands on the original to make the tool more useful for anyone who wants to run their own terminal prop, without needing to edit source code.
+Phosphor turns a browser into an in-world computer terminal for your players: CRT glow, scanlines, typing sounds, logins, file systems, databases and hidden secrets, all driven by a JSON script you can write without touching code.
 
-Pull requests and issues are welcome.
+This is a fork of [redhg's original Phosphor project](https://github.com/redhg/phosphor), which was built as a terminal prop for the [Mothership RPG](https://www.mothershiprpg.com/) module [The Haunting of Ypsilon 14](https://www.mothershiprpg.com/pamphlet-adventures/#The_Haunting_Of_Ypsilon_14), inspired by [Quadra's post](https://www.traaa.sh/the-ypsilon-14-terminal) about running that scenario. This fork turns it into a general-purpose tool: a visual Script Creator, an online module library, accounts, and many new element types.
 
-[View the terminal in action here.](https://dunninganddragons.com/phosphor/)
+**[Try it here.](https://dunninganddragons.com/phosphor/)** Pull requests and issues are welcome; you can also send bug reports and feature requests from inside the app (**SUPPORT > FEEDBACK**).
 
 ---
 
-## What's new in this fork
+## What's new in v10.0
 
-The original project loaded a single hardcoded JSON file (sample.json by default), had no audio, and required editing source code to change anything. This fork adds:
+**Terminal and scripts**
+- **Data tables.** A new `table` element prints a box-drawn database grid, then becomes a record browser you can move through, sort, search and page. The Script Creator edits tables in a spreadsheet-style grid.
+- **Class names combine.** `"alert small center"` now works. In the Script Creator each class is a removable chip. A new color or blend mode replaces the old one; layout classes stack.
+- **Images reworked.** Blend modes now work as intended, with a `background` plate so the darkening modes stay visible on dark themes. Images also support alignment and a `footer` class (space above), and dialog images use the same classes.
+- **File-system screens.** Links and table rows inside a file now open their target in place instead of leaving the file browser.
+- **LANTERN-7 RIG TERMINAL.** A new original showcase scenario for the file-system screen. It replaces the old *Alien: Isolation* demo.
+- **Phones and tablets.** Tapping a prompt, login or table search line opens the on-screen keyboard; tapping anywhere else closes it.
+- **Sample script.** The bundled **PHOSPHOR SAMPLE SCRIPT** now has a working example of every feature, including a page on what's new.
 
-**Content & scripts**
-- **Script selector** — a toolbar at the top of the page lets you switch between bundled scripts or upload your own JSON without touching any code.
-- **JSON upload** — load any Phosphor-compatible `.json` file directly in the browser at runtime. No build step required as long as assets are hosted externally.
-- **INCR-SS-ARK scenario** — a full original scenario bundled alongside the existing Ypsilon-14 and Sample scripts, selectable from the toolbar.
-- **Terminal script system** (`src/scripts/terminal/`) — an optional JavaScript/TypeScript layer that can be attached to a JSON scenario to drive dynamic runtime behavior (state tracking, timed events, conditional UI changes, etc.). Used by INCR-SS-ARK.
+**Library and accounts**
+- **Web View** is a new, modern library layout and the default. **Terminal View** is the retro layout, renamed from Retro View. Each view uses its matching font.
+- **Usernames.** Every account gets a random, unique username. On first sign-in you choose to keep it or pick your own, and you can change it any time under **PROFILE**. Modules show as "By *username*".
+- **Co-authors.** Credit other creators on a module by pasting their account ID; each person copies their own ID from **PROFILE**. Nobody can browse or search other users' names, so the app never reveals who has an account.
+- **Ratings.** Ratings show as stars, and you can now remove your rating.
+- **Show in Script.** These choices are saved to your account, so they follow you across devices and no longer reset.
 
-**New element types**
-- **`list`** — a multi-state cycling element similar to `toggle` but designed for ordered item selection.
-- **`dropdown`** — a multi-state element similar to `toggle`, but clicking it expands an inline list of all states so one can be picked directly instead of cycling through them.
-- **`table`** — a retro database grid drawn with DOS box-drawing characters that prints line-by-line like a line printer, then becomes an interactive record browser: arrow-key row cursor, `Enter` to open a row's target, `1`–`9` / header clicks to sort, `/` for a live `QUERY>` filter, and paging. Works in classic screens and inside `filesystem` files. See *Data tables* below.
-- **`reportcomposer`** — a freeform text input that saves entries to localStorage and renders them as links on a target screen.
-- **`href`** — a link type that opens an external URL in a new tab instead of navigating within the terminal.
-- **`loop`** — a property on any object element that repeats it N times, avoiding repetition in the JSON.
-- **`onDone`** — a screen property that automatically advances to a target screen after the current one finishes rendering, with an optional delay.
-- **`speed`** — per-element control over the teletype animation speed.
-- **`fillWidth`** and **`animated`** — additional bitmap display options.
-- **`allowFreeInput`** and **`inputAction`** — prompt options for accepting arbitrary text rather than a fixed command list.
+**Feedback**
+- A **SUPPORT** menu groups Feedback, Donate, GitHub and (for admins) the Admin Panel.
+- **FEEDBACK** sends a bug report, feature request or general feedback. **MY FEEDBACK** shows each message's status and any reply. A badge appears when an admin replies.
+- Admins get an inbox to filter, update the status of, reply to and delete feedback.
 
-**Audio**
-- **Sound effects** — CRT power-on/off tones, ambient transformer hum, and randomized mechanical typing sounds play during terminal interaction. Autoplay is triggered on first user interaction to comply with browser policies.
-
-**Terminal interfaces**
-- **`filesystem` screen type** — a new screen `type` (alongside `screen` and `static`, and selectable in the Script Creator) that reproduces the SEEGSON data terminals from *Alien: Isolation*: a solid title bar around a framed CRT viewport, and a three-region **folders → sub-sections → content** layout that updates in place with no screen transitions (arrow keys and mouse both work). Set a screen's type to make it a file browser; no global toggle needed. `config.terminalType: "alien"` optionally wraps every screen in the same chrome. See the bundled **ALIEN TERMINAL (SEEGSON)** script for a full example. The system is pluggable, so additional interface skins can be added over time.
-
-**Themes & UI**
-- **Color themes** — cycle between four CRT color presets (Blue, Amber, Green, White) using the toolbar. Your choice is saved across sessions.
-- **Cloudflare Workers deployment** — `wrangler.toml` and `worker.js` are included for deploying to Cloudflare Pages/Workers via `npm run deploy:worker`.
+**Under the hood**
+- **Security hardening:**
+  - safer link and markdown handling against XSS and ReDoS
+  - CSP and HSTS headers
+  - tighter Supabase row-level security
+  - private profiles
+  - rate-limited feedback
+- **Performance and maintenance:** faster loading (code splitting, a lighter ambient-audio file, font loading fixes) and updated dependencies.
 
 ---
 
 ## Using Phosphor
 
-When you open the app you'll see a small toolbar fixed to the top of the screen with three controls:
+### The header
 
-- **`[SCRIPT:...▼]`** — click to open a dropdown listing the bundled scripts. Select one to load it, or choose `[ UPLOAD JSON ]` at the bottom of the dropdown to load a JSON file from your computer.
-- **`[THEME:...]`** — click to cycle through the four color themes.
-- **`[GITHUB]`** — links to this repository.
+| Control | What it does |
+|---|---|
+| **SCRIPT** | Switch between bundled scripts, your own scripts and modules you've subscribed to, or upload a `.json` file. |
+| **CREATOR** | Open the Script Creator to edit the active script or start a new one. |
+| **MODULES** | Your modules and subscriptions. Choose which ones appear in the SCRIPT dropdown (**Show in Script**). |
+| **LIBRARY** | Browse, search, rate and subscribe to published modules. |
+| **OPTIONS** | Sound, header visibility, print, reload, clear local data, reset, and color theme. |
+| **SUPPORT** | Feedback, donate, GitHub, and the Admin Panel for admins. |
+| **SIGN IN / PROFILE** | Google sign-in. PROFILE shows your username (editable) and account ID. |
 
-The terminal itself works the same as the original: click links to navigate between screens, use `Shift+Space` to skip the teletype animation on the current screen, `Ctrl+Shift+L` to bypass a login screen (it submits the login's first credential), and `Shift+H` to show/hide the header. Shortcuts are ignored while text is being entered, so they never interfere with typing in a prompt, login, or text field. The bundled **PHOSPHOR SAMPLE SCRIPT** has a **KEYBOARD SHORTCUTS** page listing all of them.
+On narrow screens these controls fold into a **MENU** button.
 
-### Writing your own script
+**Themes:** Blue, Amber, Green, White, Light, or a script-defined custom palette.
 
-Scripts are JSON files. See `src/data/sample.json` for a commented walkthrough of all supported element types (text, links, bitmaps, prompts, toggles, lists, dialogs, and more).
+### Keyboard shortcuts
 
-The top-level structure is:
+| Keys | Action |
+|---|---|
+| `Shift` + `Space` | Skip the typing animation on the current screen |
+| `Shift` + `H` | Show / hide the header |
+| `Ctrl` + `Shift` + `L` | Bypass a login (submits its first credential) |
+| `Shift` + click, or press-and-hold | The alternate action on a link, toggle or list, where the script defines one |
+
+Shortcuts are ignored while you're typing in a prompt, login or text field. File-system screens and data tables have their own arrow-key navigation; the sample script's **KEYBOARD SHORTCUTS** page lists everything.
+
+### Bundled scripts
+
+- **PHOSPHOR SAMPLE SCRIPT:** an interactive manual with a live example of every element and option. Start here.
+- **LANTERN-7 RIG TERMINAL:** an original sci-fi horror scenario built on the file-system screen. Log in as `MAINT` / `7731`, then dig through the files.
+- **YPSILON-14:** the original terminal from *The Haunting of Ypsilon 14*.
+
+---
+
+## Modules and the Library
+
+Sign in with Google to publish scripts as **modules**:
+
+- **Visibility.** `private` modules are yours only. `unlisted` modules open by direct link. `public` modules appear in the Library.
+- **Library.** Search, sort, subscribe and rate modules (1–5 stars; you can remove your rating). Switch between **Web View** and **Terminal View** under **OPTIONS**.
+- **Credits.** Modules show "By *username*" plus any co-authors. To add a co-author, open **MODULES > Manage > Edit Details** and paste their full account ID. Co-authors can remove themselves.
+- **Show in Script.** In the MODULES panel, decide which of your modules and subscriptions appear in the SCRIPT dropdown. The choice is saved to your account.
+
+---
+
+## Writing your own script
+
+Scripts are JSON. You can write them by hand or build them in the **Script Creator** (header > CREATOR), which shows every element type as a form and offers a live **PREVIEW** in the real renderer. The sample script (`src/data/sample.json`) is the best reference: every page explains a feature and demonstrates it.
 
 ```json
 {
-    "config": {
-        "name": "My Script",
-        "script": "optional-custom-script-id"
-    },
-    "screens": [ ... ],
-    "dialogs": [ ... ]
+    "config": { "name": "My Script", "author": "You", "theme": "amber" },
+    "screens": [
+        { "id": "start", "type": "screen", "content": [
+            "Hello, crew.",
+            { "type": "link", "text": "> OPEN LOG", "target": "log" }
+        ] },
+        { "id": "log", "type": "static", "content": ["Nothing to report."] }
+    ],
+    "dialogs": []
 }
 ```
 
-Each screen has an `id`, a `type` (`"screen"` or `"static"`), and a `content` array of elements. Links between screens use the target screen's `id`. Images can reference any public URL or a path relative to the deployment's `public/` folder.
+### Config
 
-#### Screen types and the *Alien: Isolation* file system
+| Key | Purpose |
+|---|---|
+| `name`, `author` | Shown in the header and the Library |
+| `theme` | `blue`, `amber`, `green`, `white`, `light` or `custom` |
+| `customTheme` | Colors used when `theme` is `custom` (`bgHex`, `fgHex`, `textHex`, `alertHex`, `noticeHex`, `emphasisHex`, `systemHex`, `hyperlinkHex`) |
+| `defaultTextSpeed` | Milliseconds per typed character for the whole script |
+| `terminalType` | `"alien"` wraps every screen in the file-system frame |
+| `alien.title` | Default title-bar text for that frame |
+| `script` | ID of an optional terminal script in `src/scripts/terminal/` (bundled scripts only) |
 
-Every screen has a `type` that decides how it is interpreted. Alongside the classic `"screen"` (teletype) and `"static"`, there is now **`"filesystem"`** — a screen that renders the SEEGSON three-region file browser from *Alien: Isolation*. Pick it from the **Type** dropdown in the Script Creator, or set it in JSON:
+### Screens
+
+Each screen has an `id`, a `type` and a `content` array. Optional keys:
+- `onDone: { "target", "delayMs" }` auto-advances when the screen finishes.
+- `defaultTextSpeed` sets the typing speed for this screen only.
+- `title` and `headerTitle` are used by file-system screens.
+
+| `type` | Behavior |
+|---|---|
+| `screen` | Elements type out one after another |
+| `static` | Everything appears at once |
+| `filesystem` | A three-region file browser: folders, then files, then the file's contents (see below) |
+
+### Elements
+
+A plain string is a line of text. Objects use `type`:
+
+| Type | Description |
+|---|---|
+| `text` | Text with optional `className`. Supports markdown: `#` headings, `**bold**`, `*italic*`, `__underline__`, `~~strike~~`, `[links](https://…)`, `-` bullets, `>` quotes, `---` rules; `\` escapes. |
+| `link` / `href` | Navigates to a screen, opens a dialog, runs an action, or opens an external URL |
+| `bitmap` | An image that resolves pixel by pixel. Options: `scale`, `fillWidth`, `animated`, `background`, `className` |
+| `prompt` | A command line with `commands`, or `allowFreeInput` + `inputAction` to accept any text |
+| `login` | Username/password with `credentials` (each with a `target` or an `action`) and `noMatchTarget` / `noMatchAction` |
+| `toggle` | Click to cycle between states |
+| `list` | Like `toggle`, for ordered choices |
+| `dropdown` | Expands to show every state so one can be picked directly |
+| `table` | Box-drawn data grid (see below) |
+| `reportcomposer` / `reportlist` | Players write entries that are saved locally and listed elsewhere |
+| `mainframegame` | The APHELION arena mini-game; finishing it plays a terminal-shutdown ending |
+
+Any element also accepts:
+- `className`
+- `align` (`left` / `center` / `right` / `justify`)
+- `speed`, a per-element typing speed
+- `loop`, to repeat the element N times
+- `scriptId`, a handle for terminal scripts
+
+**States.** Each state of a `toggle`, `list` or `dropdown` takes `text` and `active`, plus any of these optional keys:
+- `className`
+- `dialog`: show a dialog when switching to this state
+- `requireShift`: a plain click shows the dialog and only Shift+click switches
+- `target`: open a screen
+- `action`: `back`, `dialog` or `resetState`
+
+**Link targets.** A target is a screen id, or an array of entries:
+- `{ "type": "link", "target": "screen-id" }`
+- `{ "type": "dialog", "target": "dialog-id" }`
+- `{ "type": "href", "target": "https://…" }`
+- `{ "type": "action", "action": "back" | "dialog" | "resetState" }`
+
+Add `"shiftKey": true` to an entry to run it only on Shift+click.
+
+**Prompt commands.** Each command's `action` is `link`, `dialog`, `action`, `console` or `logEntry`.
+
+**Dialogs.** Entries in `dialogs[]` with `"type": "alert"` can contain text, images and prompts. `"showActions": true` with `"actions": [{ "label", "target"? }]` adds buttons.
+
+### File-system screens
+
+A `filesystem` screen is a self-contained file browser, inspired by the corporate data terminals in *Alien: Isolation*. It has a title bar (`headerTitle`, falling back to `config.name`) over a framed CRT viewport.
+
+- Its `link` elements become the **folders** down the left.
+- Each folder's target screen supplies the **files**: that screen's links, or the screen itself, labeled by its `title`.
+- The selected file's target supplies the **body**. The body renders like a normal screen, so text, markdown, images, tables and interactive elements all work.
+- Navigate with the arrow keys, `Enter`, `Home` / `End` and `Backspace`, or click.
+
+A link with a plain string target opens content. A link with an **array** target is a button that navigates away or runs an action:
 
 ```json
-{ "id": "main", "type": "filesystem", "headerTitle": "PERSONAL TERMINAL", "content": [ … ] }
+{ "type": "link", "text": "‹ LOG OUT", "target": [{ "type": "action", "action": "back" }] }
 ```
 
-A `filesystem` screen brings its own chrome: a solid title bar (from the screen's `headerTitle`, falling back to `config.name`) over a framed CRT viewport that fills the window with a uniform edge margin (the scanlines and vignette render over the title bar too). It respects whatever color theme is active. The rest of your screens (boot sequence, login, etc.) stay classic `"screen"`/`"static"` — the type is what flips a screen into the browser, so there's nothing hidden to toggle.
+Inside a file, a link or table row with a plain string target opens that screen in place. See `src/data/alien-terminal.json` (LANTERN-7) for a complete example.
 
-The `filesystem` screen is a self-contained terminal with **no screen transitions**:
-
-- its `link` elements become the **folder tabs** down the left;
-- the selected folder's **target screen** supplies the **sub-section list** shown top-right — those are the target's own `link` elements, or, if the target has no links, the target itself is treated as a single sub-section (its `title` becomes the label);
-- if the target screen *also* has non-link content (text, etc.) alongside its links, that content is surfaced as a leading **file named after the folder**, so nothing is hidden — this makes converting an old text+links screen into a file system painless;
-- links that point **back to the file-system screen itself** (the old `< BACK` buttons on converted screens) are dropped, so they don't clutter the file list;
-- the selected sub-section's target supplies the **content** shown in the body below. That content is rendered with the same element components as a classic screen, so it supports text **class names** (`alert`/`notice`/`system`/…), **markdown**, **images** (`bitmap`), and interactive elements — not just plain text.
-
-Give leaf/content screens a `title` to label them in the list. Navigate with the arrow keys (`↑/↓` move within the focused list; `←/→` move from the folder list into the sub-section list; `Enter` opens/activates; `Home`/`End` jump to the ends; `Backspace` returns focus from the sub-section list to the folder list), or just click any folder or sub-section.
-
-> To wrap **every** screen (including classic ones) in the same chrome, set `config.terminalType: "alien"` — then classic screens teletype inside the CRT frame too. The `"filesystem"` screen type does not require it. (`layout: "folders"` on a `"screen"` is still honored as a legacy alias for `"filesystem"`.)
-
-**Working buttons.** A folder or sub-section that should *do something* (navigate, run an action) rather than open content is written as a **button** — give its `link` the array `target` form used by classic links, and it will fire through `_handleLinkClick` when clicked or `Enter`ed. For example, a log-out/back control:
-
-```json
-{ "type": "link", "text": "‹ LOG OUT", "target": [ { "type": "action", "action": "back" } ] }
-```
-
-(A plain string `target` opens content; an array `target` is a button.) The same rule applies to links and table rows *inside* a file: a plain string target opens that screen in the body without leaving the file system (it selects the matching file if the screen is one of the listed files), while an array target such as `[{ "type": "link", "target": "x" }]` navigates away. Screens **without** `layout: "folders"` (boot screens, login prompts, etc.) render with the normal teletype flow inside the same chrome. See `src/data/alien-terminal.json` (**LANTERN-7 RIG TERMINAL**, an original sci-fi horror scenario: log in as `MAINT` / `7731`, then find the supervisor's password in the files) for a complete, playable example.
-
-#### Data tables
-
-A `table` element renders a box-drawn record grid. Columns are strings or `{ "key", "label", "align": "left" | "center" | "right", "width" }`; rows are arrays of cells, `{ "cells": [...], "target", "className" }` objects (a `target` is any link target, so a row can open a screen or run an action), or objects keyed by column key. A cell can be a plain value or `{ "text", "className" }` for per-cell color.
+### Data tables
 
 ```json
 {
   "type": "table",
   "title": "CREW MANIFEST",
-  "columns": [{ "label": "ID", "align": "right" }, "NAME", "STATUS"],
+  "columns": [{ "key": "id", "label": "ID", "align": "right" }, "NAME", "STATUS"],
   "rows": [
     ["001", "MORLEY, D.", "ACTIVE"],
-    { "cells": ["003", "VOSS, K.", "MISSING"], "target": "crew-voss", "className": "alert" }
+    { "cells": ["003", "VOSS, K.", { "text": "MISSING", "className": "alert" }], "target": "crew-voss" }
   ],
   "sortable": true,
   "filter": true,
@@ -122,49 +213,68 @@ A `table` element renders a box-drawn record grid. Columns are strings or `{ "ke
 }
 ```
 
-Options: `border` (`single` ┌─┐, `double` ╔═╗, `ascii` +-+, `none`), `sortable`, `filter` (adds the `QUERY>` line), `pageSize` (fixed-height paged window), `sort` (`{ "column": key | label | index, "direction": "asc" | "desc" }`), `footer` (record count; default on), `emptyText`, and `speed` (ms per printed line). The sample script's **DATA TABLES** section is a live demo.
+**Columns** are strings or `{ "key", "label", "align", "width" }`. **Rows** can be arrays, `{ "cells", "target", "className" }` objects, or objects keyed by column key. A row's `target` is any link target. A **cell** can be a value or `{ "text", "className" }`.
 
-In the Script Creator, add a **Data Table** element. **[GRID]** edits it like a spreadsheet: type in the cells, press Enter to move down (a new row is added at the end), use **[+ ROW]** / **[+ COLUMN]**, ◄ ► to move a column, the LEFT/CENTER/RIGHT button for alignment, and × to delete. Each row has an **OPENS SCREEN** box (makes the row a link) and a **COLOR** button. **[TEXT]** shows the same data as pipe-separated text (`a | b | c`, ending a row with `>> screen-id` to link it) for pasting in bulk.
+**Options:**
+- `border`: `single`, `double`, `ascii` or `none`
+- `sortable`
+- `filter`: adds a `QUERY>` search line
+- `pageSize`
+- `sort`: `{ "column", "direction" }`
+- `footer`
+- `emptyText`
+- `speed`: ms per printed line
 
-#### Class names
+**Controls:** `↑` / `↓` select a row, `Enter` opens it, `1`–`9` or a header click sorts, `/` searches, `←` / `→` page.
 
-`className` can hold several classes separated by spaces, e.g. `"alert small center"`. Colors (`alert`, `notice`, `emphasis`, `system`) are one per element; layout classes (`center`, `title`, `small`, `inline`, `script-hidden`) combine with anything. Images take one blend mode (`monochrome`, `screen`, `lighten`, `difference`, …) plus `footer` (space above) and `script-hidden`; use **Text Align** to center or right-align an image. On dark themes the darkening blend modes (`multiply`, `darken`, `color-burn`, and to a lesser degree `overlay` / `soft-light` / `saturation`) leave an image almost black, so give the image a `"background"`: a theme color (`fg`, `bg`, `alert`, `notice`, `emphasis`, `system`) or any CSS color, painted behind the image for the blend mode to mix with. `monochrome` + a background tints the image that color, and `difference` on `"#ffffff"` inverts it. `hue` and `color` take their brightness from the background, so on a solid plate they come out as a flat wash. Images in dialogs support the same classes and `background`. The sample script's **IMAGES + CLASS NAMES** section shows every combination. In the Script Creator each class is a chip: **+ ADD CLASS** adds one (a new color or blend mode replaces the old one) and the × on a chip removes it.
+**In the Script Creator,** **[GRID]** edits a table like a spreadsheet and **[TEXT]** accepts pipe-separated rows (`a | b | c >> screen-id`) for pasting in bulk.
 
-To load your script without a build step, upload the JSON using the toolbar's `[ UPLOAD JSON ]` option. Any images or other assets you reference should be hosted externally (e.g. on Imgur, a CDN, or your own server) so they resolve correctly in the browser.
+### Class names and images
 
-To bundle your script into the app permanently (so it appears in the dropdown alongside the built-in ones), add your JSON to `src/data/`, import it in `src/data/index.ts`, and add an entry to `BUNDLED_SCRIPTS`.
+`className` holds space-separated classes:
+- **Colors** (`alert`, `notice`, `emphasis`, `system`): one per element.
+- **Layout** (`center`, `title`, `small`, `inline`, `script-hidden`): combine freely.
+- **Images** take one blend mode (`monochrome`, `screen`, `lighten`, `multiply`, `difference`, …) plus `footer` and `script-hidden`.
+
+The darkening blend modes turn images almost black on dark themes. Give the image a `background`, either a theme color (`fg`, `bg`, `alert`, …) or any CSS color, so the blend has something to mix with. The sample script's **IMAGES + CLASS NAMES** section shows every combination.
+
+### Loading your script
+
+- **Without building:** use **SCRIPT > UPLOAD JSON**, or save the script as a module. Host images somewhere public (a CDN, Imgur or your own server).
+- **Bundled:** add the JSON to `src/data/`, import it in `src/data/index.ts`, and add it to `BUNDLED_SCRIPTS`.
+- **Terminal scripts:** optional TypeScript modules in `src/scripts/terminal/`, attached through `config.script`. They can react to screens, prompts and toggles, and change any element that has a `scriptId`.
 
 ---
 
-## Getting Started
+## Running it yourself
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
-
-To install, open a terminal in the repo directory and run:
+Requires Node 20.19+ (or 22.12+).
 
 ```
 npm install
+npm start          # dev server at http://localhost:3000
+npm run build      # production build in build/ (served from /phosphor/)
+npm run preview    # serve the production build locally
 ```
 
-## Available Scripts
+The terminal, Script Creator and JSON upload work with no backend. Accounts, modules, the Library and feedback need **Supabase**:
 
-### `npm start`
+1. Create a Supabase project and enable the **Google** auth provider.
+2. Run [`supabase/schema.sql`](supabase/schema.sql) in the SQL editor. It's idempotent, so re-run it after pulling updates.
+3. Create a `.env` file:
+   ```
+   VITE_SUPABASE_URL=https://your-project.supabase.co
+   VITE_SUPABASE_PUBLISHABLE_KEY=your-publishable-key
+   ```
+4. To make yourself an admin (feedback inbox), sign in once, then run:
+   ```sql
+   update public.profiles set role = 'admin' where id = '<your-user-id>';
+   ```
 
-Runs the app in development mode with Vite. Open the local URL printed in the terminal (typically [http://localhost:3000](http://localhost:3000)). The page reloads on edits.
+**Deploying:** `npm run deploy:worker` builds the app and deploys it as a Cloudflare Worker (`wrangler.toml`, `worker.js`), with security headers included.
 
-### `npm run build`
+---
 
-Builds the app for production to the `build/` folder.
+## License
 
-### `npm test`
-
-No automated tests are currently configured.
-
-### `npm run preview`
-
-Serves the production build locally for quick verification.
-
-## Learn More
-
-- [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started)
-- [React documentation](https://reactjs.org/)
+MIT. See [LICENSE](LICENSE). Original project © Breon Halling.

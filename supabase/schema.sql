@@ -1072,4 +1072,33 @@ $$;
 revoke execute on function public.find_account_by_id(uuid) from public, anon;
 grant execute on function public.find_account_by_id(uuid) to authenticated;
 
+-- ---------------------------------------------------------------------------
+-- Per-account preferences, private to the account. hidden_script_ids = the
+-- modules / bundled scripts unticked under "Show in Script" (Modules panel),
+-- so the choice follows the person to any browser or device.
+-- ---------------------------------------------------------------------------
+create table if not exists public.user_preferences (
+    user_id uuid primary key default auth.uid() references auth.users (id) on delete cascade,
+    hidden_script_ids text[] not null default '{}',
+    created_at timestamptz not null default now(),
+    updated_at timestamptz not null default now(),
+    constraint user_preferences_hidden_scripts_size check (cardinality(hidden_script_ids) <= 1000)
+);
+
+drop trigger if exists user_preferences_set_updated_at on public.user_preferences;
+create trigger user_preferences_set_updated_at
+    before update on public.user_preferences
+    for each row execute procedure public.set_updated_at();
+
+alter table public.user_preferences enable row level security;
+revoke all on table public.user_preferences from anon;
+
+drop policy if exists "users manage their own preferences" on public.user_preferences;
+create policy "users manage their own preferences"
+    on public.user_preferences
+    for all
+    to authenticated
+    using (user_id = auth.uid())
+    with check (user_id = auth.uid());
+
 commit;
