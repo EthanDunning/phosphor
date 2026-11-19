@@ -440,11 +440,10 @@ alter table public.module_ratings enable row level security;
 
 alter table public.module_subscriptions enable row level security;
 
+-- Profiles used to be readable by everyone, which let anyone list every
+-- account. Reads are now limited; the policy is created with the usernames
+-- section near the end of this file (it needs functions defined there).
 drop policy if exists "profiles are publicly readable" on public.profiles;
-create policy "profiles are publicly readable"
-    on public.profiles
-    for select
-    using (true);
 
 drop policy if exists "users can insert their own profile" on public.profiles;
 create policy "users can insert their own profile"
@@ -821,5 +820,252 @@ create policy "admins can delete feedback"
               and p.role = 'admin'::public.profile_role
         )
     );
+
+-- ---------------------------------------------------------------------------
+-- Usernames: the public name shown as "By ..." in the Library. Unique
+-- (ignoring case), editable in the account dropdown. New and existing
+-- accounts get a generated one (e.g. "AmberRelay4821"); it is never derived
+-- from the email, because profiles are publicly readable.
+-- ---------------------------------------------------------------------------
+alter table public.profiles add column if not exists username text;
+
+create or replace function public.generate_username()
+returns text
+language plpgsql
+volatile
+set search_path = public
+as $$
+declare
+    adjectives text[] := array[
+        'amber', 'quiet', 'static', 'hollow', 'lunar', 'rusty', 'neon', 'silent',
+        'distant', 'cold', 'feral', 'dim', 'brass', 'vacant', 'polar', 'orbital',
+        'faded', 'drifting', 'iron', 'pale', 'crimson', 'cobalt', 'stray', 'deep'
+    ];
+    nouns text[] := array[
+        'relay', 'signal', 'beacon', 'vector', 'station', 'comet', 'drone', 'cipher',
+        'module', 'array', 'probe', 'outpost', 'reactor', 'hull', 'console', 'airlock',
+        'sensor', 'orbit', 'vault', 'tracer', 'pulse', 'lantern', 'harbor', 'echo'
+    ];
+    candidate text;
+    attempt integer := 0;
+begin
+    loop
+        candidate := initcap(adjectives[1 + floor(random() * array_length(adjectives, 1))::int])
+            || initcap(nouns[1 + floor(random() * array_length(nouns, 1))::int])
+            || (1000 + floor(random() * 9000))::int::text;
+        exit when not exists (select 1 from public.profiles p where lower(p.username) = lower(candidate));
+        attempt := attempt + 1;
+        if attempt >= 25 then
+            candidate := candidate || substr(md5(random()::text), 1, 4);
+            exit;
+        end if;
+    end loop;
+    return candidate;
+end;
+$$;
+
+-- everyone gets one, and new profiles get one automatically
+update public.profiles set username = public.generate_username() where username is null;
+alter table public.profiles alter column username set default public.generate_username();
+alter table public.profiles alter column username set not null;
+
+alter table public.profiles drop constraint if exists profiles_username_format;
+alter table public.profiles
+    add constraint profiles_username_format check (
+        username = btrim(username)
+        and char_length(username) between 2 and 32
+        and username ~ '^@?[A-Za-z0-9][A-Za-z0-9 _.-]*$'
+        and username !~ '\s{2,}'
+        and lower(ltrim(username, '@')) not in ('admin', 'administrator', 'phosphor', 'support', 'moderator', 'system', 'staff')
+    );
+
+create unique index if not exists profiles_username_lower_key on public.profiles (lower(username));
+
+-- ---------------------------------------------------------------------------
+-- Module co-authors: people the owner credits on a module ("By A & B"). The
+-- owner (or an admin) adds and removes them; anyone tagged can remove
+-- themselves. Up to 8 per module, and never the owner (who is always first).
+-- ---------------------------------------------------------------------------
+create table if not exists public.module_authors (
+    module_id uuid not null references public.modules (id) on delete cascade,
+    user_id uuid not null references public.profiles (id) on delete cascade,
+    position smallint not null default 0,
+    created_at timestamptz not null default now(),
+    primary key (module_id, user_id)
+);
+
+create index if not exists module_authors_user_id_idx on public.module_authors (user_id);
+
+-- visible module = public/unlisted, or yours, or you're an admin
+create or replace function public.can_view_module(target_module_id uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+    select exists (
+        select 1
+        from public.modules m
+        where m.id = target_module_id
+          and (
+              m.visibility in ('public', 'unlisted')
+              or m.owner_id = auth.uid()
+              or exists (select 1 from public.profiles p where p.id = auth.uid() and p.role = 'admin'::public.profile_role)
+          )
+    );
+$$;
+
+create or replace function public.can_manage_module(target_module_id uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+    select exists (
+        select 1
+        from public.modules m
+        where m.id = target_module_id
+          and (
+              m.owner_id = auth.uid()
+              or exists (select 1 from public.profiles p where p.id = auth.uid() and p.role = 'admin'::public.profile_role)
+          )
+    );
+$$;
+
+revoke execute on function public.can_view_module(uuid) from public;
+grant execute on function public.can_view_module(uuid) to anon, authenticated;
+revoke execute on function public.can_manage_module(uuid) from public;
+grant execute on function public.can_manage_module(uuid) to authenticated;
+
+create or replace function public.check_module_author()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+    if exists (select 1 from public.modules m where m.id = new.module_id and m.owner_id = new.user_id) then
+        raise exception 'The owner is already credited on this module.' using errcode = 'P0001';
+    end if;
+    if tg_op = 'INSERT'
+       and (select count(*) from public.module_authors a where a.module_id = new.module_id) >= 8 then
+        raise exception 'A module can credit up to 8 co-authors.' using errcode = 'P0001';
+    end if;
+    return new;
+end;
+$$;
+
+drop trigger if exists module_authors_check on public.module_authors;
+create trigger module_authors_check
+    before insert or update on public.module_authors
+    for each row execute procedure public.check_module_author();
+
+alter table public.module_authors enable row level security;
+
+drop policy if exists "module credits are readable with the module" on public.module_authors;
+create policy "module credits are readable with the module"
+    on public.module_authors
+    for select
+    to anon, authenticated
+    using (public.can_view_module(module_id) or user_id = auth.uid());
+
+drop policy if exists "owners and admins can credit co-authors" on public.module_authors;
+create policy "owners and admins can credit co-authors"
+    on public.module_authors
+    for insert
+    to authenticated
+    with check (public.can_manage_module(module_id));
+
+drop policy if exists "owners and admins can reorder co-authors" on public.module_authors;
+create policy "owners and admins can reorder co-authors"
+    on public.module_authors
+    for update
+    to authenticated
+    using (public.can_manage_module(module_id))
+    with check (public.can_manage_module(module_id));
+
+drop policy if exists "owners, admins and the co-author can remove a credit" on public.module_authors;
+create policy "owners, admins and the co-author can remove a credit"
+    on public.module_authors
+    for delete
+    to authenticated
+    using (public.can_manage_module(module_id) or user_id = auth.uid());
+
+-- ---------------------------------------------------------------------------
+-- Who can read profiles. Not everyone any more: that exposed every account
+-- (and display names, which can be real names). A profile is readable by its
+-- owner, by admins, and - only so "By ..." credits can show usernames - when
+-- the person owns or is credited on a public or unlisted module. Tagging a
+-- co-author needs their full account id (see find_account_by_id below).
+-- ---------------------------------------------------------------------------
+create or replace function public.is_admin()
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+    select exists (
+        select 1 from public.profiles p
+        where p.id = auth.uid() and p.role = 'admin'::public.profile_role
+    );
+$$;
+
+create or replace function public.is_credited_author(target_profile_id uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+    select exists (
+        select 1 from public.modules m
+        where m.owner_id = target_profile_id
+          and m.visibility in ('public', 'unlisted')
+    ) or exists (
+        select 1
+        from public.module_authors a
+        join public.modules m on m.id = a.module_id
+        where a.user_id = target_profile_id
+          and m.visibility in ('public', 'unlisted')
+    );
+$$;
+
+revoke execute on function public.is_admin() from public;
+grant execute on function public.is_admin() to anon, authenticated;
+revoke execute on function public.is_credited_author(uuid) from public;
+grant execute on function public.is_credited_author(uuid) to anon, authenticated;
+
+drop policy if exists "profiles are readable by their owner, admins, or when credited" on public.profiles;
+create policy "profiles are readable by their owner, admins, or when credited"
+    on public.profiles
+    for select
+    to anon, authenticated
+    using (
+        id = auth.uid()
+        or public.is_admin()
+        or public.is_credited_author(id)
+    );
+
+-- Tagging a co-author: look someone up by their FULL account id (shown in
+-- their own account menu). Exact match only, signed-in callers only, and it
+-- returns just the id + username - nothing to browse or search.
+create or replace function public.find_account_by_id(account_id uuid)
+returns table (id uuid, username text)
+language sql
+stable
+security definer
+set search_path = public
+as $$
+    select p.id, p.username
+    from public.profiles p
+    where p.id = account_id
+      and auth.uid() is not null;
+$$;
+
+revoke execute on function public.find_account_by_id(uuid) from public, anon;
+grant execute on function public.find_account_by_id(uuid) to authenticated;
 
 commit;

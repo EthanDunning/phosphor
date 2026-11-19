@@ -1,5 +1,7 @@
 import React, { FC, useEffect, useMemo, useState } from "react";
 import CreatorSelect, { CreatorSelectOption } from "../CreatorSelect";
+import AuthorPicker from "../AuthorPicker";
+import { AuthorRef, fetchModuleCoAuthors } from "../../lib/authors";
 import { isModuleLinkShareable, MAX_MODULE_SUMMARY_LENGTH, MAX_MODULE_TITLE_LENGTH } from "../../lib/modules";
 import type { ModuleRecord, ModuleVisibility } from "../../lib/modules";
 import "./style.scss";
@@ -33,6 +35,7 @@ interface ModulesPanelProps {
         title: string;
         summary: string;
         visibility: ModuleVisibility;
+        coAuthors: AuthorRef[];
     }) => Promise<boolean> | void;
     onCopyShareLink: (module: ModuleRecord) => void;
     onUpdateModuleDetails: (module: ModuleRecord, payload: {
@@ -95,6 +98,7 @@ const ModulesPanel: FC<ModulesPanelProps> = ({
     const [title, setTitle] = useState<string>("");
     const [summary, setSummary] = useState<string>("");
     const [visibility, setVisibility] = useState<ModuleVisibility>("private");
+    const [coAuthors, setCoAuthors] = useState<AuthorRef[]>([]);
     const [composerOpen, setComposerOpen] = useState<boolean>(false);
     const [manageOpenModuleId, setManageOpenModuleId] = useState<string | null>(null);
     const [editingModuleId, setEditingModuleId] = useState<string | null>(null);
@@ -169,6 +173,18 @@ const ModulesPanel: FC<ModulesPanelProps> = ({
             setComposerOpen(true);
         }
     }, [activeModuleIsOwned, open]);
+
+    useEffect(() => {
+        if (!open || !activeModuleIsOwned || !activeModule) {
+            setCoAuthors([]);
+            return;
+        }
+        let cancelled = false;
+        fetchModuleCoAuthors(activeModule.id)
+            .then((authors) => { if (!cancelled) setCoAuthors(authors); })
+            .catch(() => { if (!cancelled) setCoAuthors([]); });
+        return () => { cancelled = true; };
+    }, [open, activeModuleIsOwned, activeModule?.id]);
 
     useEffect(() => {
         if (!manageOpenModuleId) {
@@ -435,6 +451,19 @@ const ModulesPanel: FC<ModulesPanelProps> = ({
                                     />
                                 </label>
 
+                                <div className="modules-panel__field">
+                                    <span>Co-authors</span>
+                                    <AuthorPicker
+                                        value={coAuthors}
+                                        onChange={setCoAuthors}
+                                        excludeIds={sessionUserId ? [sessionUserId] : []}
+                                        disabled={!sessionUserId || busy || !supabaseReady}
+                                    />
+                                    <small className="modules-panel__muted">
+                                        Credit other creators by their account ID (they can copy it from their account menu). You're always credited first.
+                                    </small>
+                                </div>
+
                                 <div className="modules-panel__actions">
                                     <button
                                         className="modules-panel__button"
@@ -443,6 +472,7 @@ const ModulesPanel: FC<ModulesPanelProps> = ({
                                             title: title.trim(),
                                             summary: summary.trim(),
                                             visibility,
+                                            coAuthors,
                                         })}
                                     >
                                         {activeModuleIsOwned ? "Save Changes" : "Create Module"}

@@ -7,6 +7,8 @@ import "./style.scss";
 import Phosphor from "../Phosphor";
 import ModulesPanel from "../ModulesPanel";
 import FeedbackDialog from "../FeedbackDialog";
+import UsernameEditor from "../UsernameEditor";
+import { AuthorRef, setModuleCoAuthors } from "../../lib/authors";
 import { FeedbackKind, fetchMyFeedback, getUnreadResponseIds, submitFeedback } from "../../lib/feedback";
 
 // The Script Creator is large and most visitors never open it: load its code
@@ -2469,6 +2471,7 @@ class App extends Component<any, AppState> {
         title: string;
         summary: string;
         visibility: ModuleVisibility;
+        coAuthors?: AuthorRef[];
     }): Promise<boolean> {
         const userId = this._getSessionUserId();
         if (!userId) {
@@ -2495,7 +2498,15 @@ class App extends Component<any, AppState> {
                 scriptJson: cleanedScriptJson,
             });
 
-            this._applySavedModuleState(savedModule, cleanedScriptJson, ownedActiveModule ? "Module updated." : "Module created.");
+            let notice = ownedActiveModule ? "Module updated." : "Module created.";
+            if (payload.coAuthors) {
+                try {
+                    await setModuleCoAuthors(savedModule.id, payload.coAuthors);
+                } catch (creditError: any) {
+                    notice += ` Co-authors weren't saved: ${creditError?.message || "unknown error"}`;
+                }
+            }
+            this._applySavedModuleState(savedModule, cleanedScriptJson, notice);
             return true;
         } catch (error: any) {
             const errorMessage = error?.message || "Could not save the module.";
@@ -3358,6 +3369,16 @@ class App extends Component<any, AppState> {
                                             <span className="phosphor-header__profile-key">[EMAIL]</span>
                                             <span className="phosphor-header__profile-value">{sessionEmail}</span>
                                         </div>
+                                        {!!sessionUserId && (
+                                            <UsernameEditor
+                                                userId={sessionUserId}
+                                                label="[USERNAME]"
+                                                idLabel="[ACCOUNT ID]"
+                                                rowClassName="phosphor-header__profile-row"
+                                                keyClassName="phosphor-header__profile-key"
+                                                valueClassName="phosphor-header__profile-value"
+                                            />
+                                        )}
                                         <div className="phosphor-header__profile-row">
                                             <span className="phosphor-header__profile-key">[MODULES CREATED]</span>
                                             <span className="phosphor-header__profile-value">{myModules.length}</span>
@@ -3766,6 +3787,16 @@ class App extends Component<any, AppState> {
                                                 <span className="phosphor-header__profile-key">[EMAIL]</span>
                                                 <span className="phosphor-header__profile-value">{sessionEmail}</span>
                                             </div>
+                                            {!!sessionUserId && (
+                                                <UsernameEditor
+                                                    userId={sessionUserId}
+                                                    label="[USERNAME]"
+                                                    idLabel="[ACCOUNT ID]"
+                                                    rowClassName="phosphor-header__profile-row"
+                                                    keyClassName="phosphor-header__profile-key"
+                                                    valueClassName="phosphor-header__profile-value"
+                                                />
+                                            )}
                                             <div className="phosphor-header__profile-row">
                                                 <span className="phosphor-header__profile-key">[MODULES CREATED]</span>
                                                 <span className="phosphor-header__profile-value">{myModules.length}</span>

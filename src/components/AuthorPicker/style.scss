@@ -1,0 +1,127 @@
+// Used in the Modules panel (terminal) and the Library (Terminal + Web View);
+// colors and fonts come from the host.
+.author-picker {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3em;
+
+    &__chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.35em;
+    }
+
+    &__chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35em;
+        padding: 0.05em 0.2em 0.05em 0.45em;
+        border: 1px solid currentColor;
+        line-height: 1.3;
+    }
+
+    &__remove {
+        border: none;
+        background: none;
+        color: inherit;
+        font: inherit;
+        line-height: 1;
+        padding: 0 0.2em;
+        cursor: pointer;
+        opacity: 0.7;
+
+        &:hover:not(:disabled) {
+            opacity: 1;
+        }
+    }
+
+    &__row {
+        display: flex;
+        gap: 0.35em;
+    }
+
+    &__input {
+        box-sizing: border-box;
+        flex: 1 1 auto;
+        min-width: 0;
+    }
+
+    &__add {
+        flex: 0 0 auto;
+        border: 1px solid currentColor;
+        background: none;
+        color: inherit;
+        font: inherit;
+        padding: 0 0.5em;
+        cursor: pointer;
+
+        &:hover:not(:disabled) {
+            background: var(--browser-selected-bg, var(--modules-selected-bg, currentColor));
+            color: var(--browser-selected-fg, var(--modules-selected-fg, var(--bg)));
+        }
+
+        &:disabled {
+            opacity: 0.4;
+            cursor: default;
+        }
+    }
+
+    &__error {
+        color: rgb(255, 110, 90);
+        line-height: 1.3;
+    }
+}
+
+// Library Web View polish
+.modules-browser--web-view .author-picker {
+    gap: 8px;
+
+    &__chips {
+        gap: 6px;
+    }
+
+    &__chip {
+        padding: 3px 4px 3px 10px;
+        border: none;
+        border-radius: 999px;
+        background: var(--web-accent-soft);
+        color: var(--web-accent-strong);
+        font-size: 13.5px;
+        font-weight: 600;
+    }
+
+    &__remove {
+        width: 20px;
+        height: 20px;
+        border-radius: 999px;
+        font-size: 15px;
+
+        &:hover:not(:disabled) {
+            background: rgba(47, 111, 219, 0.15);
+        }
+    }
+
+    &__row {
+        gap: 8px;
+    }
+
+    &__add {
+        border: 1px solid var(--browser-border);
+        border-radius: var(--web-radius-sm);
+        background: #ffffff;
+        padding: 8px 14px;
+        font-size: 14px;
+        font-weight: 500;
+        color: #344054;
+
+        &:hover:not(:disabled) {
+            background: var(--web-hover);
+            color: var(--browser-fg);
+        }
+    }
+
+    &__error {
+        font-size: 13px;
+        color: #b42318;
+    }
+}

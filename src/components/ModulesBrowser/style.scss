@@ -752,6 +752,17 @@ $browser-normal-font-stack: "Trebuchet MS", Verdana, Geneva, sans-serif;
         gap: 0.08rem;
     }
 
+    // shown to someone tagged as a co-author on the open module
+    &__coauthor-note {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 0.1rem 0.4rem;
+        margin-top: 0.12rem;
+        font-size: calc(#{$browser-meta-size} * var(--browser-size-scale));
+        color: var(--browser-muted-fg);
+    }
+
     // take back your rating
     &__rating-remove {
         border: 1px solid transparent;

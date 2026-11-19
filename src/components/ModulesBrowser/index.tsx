@@ -8,6 +8,16 @@ import powerOnSfx from "../../assets/incr-ss-ark/sound effects/poweron.mp3";
 import type { Session } from "@supabase/supabase-js";
 import { createPortal } from "react-dom";
 import CreatorSelect, { CreatorSelectOption } from "../CreatorSelect";
+import AuthorPicker from "../AuthorPicker";
+import UsernameEditor from "../UsernameEditor";
+import {
+    AuthorRef,
+    fetchModuleCoAuthors,
+    fetchModuleCredits,
+    formatCredits,
+    removeMyselfAsCoAuthor,
+    setModuleCoAuthors,
+} from "../../lib/authors";
 import {
     AdminLibraryVisibilityFilter,
     deleteModule,
@@ -336,6 +346,10 @@ const ModulesBrowser: FC = () => {
     const [editingModuleId, setEditingModuleId] = useState<string | null>(null);
     const [editTitle, setEditTitle] = useState<string>("");
     const [editSummary, setEditSummary] = useState<string>("");
+    const [editCoAuthors, setEditCoAuthors] = useState<AuthorRef[]>([]);
+    // module id -> [owner, ...co-authors] usernames ("By ..."); empty until loaded
+    const [credits, setCredits] = useState<Record<string, AuthorRef[]>>({});
+    const [creditsVersion, setCreditsVersion] = useState(0);
 
     const soundEnabledRef = useRef(soundEnabled);
     useEffect(() => { soundEnabledRef.current = soundEnabled; }, [soundEnabled]);
@@ -480,6 +494,40 @@ const ModulesBrowser: FC = () => {
 
         return modules.find((module) => module.id === selectedModuleId) || modules[0];
     }, [modules, selectedModuleId]);
+    useEffect(() => {
+        if (!modules.length) {
+            return;
+        }
+        let cancelled = false;
+        const chunks: ModuleRecord[][] = [];
+        for (let index = 0; index < modules.length; index += 80) {
+            chunks.push(modules.slice(index, index + 80));
+        }
+        Promise.all(chunks.map((chunk) => fetchModuleCredits(chunk)))
+            .then((results) => {
+                if (cancelled) {
+                    return;
+                }
+                const merged: Record<string, AuthorRef[]> = {};
+                results.forEach((result) => {
+                    if (result) {
+                        Object.assign(merged, result);
+                    }
+                });
+                setCredits((prev) => ({ ...prev, ...merged }));
+            })
+            .catch((): void => undefined); // fall back to the script's own "author"
+        return () => {
+            cancelled = true;
+        };
+    }, [modules, creditsVersion]);
+
+    // "By" line: account usernames when available, else the script's "author"
+    const getCreditLabel = (module: ModuleRecord): string => {
+        const list = credits[module.id];
+        return list && list.length ? formatCredits(list) : getModuleAuthor(module);
+    };
+
     const browserClassName = useMemo(() => {
         return [
             "modules-browser",
@@ -1308,6 +1356,24 @@ const ModulesBrowser: FC = () => {
         }
     };
 
+    const handleRemoveMyCredit = async (module: ModuleRecord): Promise<void> => {
+        if (!sessionUserId) {
+            return;
+        }
+        setActionModuleId(module.id);
+        setErrorMessage(null);
+        setNoticeMessage(null);
+        try {
+            await removeMyselfAsCoAuthor(module.id, sessionUserId);
+            setCredits((prev) => ({ ...prev, [module.id]: (prev[module.id] || []).filter((entry) => entry.id !== sessionUserId) }));
+            setNoticeMessage(`Removed you from the authors of "${module.title}".`);
+        } catch (error: any) {
+            setErrorMessage(error?.message || "Could not remove your credit.");
+        } finally {
+            setActionModuleId(null);
+        }
+    };
+
     const handleCopyPhosphorLink = async (module: ModuleRecord): Promise<void> => {
         setShareMenuOpen(false);
         const shareUrl = getTerminalAppUrl(module.id);
@@ -1352,6 +1418,10 @@ const ModulesBrowser: FC = () => {
         setEditTitle(module.title);
         setEditSummary(module.summary || "");
         setEditingModuleId(module.id);
+        setEditCoAuthors([]);
+        fetchModuleCoAuthors(module.id)
+            .then((authors) => setEditCoAuthors(authors))
+            .catch(() => setEditCoAuthors([]));
     };
 
     const handleCancelEdit = (): void => {
@@ -1383,6 +1453,8 @@ const ModulesBrowser: FC = () => {
                 summary: editSummary.trim(),
                 visibility: module.visibility,
             });
+            await setModuleCoAuthors(module.id, editCoAuthors);
+            setCreditsVersion((version) => version + 1);
             const personalState = await loadPersonalState(sessionUserId);
             await refreshCatalog(sessionUserId, personalState.subscribedIds, personalState.ownModules, personalState.role);
             setSelectedModuleId(updatedModule.id);
@@ -1614,6 +1686,18 @@ const ModulesBrowser: FC = () => {
                 <span className="modules-browser__profile-key">{tag("EMAIL")}</span>
                 <span className="modules-browser__profile-value">{sessionEmail}</span>
             </div>
+            {!!sessionUserId && (
+                <UsernameEditor
+                    userId={sessionUserId}
+                    label={tag("USERNAME")}
+                    idLabel={tag("ACCOUNT ID")}
+                    rowClassName="modules-browser__profile-row"
+                    keyClassName="modules-browser__profile-key"
+                    valueClassName="modules-browser__profile-value"
+                    plainLabels={isWebView}
+                    onChanged={() => setCreditsVersion((version) => version + 1)}
+                />
+            )}
             <div className="modules-browser__profile-row">
                 <span className="modules-browser__profile-key">{tag("MODULES CREATED")}</span>
                 <span className="modules-browser__profile-value">{createdModuleCount}</span>
@@ -1986,7 +2070,7 @@ const ModulesBrowser: FC = () => {
                                     const visibilityFlag = module.visibility === "private"
                                         ? "Private"
                                         : (module.visibility === "unlisted" ? "Unlisted" : null);
-                                    const author = getModuleAuthor(module);
+                                    const author = getCreditLabel(module);
                                     const ratingNumeric = getModuleRatingNumeric(module.rating_average);
                                     const ratingTitle = getModuleRatingTitle(module.rating_average);
 
@@ -2078,7 +2162,10 @@ const ModulesBrowser: FC = () => {
                             const canManage = isOwnModule || isAdmin;
                             const isBusy = actionModuleId === selectedModule.id;
                             const isEditing = editingModuleId === selectedModule.id;
-                            const author = getModuleAuthor(selectedModule);
+                            const author = getCreditLabel(selectedModule);
+                            const isCoAuthor = !!sessionUserId
+                                && selectedModule.owner_id !== sessionUserId
+                                && (credits[selectedModule.id] || []).some((entry) => entry.id === sessionUserId);
                             const ratingNumeric = getModuleRatingNumeric(selectedModule.rating_average);
                             const ratingTitle = getModuleRatingTitle(selectedModule.rating_average);
 
@@ -2110,6 +2197,19 @@ const ModulesBrowser: FC = () => {
                                                 <span>{selectedModule.subscription_count} subscribers</span>
                                                 <span>Published {formatTimestamp(selectedModule.published_at || selectedModule.updated_at)}</span>
                                             </div>
+                                            {isCoAuthor && (
+                                                <div className="modules-browser__coauthor-note">
+                                                    <span>You're credited as a co-author.</span>
+                                                    <button
+                                                        type="button"
+                                                        className="modules-browser__rating-remove"
+                                                        disabled={isBusy}
+                                                        onClick={() => void handleRemoveMyCredit(selectedModule)}
+                                                    >
+                                                        {isWebView ? "Remove me" : "[REMOVE ME]"}
+                                                    </button>
+                                                </div>
+                                            )}
                                         </div>
 
                                         <div className="modules-browser__detail-badges">
@@ -2197,6 +2297,20 @@ const ModulesBrowser: FC = () => {
                                                         maxLength={2000}
                                                     />
                                                 </label>
+
+                                                <div className="modules-browser__field">
+                                                    <span>Co-authors</span>
+                                                    <AuthorPicker
+                                                        value={editCoAuthors}
+                                                        onChange={setEditCoAuthors}
+                                                        excludeIds={[selectedModule.owner_id]}
+                                                        plainLabels={isWebView}
+                                                        disabled={isBusy}
+                                                    />
+                                                    <small className="modules-browser__hint">
+                                                        Ask co-authors for their account ID (in their account menu). The uploader is always credited first; tagged people can remove themselves.
+                                                    </small>
+                                                </div>
                                             </div>
 
                                             <div className="modules-browser__edit-actions">
