@@ -14,7 +14,9 @@ export const getTerminalScript = (scriptId?: string): TerminalScript | null => {
         return null;
     }
 
-    return TERMINAL_SCRIPTS[scriptId] || null;
+    return Object.prototype.hasOwnProperty.call(TERMINAL_SCRIPTS, scriptId)
+        ? TERMINAL_SCRIPTS[scriptId]
+        : null;
 };
 
 export * from "./types";

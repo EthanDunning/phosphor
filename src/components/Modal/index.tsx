@@ -1,6 +1,7 @@
 import React, { FC, useEffect, useCallback } from "react";
 import { renderMarkdown } from "../../utils/markdown";
 import Prompt from "../Prompt";
+import { getImageWrapperProps } from "../Bitmap";
 
 import "./style.scss";
 
@@ -10,12 +11,13 @@ interface ModalTextEntry {
 }
 
 interface ModalBitmapEntry {
-    type: "bitmap";
+    type: "bitmap" | "image";
     src: string;
     alt?: string;
     className?: string;
     fillWidth?: boolean;
     scale?: number;
+    background?: string;
 }
 
 interface ModalPromptEntry {
@@ -85,7 +87,7 @@ const Modal: FC<ModalProps> = (props) => {
                     );
                 }
 
-                if ((element as ModalBitmapEntry).type === "bitmap" && (element as ModalBitmapEntry).src) {
+                if (((element as any).type === "bitmap" || (element as any).type === "image") && (element as ModalBitmapEntry).src) {
                     const bitmap = element as ModalBitmapEntry;
                     const style: React.CSSProperties = {};
                     if (bitmap.fillWidth) {
@@ -94,14 +96,17 @@ const Modal: FC<ModalProps> = (props) => {
                         style.width = `${Math.max(1, Math.round(bitmap.scale * 100))}%`;
                     }
 
+                    // same wrapper as screen images, so class names (blend modes,
+                    // footer, alignment) and "background" work in dialogs too
+                    const wrapper = getImageWrapperProps(bitmap.className, bitmap.background, bitmap.fillWidth);
                     return (
-                        <img
-                            key={index}
-                            className={bitmap.className || ""}
-                            src={bitmap.src}
-                            alt={bitmap.alt || ""}
-                            style={style}
-                        />
+                        <div key={index} className={wrapper.className} style={{ ...wrapper.style, ...style }}>
+                            <img
+                                src={bitmap.src}
+                                alt={bitmap.alt || ""}
+                                style={style.width ? { width: "100%" } : undefined}
+                            />
+                        </div>
                     );
                 }
 

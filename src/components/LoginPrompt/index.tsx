@@ -4,6 +4,7 @@ import React, { FC, useEffect, useState } from "react";
 import "./style.scss";
 
 import { registerTerminalInput } from "../../lib/terminalInput";
+import KeyboardProxy from "../KeyboardProxy";
 
 export interface LoginPromptProps {
     usernamePrompt?: string;
@@ -83,6 +84,18 @@ const LoginPrompt: FC<LoginPromptProps> = (props) => {
         reset();
     };
 
+    const handleEnter = () => {
+        onEnter && onEnter();
+        if (activeField === "username") {
+            if (username.length) {
+                setActiveField("password");
+            }
+            return;
+        }
+
+        handleSubmit();
+    };
+
     const handleKeyDown = (e: KeyboardEvent) => {
         if (isEditableTarget(e.target)) {
             return;
@@ -109,17 +122,7 @@ const LoginPrompt: FC<LoginPromptProps> = (props) => {
 
             case "enter":
                 e.preventDefault();
-                onEnter && onEnter();
-                if (activeField === "username") {
-                    if (!username.length) {
-                        return;
-                    }
-
-                    setActiveField("password");
-                    return;
-                }
-
-                handleSubmit();
+                handleEnter();
                 break;
 
             default:
@@ -159,6 +162,18 @@ const LoginPrompt: FC<LoginPromptProps> = (props) => {
     const renderedUsername = hideUsername === true ? "*".repeat(username.length) : username;
     const renderedPassword = hidePassword !== false ? "*".repeat(password.length) : password;
 
+    // lets phones open their keyboard: tap the login to type. One input covers
+    // the whole box so focus (and the keyboard) survives the username -> password switch.
+    const keyboard = (
+        <KeyboardProxy
+            value={activeField === "username" ? username : password}
+            label={activeField}
+            disabled={disabled}
+            onChange={activeField === "username" ? setUsername : setPassword}
+            onEnter={handleEnter}
+        />
+    );
+
     return (
         <div className={css}>
             <div className="line">
@@ -176,6 +191,8 @@ const LoginPrompt: FC<LoginPromptProps> = (props) => {
                     </span>
                 </div>
             )}
+
+            {keyboard}
         </div>
     );
 };

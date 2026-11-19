@@ -1,8 +1,45 @@
 @use "../../assets/sass/progressbar" as *;
 
+// image class name -> mix-blend-mode
+$image-blend-modes: (
+    monochrome: luminosity,
+    luminosity: luminosity,
+    lighten: lighten,
+    multiply: multiply,
+    screen: screen,
+    overlay: overlay,
+    darken: darken,
+    color-dodge: color-dodge,
+    color-burn: color-burn,
+    hard-light: hard-light,
+    soft-light: soft-light,
+    difference: difference,
+    exclusion: exclusion,
+    hue: hue,
+    saturation: saturation,
+    color: color,
+);
+
 .__image__ {
-    &.ai-eye-footer {
+    // adds space above the image
+    &.footer {
         margin-top: 1em;
+    }
+
+    // the media is display:block, so text-align alone can't move it
+    &.center,
+    &.text-align-center {
+        canvas,
+        img {
+            margin-inline: auto;
+        }
+    }
+
+    &.text-align-right {
+        canvas,
+        img {
+            margin-left: auto;
+        }
     }
 
     .progressbar {
@@ -18,67 +55,36 @@
         display: block;
     }
 
-    &.monochrome {
-        mix-blend-mode: luminosity;
+    // The blend mode sits on the image itself, so it mixes with whatever is
+    // behind it: the terminal background, or the image's own backdrop below.
+    @each $class, $mode in $image-blend-modes {
+        &.#{$class} {
+            canvas,
+            img {
+                mix-blend-mode: $mode;
+            }
+        }
     }
 
-    &.luminosity {
-        mix-blend-mode: luminosity;
-    }
+    // `"background": ...` paints a plate behind the image. `isolation` makes the
+    // blend mix with that plate only, not with the terminal behind it.
+    &.has-backdrop {
+        width: fit-content;
+        max-width: 100%;
+        background-color: var(--image-backdrop);
+        isolation: isolate;
 
-    &.lighten {
-        mix-blend-mode: lighten;
-    }
+        &.fill-width {
+            width: auto;
+        }
 
-    &.multiply {
-        mix-blend-mode: multiply;
-    }
+        &.center,
+        &.text-align-center {
+            margin-inline: auto;
+        }
 
-    &.screen {
-        mix-blend-mode: screen;
-    }
-
-    &.overlay {
-        mix-blend-mode: overlay;
-    }
-
-    &.darken {
-        mix-blend-mode: darken;
-    }
-
-    &.color-dodge {
-        mix-blend-mode: color-dodge;
-    }
-
-    &.color-burn {
-        mix-blend-mode: color-burn;
-    }
-
-    &.hard-light {
-        mix-blend-mode: hard-light;
-    }
-
-    &.soft-light {
-        mix-blend-mode: soft-light;
-    }
-
-    &.difference {
-        mix-blend-mode: difference;
-    }
-
-    &.exclusion {
-        mix-blend-mode: exclusion;
-    }
-
-    &.hue {
-        mix-blend-mode: hue;
-    }
-
-    &.saturation {
-        mix-blend-mode: saturation;
-    }
-
-    &.color {
-        mix-blend-mode: color;
+        &.text-align-right {
+            margin-left: auto;
+        }
     }
 }

@@ -31,13 +31,15 @@
         transition: opacity 50ms;
     }
 
-    // alert class
-    &.alert:hover,
-    &.alert:active {
-        color: var(--bg);
-        background: var(--alert);
-        text-shadow: var(--bg-glow);
-        box-shadow: var(--alert-glow);
-        transition:  background 50ms, foreground 150ms;
+    // colored links highlight in their own color
+    @each $color in alert, notice, emphasis, system {
+        &.#{$color}:hover,
+        &.#{$color}:active {
+            color: var(--bg);
+            background: var(--#{$color});
+            text-shadow: var(--bg-glow);
+            box-shadow: var(--#{$color}-glow);
+            transition:  background 50ms, foreground 150ms;
+        }
     }
 }

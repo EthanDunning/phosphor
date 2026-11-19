@@ -33,7 +33,11 @@ as $$
 begin
     if tg_op = 'INSERT' then
         if new.visibility in ('public', 'unlisted') then
-            new.published_at = coalesce(new.published_at, timezone('utc', now()));
+            -- API clients can't backdate/future-date a module to the top of "newest".
+            new.published_at = case
+                when current_user in ('anon', 'authenticated') then timezone('utc', now())
+                else coalesce(new.published_at, timezone('utc', now()))
+            end;
         else
             new.published_at = null;
         end if;
@@ -44,8 +48,10 @@ begin
         if old.visibility in ('public', 'unlisted') then
             -- Edits to already-published modules must not bump published_at.
             new.published_at = coalesce(old.published_at, timezone('utc', now()));
+        elsif current_user in ('anon', 'authenticated') then
+            -- First transition from private -> public/unlisted (client-chosen dates ignored).
+            new.published_at = coalesce(old.published_at, timezone('utc', now()));
         else
-            -- First transition from private -> public/unlisted.
             new.published_at = coalesce(old.published_at, new.published_at, timezone('utc', now()));
         end if;
     else
@@ -185,8 +191,8 @@ begin
         nullif(trim(new.raw_user_meta_data ->> 'preferred_username'), ''),
         nullif(trim(new.raw_user_meta_data ->> 'full_name'), ''),
         nullif(trim(new.raw_user_meta_data ->> 'name'), ''),
-        nullif(trim(new.email), ''),
-        'Explorer'
+        -- never fall back to the email: profiles are publicly readable
+        'Explorer-' || left(new.id::text, 8)
     );
 
     insert into public.profiles (id, display_name, avatar_url)
@@ -220,14 +226,22 @@ select
             nullif(trim(u.raw_user_meta_data ->> 'preferred_username'), ''),
             nullif(trim(u.raw_user_meta_data ->> 'full_name'), ''),
             nullif(trim(u.raw_user_meta_data ->> 'name'), ''),
-            nullif(trim(u.email), ''),
-            'Explorer'
+            'Explorer-' || left(u.id::text, 8)
         ),
         80
     ),
     nullif(u.raw_user_meta_data ->> 'avatar_url', '')
 from auth.users u
 on conflict (id) do nothing;
+
+-- One-time privacy fix (safe to re-run): profiles created by the old email
+-- fallback exposed the address as a public display name.
+update public.profiles p
+set display_name = 'Explorer-' || left(p.id::text, 8)
+from auth.users u
+where u.id = p.id
+  and u.email is not null
+  and lower(trim(p.display_name)) = lower(trim(u.email));
 
 create or replace function public.recalculate_module_rating_stats(target_module_id uuid)
 returns void
@@ -277,6 +291,10 @@ set search_path = public
 as $$
 begin
     perform public.recalculate_module_rating_stats(coalesce(new.module_id, old.module_id));
+    -- a rating moved to another module: the old module's stats change too
+    if tg_op = 'UPDATE' and old.module_id is distinct from new.module_id then
+        perform public.recalculate_module_rating_stats(old.module_id);
+    end if;
     return coalesce(new, old);
 end;
 $$;
@@ -289,9 +307,57 @@ set search_path = public
 as $$
 begin
     perform public.recalculate_module_subscription_count(coalesce(new.module_id, old.module_id));
+    if tg_op = 'UPDATE' and old.module_id is distinct from new.module_id then
+        perform public.recalculate_module_subscription_count(old.module_id);
+    end if;
     return coalesce(new, old);
 end;
 $$;
+
+-- Only the triggers above should run these (they're security definer, so they
+-- would otherwise be callable by anyone over RPC as a cheap load amplifier).
+revoke execute on function public.recalculate_module_rating_stats(uuid) from public, anon, authenticated;
+revoke execute on function public.recalculate_module_subscription_count(uuid) from public, anon, authenticated;
+
+-- Unlisted modules are link-only: the table's select policy exposes only
+-- public rows, and shared (public/unlisted) modules are fetched by id here, so
+-- they can't be enumerated with a bare `visibility=eq.unlisted` query.
+create or replace function public.get_shared_modules(module_ids uuid[])
+returns setof public.modules
+language sql
+stable
+security definer
+set search_path = public
+as $$
+    select m.*
+    from public.modules m
+    where m.id = any(module_ids[1:200])
+      and m.visibility in ('public', 'unlisted');
+$$;
+
+revoke execute on function public.get_shared_modules(uuid[]) from public;
+grant execute on function public.get_shared_modules(uuid[]) to anon, authenticated;
+
+-- Used by the rating/subscription policies: their subqueries run under the
+-- caller's RLS, which no longer reveals unlisted modules.
+create or replace function public.is_module_shared_with_caller(target_module_id uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+    select exists (
+        select 1
+        from public.modules m
+        where m.id = target_module_id
+          and m.visibility in ('public', 'unlisted')
+          and m.owner_id <> auth.uid()
+    );
+$$;
+
+revoke execute on function public.is_module_shared_with_caller(uuid) from public;
+grant execute on function public.is_module_shared_with_caller(uuid) to authenticated;
 
 drop trigger if exists profiles_set_updated_at on public.profiles;
 create trigger profiles_set_updated_at
@@ -307,6 +373,44 @@ drop trigger if exists modules_set_publication_timestamp on public.modules;
 create trigger modules_set_publication_timestamp
     before insert or update on public.modules
     for each row execute procedure public.set_module_publication_timestamp();
+
+-- Rating/subscription counters are owned by the recalculate_* functions (which
+-- run as the table owner via security definer). Requests from API roles can't
+-- write them, so an owner can't inflate their module's rank with a direct
+-- UPDATE. Deliberately NOT security definer: current_user must be the caller.
+create or replace function public.protect_module_counters()
+returns trigger
+language plpgsql
+as $$
+begin
+    if current_user in ('anon', 'authenticated') then
+        if tg_op = 'INSERT' then
+            new.rating_count = 0;
+            new.rating_average = 0;
+            new.subscription_count = 0;
+        else
+            new.rating_count = old.rating_count;
+            new.rating_average = old.rating_average;
+            new.subscription_count = old.subscription_count;
+        end if;
+    end if;
+    return new;
+end;
+$$;
+
+drop trigger if exists modules_protect_counters on public.modules;
+create trigger modules_protect_counters
+    before insert or update on public.modules
+    for each row execute procedure public.protect_module_counters();
+
+-- Server-side cap matching the client's 5 MB limit (NOT VALID: existing rows
+-- aren't re-checked, new writes are).
+alter table public.modules
+    drop constraint if exists modules_script_json_size;
+
+alter table public.modules
+    add constraint modules_script_json_size
+    check (octet_length(script_json::text) <= 5 * 1024 * 1024) not valid;
 
 drop trigger if exists module_ratings_set_updated_at on public.module_ratings;
 create trigger module_ratings_set_updated_at
@@ -367,10 +471,11 @@ create policy "admins can update their own profile"
 
 drop policy if exists "public modules are readable by everyone" on public.modules;
 drop policy if exists "shared modules are readable by everyone" on public.modules;
-create policy "shared modules are readable by everyone"
+-- unlisted modules are served by id through public.get_shared_modules()
+create policy "public modules are readable by everyone"
     on public.modules
     for select
-    using (visibility in ('public', 'unlisted'));
+    using (visibility = 'public');
 
 drop policy if exists "owners can read their own modules" on public.modules;
 create policy "owners can read their own modules"
@@ -465,13 +570,7 @@ create policy "users can rate public modules"
     to authenticated
     with check (
         auth.uid() = user_id
-        and exists (
-            select 1
-            from public.modules m
-            where m.id = module_id
-              and m.visibility in ('public', 'unlisted')
-              and m.owner_id <> auth.uid()
-        )
+        and public.is_module_shared_with_caller(module_id)
     );
 
 drop policy if exists "users can update their own ratings" on public.module_ratings;
@@ -482,13 +581,7 @@ create policy "users can update their own ratings"
     using (auth.uid() = user_id)
     with check (
         auth.uid() = user_id
-        and exists (
-            select 1
-            from public.modules m
-            where m.id = module_id
-              and m.visibility in ('public', 'unlisted')
-              and m.owner_id <> auth.uid()
-        )
+        and public.is_module_shared_with_caller(module_id)
     );
 
 drop policy if exists "users can delete their own ratings" on public.module_ratings;
@@ -512,32 +605,37 @@ create policy "users can subscribe to public modules"
     to authenticated
     with check (
         auth.uid() = user_id
-        and exists (
-            select 1
-            from public.modules m
-            where m.id = module_id
-              and (
-                  (
-                      m.visibility in ('public', 'unlisted')
-                      and m.owner_id <> auth.uid()
-                  )
-                  or exists (
-                      select 1
-                      from public.profiles p
-                      where p.id = auth.uid()
-                        and p.role = 'admin'::public.profile_role
-                  )
-              )
+        and (
+            public.is_module_shared_with_caller(module_id)
+            or exists (
+                select 1
+                from public.profiles p
+                where p.id = auth.uid()
+                  and p.role = 'admin'::public.profile_role
+            )
         )
     );
 
+-- same rule as insert, so a subscription can't be re-pointed at a module the
+-- user couldn't subscribe to directly
 drop policy if exists "users can update their own subscriptions" on public.module_subscriptions;
 create policy "users can update their own subscriptions"
     on public.module_subscriptions
     for update
     to authenticated
     using (auth.uid() = user_id)
-    with check (auth.uid() = user_id);
+    with check (
+        auth.uid() = user_id
+        and (
+            public.is_module_shared_with_caller(module_id)
+            or exists (
+                select 1
+                from public.profiles p
+                where p.id = auth.uid()
+                  and p.role = 'admin'::public.profile_role
+            )
+        )
+    );
 
 drop policy if exists "users can delete their own subscriptions" on public.module_subscriptions;
 create policy "users can delete their own subscriptions"

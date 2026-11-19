@@ -1,11 +1,15 @@
-import React, { Component, ReactElement } from "react";
+import React, { Component, ReactElement, Suspense } from "react";
 import { createPortal } from "react-dom";
 import type { Session } from "@supabase/supabase-js";
 import "./style.scss";
 
 import Phosphor from "../Phosphor";
-import ScriptCreator from "../ScriptCreator";
 import ModulesPanel from "../ModulesPanel";
+
+// The Script Creator is large and most visitors never open it: load its code
+// on first open, and don't mount it (or re-render it on every App update)
+// until then.
+const ScriptCreator = React.lazy(() => import("../ScriptCreator"));
 import { BUNDLED_SCRIPTS, BundledScript, DEFAULT_SCRIPT } from "../../data";
 import {
     THEMES,
@@ -193,6 +197,8 @@ class App extends Component<any, AppState> {
     private _titleRef: React.RefObject<HTMLAnchorElement>;
     private _controlsRef: React.RefObject<HTMLDivElement>;
     private _headerLayoutRafId: number | null = null;
+    // latches true the first time the Script Creator opens (see render)
+    private _creatorMounted = false;
     private _authSubscription: { unsubscribe: () => void } | null = null;
 
     constructor(props: any) {
@@ -2704,6 +2710,10 @@ class App extends Component<any, AppState> {
     }
 
     public render(): ReactElement {
+        if (this.state.creatorOpen) {
+            this._creatorMounted = true;
+        }
+
         const {
             activeScript,
             activeScriptRevision,
@@ -3580,18 +3590,22 @@ class App extends Component<any, AppState> {
                     shutdownPhase={terminalShutdownPhase}
                 />
 
-                <ScriptCreator
-                    key={`creator:${creatorRemountVersion}`}
-                    open={creatorOpen}
-                    initialScript={creatorInitialScript || activeScript.json}
-                    initialScriptId={activeScript.id}
-                    availableScripts={availableScripts}
-                    onApply={this._handleCreatorApply}
-                    onPreview={this._handleCreatorPreview}
-                    onClose={this._handleCreatorClose}
-                    onDeleteLocalScript={this._handleDeleteLocalScript}
-                    onSaveModule={ownedActiveModule ? this._handleCreatorSaveModule : undefined}
-                />
+                {this._creatorMounted && (
+                    <Suspense fallback={null}>
+                        <ScriptCreator
+                            key={`creator:${creatorRemountVersion}`}
+                            open={creatorOpen}
+                            initialScript={creatorInitialScript || activeScript.json}
+                            initialScriptId={activeScript.id}
+                            availableScripts={availableScripts}
+                            onApply={this._handleCreatorApply}
+                            onPreview={this._handleCreatorPreview}
+                            onClose={this._handleCreatorClose}
+                            onDeleteLocalScript={this._handleDeleteLocalScript}
+                            onSaveModule={ownedActiveModule ? this._handleCreatorSaveModule : undefined}
+                        />
+                    </Suspense>
+                )}
 
                 <ModulesPanel
                     open={modulesOpen}

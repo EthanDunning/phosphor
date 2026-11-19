@@ -451,12 +451,39 @@ export const searchModulesByOwner = async (
     return (data || []).map(normalizeModuleRecord);
 };
 
+// Unlisted modules are link-only: RLS exposes only *public* rows to everyone,
+// and shared (public/unlisted) modules are looked up by id through the
+// get_shared_modules RPC so they can't be enumerated. Returns null if the
+// database predates that function, in which case the old RLS policy still
+// returns shared rows from a plain table select.
+const fetchSharedModuleRows = async (moduleIds: string[]): Promise<any[] | null> => {
+    if (!moduleIds.length) {
+        return [];
+    }
+
+    const client = requireSupabase();
+    const { data, error } = await client
+        .rpc("get_shared_modules", { module_ids: moduleIds })
+        .select(MODULE_SELECT);
+
+    if (error) {
+        // PGRST202 / 42883: function not found (schema.sql not re-run yet)
+        if (error.code === "PGRST202" || error.code === "42883") {
+            return null;
+        }
+        throw error;
+    }
+
+    return (data as any[]) || [];
+};
+
 export const fetchPublicModulesByIds = async (moduleIds: string[]): Promise<ModuleRecord[]> => {
     const client = requireSupabase();
     if (!moduleIds.length) {
         return [];
     }
 
+    // the table returns public modules plus the caller's own (and everything for admins)
     const { data, error } = await client
         .from("modules")
         .select(MODULE_SELECT)
@@ -468,6 +495,13 @@ export const fetchPublicModulesByIds = async (moduleIds: string[]): Promise<Modu
 
     const modulesById = new Map<string, ModuleRecord>();
     (data || []).map(normalizeModuleRecord).forEach((module) => {
+        modulesById.set(module.id, module);
+    });
+
+    // ...and unlisted ones the user subscribed to come from the RPC
+    const missingIds = moduleIds.filter((moduleId) => !modulesById.has(moduleId));
+    const sharedRows = await fetchSharedModuleRows(missingIds);
+    (sharedRows || []).map(normalizeModuleRecord).forEach((module) => {
         modulesById.set(module.id, module);
     });
 
@@ -510,11 +544,18 @@ export const fetchAccessibleModuleById = async (
         throw error;
     }
 
-    if (!data) {
+    let row: any = data;
+    if (!row) {
+        // not public and not ours: an unlisted module opened from its link
+        const sharedRows = await fetchSharedModuleRows([moduleId]);
+        row = sharedRows && sharedRows.length ? sharedRows[0] : null;
+    }
+
+    if (!row) {
         return null;
     }
 
-    const module = normalizeModuleRecord(data);
+    const module = normalizeModuleRecord(row);
     if (isModuleLinkShareable(module.visibility)) {
         return module;
     }
@@ -598,7 +639,6 @@ export const saveModule = async (input: SaveModuleInput): Promise<ModuleRecord> 
         screenCount: Array.isArray(input.scriptJson?.screens) ? input.scriptJson.screens.length : 0,
         dialogCount: Array.isArray(input.scriptJson?.dialogs) ? input.scriptJson.dialogs.length : 0,
     });
-    console.log("[Phosphor] saveModule sanitized payload", payload);
 
     if (isUpdate) {
         const { data, error } = await client

@@ -1,6 +1,9 @@
 @use "../../assets/sass/colors" as *;
 
 .__login__ {
+    // anchors the invisible keyboard input laid over the login box
+    position: relative;
+
     .line {
         display: block;
     }
@@ -16,7 +19,8 @@
         text-transform: uppercase;
     }
 
-    &.case-insensitive .line:last-child .input {
+    // nth-of-type: the keyboard <input> is the box's last child, not the password line
+    &.case-insensitive .line:nth-of-type(2) .input {
         text-transform: uppercase;
     }
 }

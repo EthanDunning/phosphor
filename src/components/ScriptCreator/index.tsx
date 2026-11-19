@@ -60,6 +60,7 @@ type AddableElementType =
     | "toggle"
     | "list"
     | "dropdown"
+    | "table"
     | "reportComposer"
     | "reportList"
     | "dialogLink";
@@ -829,73 +830,223 @@ const ADDABLE_ELEMENT_OPTIONS: AddableElementOption[] = [
     { value: "toggle", label: "Toggle" },
     { value: "list", label: "List" },
     { value: "dropdown", label: "Dropdown" },
+    { value: "table", label: "Data Table" },
     { value: "reportComposer", label: "Report Composer" },
     { value: "reportList", label: "Report List" },
     { value: "dialogLink", label: "Dialog Link (+ Dialog)" },
 ];
 
-const TEXT_CLASSNAME_OPTIONS = [
-    "",
-    "alert",
-    "notice",
-    "emphasis",
-    "system",
-    "center",
-    "title",
-    "small",
-    "script-hidden",
+// ---- class names --------------------------------------------------------------
+// Class names are edited as removable chips. Classes in an `exclusive` group
+// replace each other (a line can only have one color, an image only one blend
+// mode); classes in other groups combine freely.
+
+interface ClassNameGroup {
+    label: string;
+    exclusive: boolean;
+    options: { value: string; hint: string }[];
+}
+
+const COLOR_CLASS_GROUP: ClassNameGroup = {
+    label: "Color",
+    exclusive: true,
+    options: [
+        { value: "alert", hint: "alert color" },
+        { value: "notice", hint: "notice color" },
+        { value: "emphasis", hint: "emphasis color" },
+        { value: "system", hint: "system color" },
+    ],
+};
+
+const SMALL_CLASS = { value: "small", hint: "smaller text" };
+const HIDDEN_CLASS = { value: "script-hidden", hint: "hidden until a terminal script shows it" };
+
+const TEXT_CLASS_GROUPS: ClassNameGroup[] = [
+    COLOR_CLASS_GROUP,
+    {
+        label: "Style",
+        exclusive: false,
+        options: [
+            { value: "center", hint: "centered text" },
+            { value: "title", hint: "boxed, centered heading" },
+            SMALL_CLASS,
+            HIDDEN_CLASS,
+        ],
+    },
 ];
 
-const LINK_CLASSNAME_OPTIONS = [
-    "",
-    "alert",
-    "inline",
-    "center",
-    "small",
-    "script-hidden",
+const LINK_CLASS_GROUPS: ClassNameGroup[] = [
+    COLOR_CLASS_GROUP,
+    {
+        label: "Style",
+        exclusive: false,
+        options: [
+            { value: "inline", hint: "sits on the same line as the next inline link" },
+            { value: "center", hint: "centered text" },
+            SMALL_CLASS,
+            HIDDEN_CLASS,
+        ],
+    },
 ];
 
-const PROMPT_CLASSNAME_OPTIONS = [
-    "",
-    "alert",
-    "notice",
-    "emphasis",
-    "system",
-    "small",
-    "script-hidden",
+const INPUT_CLASS_GROUPS: ClassNameGroup[] = [
+    COLOR_CLASS_GROUP,
+    { label: "Style", exclusive: false, options: [SMALL_CLASS, HIDDEN_CLASS] },
 ];
 
-const CYCLER_CLASSNAME_OPTIONS = [
-    "",
-    "alert",
-    "notice",
-    "emphasis",
-    "system",
-    "small",
-    "script-hidden",
+// Blend modes mix the image with the terminal background behind it. On the
+// usual dark backgrounds the darkening modes leave the image almost black.
+const BITMAP_CLASS_GROUPS: ClassNameGroup[] = [
+    {
+        label: "Blend Mode",
+        exclusive: true,
+        options: [
+            { value: "monochrome", hint: "grayscale; with a Background, tinted that color" },
+            { value: "luminosity", hint: "same as monochrome" },
+            { value: "screen", hint: "glowing; black areas vanish" },
+            { value: "lighten", hint: "black areas take the background color" },
+            { value: "color-dodge", hint: "brighter, more saturated" },
+            { value: "difference", hint: "inverted-looking colors (true invert on a white Background)" },
+            { value: "exclusion", hint: "softer difference" },
+            { value: "hard-light", hint: "high contrast" },
+            { value: "overlay", hint: "contrast mix — best with a colored or gray Background" },
+            { value: "soft-light", hint: "soft contrast — best with a colored or gray Background" },
+            { value: "multiply", hint: "darkens — needs a Background on dark themes" },
+            { value: "darken", hint: "darkens — needs a Background on dark themes" },
+            { value: "color-burn", hint: "darkens — needs a Background on dark themes" },
+            { value: "hue", hint: "keeps the background's brightness — flat on a solid Background" },
+            { value: "saturation", hint: "posterized tint — needs a colored Background" },
+            { value: "color", hint: "a wash of the image's colors at the Background's brightness" },
+        ],
+    },
+    {
+        label: "Layout",
+        exclusive: false,
+        options: [
+            { value: "footer", hint: "extra space above the image" },
+            HIDDEN_CLASS,
+        ],
+    },
 ];
 
-const BITMAP_CLASSNAME_OPTIONS = [
-    "",
-    "footer",
-    "monochrome",
-    "luminosity",
-    "light",
-    "lighten",
-    "multiply",
-    "screen",
-    "overlay",
-    "darken",
-    "color-dodge",
-    "color-burn",
-    "hard-light",
-    "soft-light",
-    "difference",
-    "exclusion",
-    "hue",
-    "saturation",
-    "color",
+// image `background`: a theme color keyword or any CSS color (typed freely)
+const IMAGE_BACKGROUND_OPTIONS: CreatorSelectOption[] = [
+    { value: "", label: "(none) — terminal background" },
+    { value: "fg", label: "fg — theme text color (bright)" },
+    { value: "bg", label: "bg — theme background" },
+    { value: "alert", label: "alert — alert color" },
+    { value: "notice", label: "notice — notice color" },
+    { value: "emphasis", label: "emphasis — emphasis color" },
+    { value: "system", label: "system — system color" },
+    { value: "#ffffff", label: "#ffffff — white" },
 ];
+
+const CLASS_GROUP_PREFIX = "__group__:";
+
+const splitClassNames = (value: unknown): string[] => {
+    if (typeof value !== "string") {
+        return [];
+    }
+    const tokens: string[] = [];
+    value.split(/\s+/).forEach((token) => {
+        if (token.length && !tokens.includes(token)) {
+            tokens.push(token);
+        }
+    });
+    return tokens;
+};
+
+interface ClassNameChipsProps {
+    value: string;
+    groups: ClassNameGroup[];
+    onChange: (nextClassName: string) => void;
+}
+
+const ClassNameChips: FC<ClassNameChipsProps> = ({ value, groups, onChange }) => {
+    const applied = splitClassNames(value);
+    const findHint = (token: string): string | undefined => {
+        for (const group of groups) {
+            const option = group.options.find((entry) => entry.value === token);
+            if (option) {
+                return option.hint;
+            }
+        }
+        return undefined;
+    };
+
+    const addOptions: CreatorSelectOption[] = [];
+    groups.forEach((group) => {
+        const available = group.options.filter((option) => !applied.includes(option.value));
+        if (!available.length) {
+            return;
+        }
+        const current = group.exclusive
+            ? applied.find((token) => group.options.some((option) => option.value === token))
+            : undefined;
+        addOptions.push({
+            value: CLASS_GROUP_PREFIX + group.label,
+            label: `── ${group.label.toUpperCase()}${group.exclusive ? " · PICK ONE" : " · COMBINE ANY"} ──`,
+            disabled: true,
+        });
+        available.forEach((option) => {
+            addOptions.push({
+                value: option.value,
+                label: `${option.value} — ${option.hint}${current ? ` (replaces ${current})` : ""}`,
+            });
+        });
+    });
+
+    const addClass = (token: string) => {
+        const group = groups.find((entry) => entry.exclusive && entry.options.some((option) => option.value === token));
+        const kept = group
+            ? applied.filter((existing) => !group.options.some((option) => option.value === existing))
+            : applied;
+        onChange([...kept, token].join(" "));
+    };
+
+    const removeClass = (token: string) => {
+        onChange(applied.filter((existing) => existing !== token).join(" "));
+    };
+
+    return (
+        <div className="script-creator__chips">
+            {applied.map((token) => {
+                const hint = findHint(token);
+                return (
+                    <div
+                        key={token}
+                        className={"script-creator__chip" + (hint ? "" : " script-creator__chip--custom")}
+                        title={hint || "Not a built-in class for this element (set in raw JSON)"}
+                    >
+                        {token}
+                        <button
+                            type="button"
+                            className="script-creator__chip-remove"
+                            aria-label={`Remove class ${token}`}
+                            title={`Remove ${token}`}
+                            onClick={() => removeClass(token)}
+                        >
+                            ×
+                        </button>
+                    </div>
+                );
+            })}
+            {addOptions.length > 0 && (
+                <CreatorSelect
+                    value=""
+                    options={addOptions}
+                    fallbackLabel="+ ADD CLASS"
+                    className="script-creator__chip-add"
+                    onChange={(nextValue) => {
+                        if (nextValue && !nextValue.startsWith(CLASS_GROUP_PREFIX)) {
+                            addClass(nextValue);
+                        }
+                    }}
+                />
+            )}
+        </div>
+    );
+};
 
 const SCREEN_TYPE_OPTIONS: CreatorSelectOption[] = [
     { value: "screen", label: "screen" },
@@ -927,12 +1078,507 @@ const BOOLEAN_OPTIONS: CreatorSelectOption[] = [
 
 const PHOSPHOR_DEFAULT_TEXT_SPEED_MS = 20;
 
-const TEXT_LINE_STYLE_OPTIONS: CreatorSelectOption[] = [
-    { value: "", label: "(unstyled text line)" },
-    ...TEXT_CLASSNAME_OPTIONS
-        .filter((option) => option.length > 0)
-        .map((option) => ({ value: option, label: option })),
+// ---- data table helpers -------------------------------------------------------
+// The table editor shows the data as pipe-separated text: the first line holds
+// the column headings, each following line is a row, and a row ending in
+// ">> screen-id" opens that screen when selected.
+
+const TABLE_BORDER_OPTIONS: CreatorSelectOption[] = [
+    { value: "single", label: "single ┌─┐" },
+    { value: "double", label: "double ╔═╗" },
+    { value: "ascii", label: "ascii +-+" },
+    { value: "none", label: "none" },
 ];
+
+const TABLE_ALIGN_OPTIONS: CreatorSelectOption[] = [
+    { value: "left", label: "left" },
+    { value: "center", label: "center" },
+    { value: "right", label: "right" },
+];
+
+const TABLE_TARGET_MARKER = ">>";
+const TABLE_COMPLEX_TARGET_TOKEN = "[action]";
+
+const getTableColumnLabel = (column: any): string => {
+    if (column && typeof column === "object") {
+        return String(column.label ?? column.key ?? "");
+    }
+    return column === null || column === undefined ? "" : String(column);
+};
+
+const getTableCellText = (cell: any): string => {
+    if (cell && typeof cell === "object") {
+        return cell.text === null || cell.text === undefined ? "" : String(cell.text);
+    }
+    return cell === null || cell === undefined ? "" : String(cell);
+};
+
+const getTableRowCells = (row: any, columns: any[]): any[] => {
+    if (Array.isArray(row)) {
+        return row;
+    }
+    if (row && typeof row === "object") {
+        if (Array.isArray(row.cells)) {
+            return row.cells;
+        }
+        return columns.map((column: any, index: number) => {
+            const key = column && typeof column === "object" ? String(column.key ?? column.label ?? index) : getTableColumnLabel(column);
+            return key in row ? row[key] : row[getTableColumnLabel(column)];
+        });
+    }
+    return [row];
+};
+
+const splitTableLine = (line: string): string[] => {
+    const cells: string[] = [];
+    let current = "";
+    for (let index = 0; index < line.length; index++) {
+        const char = line[index];
+        if (char === "\\" && line[index + 1] === "|") {
+            current += "|";
+            index++;
+            continue;
+        }
+        if (char === "|") {
+            cells.push(current.trim());
+            current = "";
+            continue;
+        }
+        current += char;
+    }
+    cells.push(current.trim());
+    return cells;
+};
+
+const serializeTableData = (element: any): string => {
+    const columns = Array.isArray(element?.columns) ? element.columns : [];
+    const rows = Array.isArray(element?.rows) ? element.rows : [];
+    const escape = (value: string) => value.replace(/\|/g, "\\|");
+    const lines = [columns.map((column: any) => escape(getTableColumnLabel(column))).join(" | ")];
+
+    rows.forEach((row: any) => {
+        const cells = getTableRowCells(row, columns).map((cell: any) => escape(getTableCellText(cell))).join(" | ");
+        const target = row && typeof row === "object" && !Array.isArray(row) ? row.target : undefined;
+        if (typeof target === "string" && target.length) {
+            lines.push(cells + " " + TABLE_TARGET_MARKER + " " + target);
+        } else if (Array.isArray(target) && target.length) {
+            lines.push(cells + " " + TABLE_TARGET_MARKER + " " + TABLE_COMPLEX_TARGET_TOKEN);
+        } else {
+            lines.push(cells);
+        }
+    });
+
+    return lines.join("\n");
+};
+
+// Rebuild columns/rows from the pipe text, carrying over per-column settings
+// (align/width), per-cell class names and per-row class names/action targets by position.
+const parseTableData = (text: string, element: any): { columns: any[]; rows: any[] } => {
+    const previousColumns = Array.isArray(element?.columns) ? element.columns : [];
+    const previousRows = Array.isArray(element?.rows) ? element.rows : [];
+    const lines = text.split(/\r?\n/).filter((line) => line.trim().length > 0);
+    const header = lines.length ? splitTableLine(lines[0]) : [];
+
+    const columns = header.map((label, index) => {
+        const previous = previousColumns[index];
+        return previous && typeof previous === "object" ? { ...previous, label } : label;
+    });
+
+    const rows = lines.slice(1).map((line, rowIndex) => {
+        const previousRow = previousRows[rowIndex];
+        const previousCells = getTableRowCells(previousRow, previousColumns);
+        let body = line;
+        let target: any;
+
+        const markerIndex = line.lastIndexOf(TABLE_TARGET_MARKER);
+        if (markerIndex >= 0) {
+            const targetText = line.slice(markerIndex + TABLE_TARGET_MARKER.length).trim();
+            body = line.slice(0, markerIndex);
+            if (targetText === TABLE_COMPLEX_TARGET_TOKEN) {
+                target = previousRow && typeof previousRow === "object" && Array.isArray(previousRow.target) ? previousRow.target : undefined;
+            } else if (targetText.length) {
+                target = targetText;
+            }
+        }
+
+        const cells = splitTableLine(body).map((cellText, cellIndex) => {
+            const previousCell = previousCells[cellIndex];
+            return previousCell && typeof previousCell === "object" ? { ...previousCell, text: cellText } : cellText;
+        });
+        const className = previousRow && typeof previousRow === "object" && !Array.isArray(previousRow) && typeof previousRow.className === "string"
+            ? previousRow.className
+            : undefined;
+
+        if (target === undefined && className === undefined) {
+            return cells;
+        }
+        const row: any = { cells };
+        if (target !== undefined) row.target = target;
+        if (className !== undefined) row.className = className;
+        return row;
+    });
+
+    return { columns, rows };
+};
+
+const readTableRowTargets = (element: any): any[] => {
+    return (Array.isArray(element?.rows) ? element.rows : [])
+        .map((row: any) => (row && typeof row === "object" && !Array.isArray(row) ? row.target : undefined))
+        .filter((target: any) => target !== undefined);
+};
+
+// ---- table grid editor ----------------------------------------------------------
+// A spreadsheet-style editor for table elements: one input per heading and
+// cell, buttons to add/move/delete rows and columns, plus each row's link
+// target and color. Every edit writes rows back as plain cell arrays, or
+// { cells, target, className } when the row has a link or color.
+
+const TABLE_MAX_COLUMNS = 24;
+const TABLE_ROW_COLORS = ["", "alert", "notice", "emphasis", "system"];
+const TABLE_NEXT_ALIGN: Record<string, string> = { left: "center", center: "right", right: "left" };
+
+interface TableGridRow {
+    cells: any[];
+    target?: any;
+    className?: string;
+}
+
+const readTableGrid = (element: any): { columns: any[]; rows: TableGridRow[] } => {
+    let columns: any[] = Array.isArray(element?.columns) ? element.columns : [];
+    const rawRows: any[] = Array.isArray(element?.rows) ? element.rows : [];
+
+    // no columns given: rows keyed by name define them, otherwise use the widest row
+    if (!columns.length) {
+        const firstRow = rawRows.find((row) => row !== null && row !== undefined);
+        if (firstRow && typeof firstRow === "object" && !Array.isArray(firstRow) && !Array.isArray(firstRow.cells)) {
+            columns = Object.keys(firstRow)
+                .filter((key) => key !== "target" && key !== "className")
+                .map((key) => ({ key, label: key.toUpperCase() }));
+        }
+    }
+
+    const rows = rawRows.map((row): TableGridRow => {
+        const result: TableGridRow = { cells: [...getTableRowCells(row, columns)] };
+        if (row && typeof row === "object" && !Array.isArray(row)) {
+            if (row.target !== undefined) {
+                result.target = row.target;
+            }
+            if (typeof row.className === "string") {
+                result.className = row.className;
+            }
+        }
+        return result;
+    });
+
+    if (!columns.length) {
+        const width = rows.reduce((max, row) => Math.max(max, row.cells.length), 0);
+        columns = Array.from({ length: width }, (_, index) => `COL ${index + 1}`);
+    }
+    rows.forEach((row) => {
+        while (row.cells.length < columns.length) {
+            row.cells.push("");
+        }
+    });
+
+    return { columns, rows };
+};
+
+const writeTableGrid = (element: any, columns: any[], rows: TableGridRow[]): any => ({
+    ...element,
+    columns,
+    rows: rows.map((row) => {
+        const hasTarget = (typeof row.target === "string" && row.target.length > 0) || (Array.isArray(row.target) && row.target.length > 0);
+        const hasClassName = typeof row.className === "string" && row.className.trim().length > 0;
+        if (!hasTarget && !hasClassName) {
+            return row.cells;
+        }
+        const next: any = { cells: row.cells };
+        if (hasTarget) {
+            next.target = row.target;
+        }
+        if (hasClassName) {
+            next.className = row.className!.trim();
+        }
+        return next;
+    }),
+});
+
+const getTableColumnAlign = (column: any): string => {
+    const align = column && typeof column === "object" ? column.align : undefined;
+    return align === "center" || align === "right" ? align : "left";
+};
+
+interface TableGridEditorProps {
+    element: any;
+    screenIds: string[];
+    onChange: (nextElement: any) => void;
+}
+
+const TableGridEditor: FC<TableGridEditorProps> = ({ element, screenIds, onChange }) => {
+    const { columns, rows } = readTableGrid(element);
+    const gridRef = useRef<HTMLDivElement | null>(null);
+    const pendingFocusRef = useRef<{ row: number; column: number } | null>(null);
+    const datalistId = useId();
+
+    // move focus to a newly added row/column once it has rendered
+    useEffect(() => {
+        const pending = pendingFocusRef.current;
+        if (!pending || !gridRef.current) {
+            return;
+        }
+        pendingFocusRef.current = null;
+        const input = gridRef.current.querySelector<HTMLInputElement>(
+            `input[data-row="${pending.row}"][data-column="${pending.column}"]`
+        );
+        if (input) {
+            input.focus();
+            input.select();
+        }
+    });
+
+    const commit = (nextColumns: any[], nextRows: TableGridRow[]) => {
+        onChange(writeTableGrid(element, nextColumns, nextRows));
+    };
+
+    const updateColumn = (columnIndex: number, update: (column: any) => any) => {
+        commit(columns.map((column, index) => (index === columnIndex ? update(column) : column)), rows);
+    };
+
+    const updateRow = (rowIndex: number, update: (row: TableGridRow) => TableGridRow) => {
+        commit(columns, rows.map((row, index) => (index === rowIndex ? update(row) : row)));
+    };
+
+    const swap = <T,>(list: T[], from: number, to: number): T[] => {
+        const next = [...list];
+        [next[from], next[to]] = [next[to], next[from]];
+        return next;
+    };
+
+    const addColumn = () => {
+        if (columns.length >= TABLE_MAX_COLUMNS) {
+            return;
+        }
+        pendingFocusRef.current = { row: -1, column: columns.length };
+        commit(
+            [...columns, `COL ${columns.length + 1}`],
+            rows.map((row) => {
+                const cells = [...row.cells];
+                cells.splice(columns.length, 0, "");
+                return { ...row, cells };
+            })
+        );
+    };
+
+    const removeColumn = (columnIndex: number) => {
+        commit(
+            columns.filter((_, index) => index !== columnIndex),
+            rows.map((row) => ({ ...row, cells: row.cells.filter((_, index) => index !== columnIndex) }))
+        );
+    };
+
+    const moveColumn = (columnIndex: number, delta: number) => {
+        const target = columnIndex + delta;
+        if (target < 0 || target >= columns.length) {
+            return;
+        }
+        commit(
+            swap(columns, columnIndex, target),
+            rows.map((row) => ({ ...row, cells: swap(row.cells, columnIndex, target) }))
+        );
+    };
+
+    const addRow = (atIndex: number = rows.length, focusColumn = 0) => {
+        const nextRows = [...rows];
+        nextRows.splice(atIndex, 0, { cells: columns.map(() => "") });
+        pendingFocusRef.current = { row: atIndex, column: focusColumn };
+        commit(columns.length ? columns : ["COL 1"], nextRows);
+    };
+
+    const removeRow = (rowIndex: number) => {
+        commit(columns, rows.filter((_, index) => index !== rowIndex));
+    };
+
+    const moveRow = (rowIndex: number, delta: number) => {
+        const target = rowIndex + delta;
+        if (target < 0 || target >= rows.length) {
+            return;
+        }
+        commit(columns, swap(rows, rowIndex, target));
+    };
+
+    const setCellText = (rowIndex: number, columnIndex: number, text: string) => {
+        updateRow(rowIndex, (row) => {
+            const cells = [...row.cells];
+            const previous = cells[columnIndex];
+            cells[columnIndex] = previous && typeof previous === "object" ? { ...previous, text } : text;
+            return { ...row, cells };
+        });
+    };
+
+    const cycleRowColor = (rowIndex: number) => {
+        updateRow(rowIndex, (row) => {
+            const tokens = splitClassNames(row.className);
+            const current = tokens.find((token) => TABLE_ROW_COLORS.includes(token)) || "";
+            const next = TABLE_ROW_COLORS[(TABLE_ROW_COLORS.indexOf(current) + 1) % TABLE_ROW_COLORS.length];
+            const kept = tokens.filter((token) => !TABLE_ROW_COLORS.includes(token));
+            return { ...row, className: [...kept, next].filter(Boolean).join(" ") };
+        });
+    };
+
+    // Enter moves down a row (adding one at the end), Shift+Enter moves up
+    const handleCellKeyDown = (event: React.KeyboardEvent<HTMLInputElement>, rowIndex: number, columnIndex: number) => {
+        if (event.key !== "Enter") {
+            return;
+        }
+        event.preventDefault();
+        const nextRow = rowIndex + (event.shiftKey ? -1 : 1);
+        if (nextRow >= rows.length) {
+            addRow(rows.length, columnIndex);
+            return;
+        }
+        if (nextRow >= 0) {
+            gridRef.current
+                ?.querySelector<HTMLInputElement>(`input[data-row="${nextRow}"][data-column="${columnIndex}"]`)
+                ?.focus();
+        }
+    };
+
+    return (
+        <div className="script-creator__table-grid-editor">
+            <div className="script-creator__table-grid" ref={gridRef}>
+                <table>
+                    <thead>
+                        <tr>
+                            <th className="script-creator__tg-rowhead">ROW</th>
+                            {columns.map((column, columnIndex) => {
+                                const align = getTableColumnAlign(column);
+                                return (
+                                    <th key={columnIndex}>
+                                        <input
+                                            className="script-creator__tg-heading"
+                                            data-row={-1}
+                                            data-column={columnIndex}
+                                            value={getTableColumnLabel(column)}
+                                            placeholder={`COL ${columnIndex + 1}`}
+                                            aria-label={`Column ${columnIndex + 1} heading`}
+                                            spellCheck={false}
+                                            onChange={(event) => {
+                                                const label = event.target.value;
+                                                updateColumn(columnIndex, (entry) => (entry && typeof entry === "object" ? { ...entry, label } : label));
+                                            }}
+                                        />
+                                        <div className="script-creator__tg-tools">
+                                            <button type="button" title="Move column left" disabled={columnIndex === 0} onClick={() => moveColumn(columnIndex, -1)}>◄</button>
+                                            <button
+                                                type="button"
+                                                className="script-creator__tg-align"
+                                                title={`Text alignment: ${align} (click to change)`}
+                                                onClick={() => {
+                                                    updateColumn(columnIndex, (entry) => {
+                                                        const base = entry && typeof entry === "object" ? { ...entry } : { label: getTableColumnLabel(entry) };
+                                                        const nextAlign = TABLE_NEXT_ALIGN[align];
+                                                        if (nextAlign === "left") {
+                                                            delete base.align;
+                                                        } else {
+                                                            base.align = nextAlign;
+                                                        }
+                                                        return base;
+                                                    });
+                                                }}
+                                            >
+                                                {align.toUpperCase()}
+                                            </button>
+                                            <button type="button" title="Move column right" disabled={columnIndex === columns.length - 1} onClick={() => moveColumn(columnIndex, 1)}>►</button>
+                                            <button type="button" title="Delete column" aria-label={`Delete column ${columnIndex + 1}`} onClick={() => removeColumn(columnIndex)}>×</button>
+                                        </div>
+                                    </th>
+                                );
+                            })}
+                            <th className="script-creator__tg-meta script-creator__tg-split" title="Screen opened when this row is selected (Enter or click)">OPENS SCREEN</th>
+                            <th className="script-creator__tg-meta" title="Row color">COLOR</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {rows.map((row, rowIndex) => {
+                            const isActionTarget = Array.isArray(row.target);
+                            const color = splitClassNames(row.className).find((token) => TABLE_ROW_COLORS.includes(token)) || "";
+                            return (
+                                <tr key={rowIndex}>
+                                    <td className="script-creator__tg-rowhead">
+                                        <div className="script-creator__tg-rownum">{rowIndex + 1}</div>
+                                        <button type="button" title="Move row up" disabled={rowIndex === 0} onClick={() => moveRow(rowIndex, -1)}>▲</button>
+                                        <button type="button" title="Move row down" disabled={rowIndex === rows.length - 1} onClick={() => moveRow(rowIndex, 1)}>▼</button>
+                                        <button type="button" title="Insert a row below" onClick={() => addRow(rowIndex + 1)}>+</button>
+                                        <button type="button" title="Delete row" aria-label={`Delete row ${rowIndex + 1}`} onClick={() => removeRow(rowIndex)}>×</button>
+                                    </td>
+                                    {columns.map((_, columnIndex) => (
+                                        <td key={columnIndex}>
+                                            <input
+                                                data-row={rowIndex}
+                                                data-column={columnIndex}
+                                                value={getTableCellText(row.cells[columnIndex])}
+                                                aria-label={`Row ${rowIndex + 1}, ${getTableColumnLabel(columns[columnIndex]) || `column ${columnIndex + 1}`}`}
+                                                spellCheck={false}
+                                                onChange={(event) => setCellText(rowIndex, columnIndex, event.target.value)}
+                                                onKeyDown={(event) => handleCellKeyDown(event, rowIndex, columnIndex)}
+                                            />
+                                        </td>
+                                    ))}
+                                    <td className="script-creator__tg-meta script-creator__tg-split">
+                                        <input
+                                            className="script-creator__tg-target"
+                                            list={datalistId}
+                                            value={isActionTarget ? "[action list]" : (typeof row.target === "string" ? row.target : "")}
+                                            readOnly={isActionTarget}
+                                            title={isActionTarget ? "This row runs a list of actions; edit it in Raw Element JSON" : "Screen id to open when the row is selected"}
+                                            placeholder="(none)"
+                                            aria-label={`Row ${rowIndex + 1} opens screen`}
+                                            spellCheck={false}
+                                            onChange={(event) => {
+                                                const target = event.target.value.trim();
+                                                updateRow(rowIndex, (entry) => {
+                                                    const next = { ...entry };
+                                                    if (target.length) {
+                                                        next.target = target;
+                                                    } else {
+                                                        delete next.target;
+                                                    }
+                                                    return next;
+                                                });
+                                            }}
+                                        />
+                                    </td>
+                                    <td className="script-creator__tg-meta">
+                                        <button
+                                            type="button"
+                                            className={"script-creator__tg-color" + (color ? ` ${color}` : "")}
+                                            title="Row color (click to change)"
+                                            onClick={() => cycleRowColor(rowIndex)}
+                                        >
+                                            {color || "default"}
+                                        </button>
+                                    </td>
+                                </tr>
+                            );
+                        })}
+                        {!rows.length && (
+                            <tr>
+                                <td className="script-creator__tg-empty" colSpan={columns.length + 3}>No rows yet. Use [+ ROW].</td>
+                            </tr>
+                        )}
+                    </tbody>
+                </table>
+                <datalist id={datalistId}>
+                    {screenIds.map((id) => <option key={id} value={id} />)}
+                </datalist>
+            </div>
+            <div className="script-creator__actions">
+                <button type="button" className="script-creator__btn" onClick={() => addRow()}>[+ ROW]</button>
+                <button type="button" className="script-creator__btn" onClick={addColumn} disabled={columns.length >= TABLE_MAX_COLUMNS}>[+ COLUMN]</button>
+            </div>
+        </div>
+    );
+};
 
 const TEXT_ALIGN_OPTIONS: CreatorSelectOption[] = [
     { value: "left", label: "Left (default)" },
@@ -1234,6 +1880,12 @@ const readScreenTargetsFromElement = (element: any): string[] => {
         }));
     }
 
+    if (elementType === "table" || elementType === "datatable") {
+        return uniqueTargets(readTableRowTargets(element).flatMap((target: any) => {
+            return readScreenTargetsFromAction({ type: "link", target });
+        }));
+    }
+
     if (elementType === "prompt") {
         const promptTargets = [
             ...readScreenTargetsFromAction(element.inputAction),
@@ -1351,6 +2003,18 @@ const remapElementReferences = (element: any, screenIdMap: Record<string, string
                     nextState.action = remapTargetEntry(state.action, screenIdMap, dialogIdMap);
                 }
                 return nextState;
+            });
+        }
+        return next;
+    }
+
+    if (type === "table" || type === "datatable") {
+        if (Array.isArray(element.rows)) {
+            next.rows = element.rows.map((row: any) => {
+                if (!row || typeof row !== "object" || Array.isArray(row) || row.target === undefined) {
+                    return row;
+                }
+                return { ...row, target: remapLinkTarget(row.target, screenIdMap, dialogIdMap) };
             });
         }
         return next;
@@ -1620,34 +2284,31 @@ const getInitialSidebarListMode = (initialScript: any): "screens" | "dialogs" =>
     return "screens";
 };
 
-const getClassNameOptionsForElementType = (elementType: string): string[] => {
+const getClassNameGroupsForElementType = (elementType: string): ClassNameGroup[] => {
     switch (elementType) {
         case "text":
-            return TEXT_CLASSNAME_OPTIONS;
+        case "reportComposer":
+        case "reportList":
+        case "table":
+            return TEXT_CLASS_GROUPS;
 
         case "link":
         case "href":
-            return LINK_CLASSNAME_OPTIONS;
+            return LINK_CLASS_GROUPS;
 
         case "prompt":
         case "login":
-            return PROMPT_CLASSNAME_OPTIONS;
-
         case "toggle":
         case "list":
         case "dropdown":
-            return CYCLER_CLASSNAME_OPTIONS;
+            return INPUT_CLASS_GROUPS;
 
         case "bitmap":
         case "image":
-            return BITMAP_CLASSNAME_OPTIONS;
-
-        case "reportComposer":
-        case "reportList":
-            return TEXT_CLASSNAME_OPTIONS;
+            return BITMAP_CLASS_GROUPS;
 
         default:
-            return [""];
+            return [];
     }
 };
 
@@ -1792,6 +2453,10 @@ const getElementListLabel = (entry: any): string => {
         || entry.text
         || entry.prompt
         || entry.usernamePrompt
+        || entry.title
+        || (type === "table" && Array.isArray(entry.columns)
+            ? entry.columns.map((column: any) => (column && typeof column === "object" ? column.label : column)).join(" | ")
+            : "")
         || entry.src
         || entry.id
         || ""
@@ -1862,6 +2527,9 @@ const getScreenPreviewLines = (screen: any): string[] => {
                 return "[REPORT LIST]";
             case "mainframegame":
                 return "[MAINFRAME GAME]";
+            case "table":
+            case "datatable":
+                return "[TABLE" + (entry.title ? ": " + entry.title : "") + " · " + (Array.isArray(entry.rows) ? entry.rows.length : 0) + " ROWS]";
             default:
                 return `[${type.toUpperCase()}]`;
         }
@@ -2071,6 +2739,8 @@ const ScriptCreator: FC<ScriptCreatorProps> = ({
     const [newElementType, setNewElementType] = useState<AddableElementType>("plainText");
     const [rawElementError, setRawElementError] = useState<string | null>(null);
     const [rawElementDraft, setRawElementDraft] = useState<string>("");
+    const [tableDataDraft, setTableDataDraft] = useState<string>("");
+    const [tableEditorMode, setTableEditorMode] = useState<"grid" | "text">("grid");
     const [rawDialogContentDraft, setRawDialogContentDraft] = useState<string>("");
     const [selectedDialogFocusId, setSelectedDialogFocusId] = useState<string>("");
     const [selectedDialogContentIndex, setSelectedDialogContentIndex] = useState<number>(0);
@@ -2391,9 +3061,7 @@ const ScriptCreator: FC<ScriptCreatorProps> = ({
         const fallbackLabel = selectedElementType === "list" ? "ITEM" : "OPTION";
         return normalizeCyclerStates((selectedElement as any)?.states, fallbackLabel);
     }, [selectedElement, selectedElementIsCycler, selectedElementType]);
-    const classNameOptions = useMemo(() => {
-        return getClassNameOptionsForElementType(selectedElementType);
-    }, [selectedElementType]);
+    const classNameGroups = getClassNameGroupsForElementType(selectedElementType);
     const schemaData = useMemo(() => buildScreenConnectionMap(script), [script]);
     const effectiveSchemaRootId = useMemo(() => {
         if (!schemaData.screenIds.length) {
@@ -2415,12 +3083,6 @@ const ScriptCreator: FC<ScriptCreatorProps> = ({
             schemaData.nodeLabelById
         );
     }, [effectiveSchemaRootId, schemaData]);
-    const classNameSelectOptions = useMemo(() => {
-        return toCreatorSelectOptions(classNameOptions, "(none)");
-    }, [classNameOptions]);
-    const cyclerStateClassNameSelectOptions = useMemo(() => {
-        return toCreatorSelectOptions(CYCLER_CLASSNAME_OPTIONS, "(none)");
-    }, []);
     const schemaRootSelectOptions = useMemo(() => {
         return schemaData.screenIds.map((id) => ({ value: id, label: id }));
     }, [schemaData.screenIds]);
@@ -2574,6 +3236,12 @@ const ScriptCreator: FC<ScriptCreatorProps> = ({
         setRawElementDraft(JSON.stringify(selectedElement, null, 2));
         setRawElementError(null);
     }, [elementEditorMode, selectedElementIndex, selectedScreenId, sidebarListMode]);
+
+    // the table data textarea keeps its own draft so typing isn't reformatted under the cursor
+    useEffect(() => {
+        const isTable = selectedElement && typeof selectedElement === "object" && selectedElement.type === "table";
+        setTableDataDraft(isTable ? serializeTableData(selectedElement) : "");
+    }, [selectedElementIndex, selectedScreenId, sidebarListMode, selectedElement?.type, tableEditorMode]);
 
     useEffect(() => {
         if (sidebarListMode !== "dialogs" || selectedDialogContentEntry === undefined || !selectedDialogContentEntryIsObject) {
@@ -3513,6 +4181,27 @@ const ScriptCreator: FC<ScriptCreatorProps> = ({
                     states: [
                         { active: true, text: "OPTION 1" },
                         { active: false, text: "OPTION 2" },
+                    ],
+                };
+                break;
+
+            case "table":
+                element = {
+                    type: "table",
+                    title: "CREW MANIFEST",
+                    border: "single",
+                    sortable: true,
+                    filter: false,
+                    columns: [
+                        { key: "id", label: "ID", align: "right" },
+                        { key: "name", label: "NAME" },
+                        { key: "role", label: "ROLE" },
+                        { key: "status", label: "STATUS" },
+                    ],
+                    rows: [
+                        ["001", "MORLEY, D.", "CAPTAIN", "ACTIVE"],
+                        ["002", "CHEN, R.", "ENGINEER", "ACTIVE"],
+                        { cells: ["003", "VOSS, K.", "MEDIC", "MISSING"], className: "alert" },
                     ],
                 };
                 break;
@@ -5027,11 +5716,11 @@ const ScriptCreator: FC<ScriptCreatorProps> = ({
                                                             </small>
                                                         </label>
 
-                                                        <label className="script-creator__field">
-                                                            <span>Class Name (Apply Style)</span>
-                                                            <CreatorSelect
+                                                        <div className="script-creator__field">
+                                                            <span>Class Names</span>
+                                                            <ClassNameChips
                                                                 value=""
-                                                                options={TEXT_LINE_STYLE_OPTIONS}
+                                                                groups={TEXT_CLASS_GROUPS}
                                                                 onChange={(nextClassName) => {
                                                                     if (!nextClassName.length) {
                                                                         return;
@@ -5043,7 +5732,7 @@ const ScriptCreator: FC<ScriptCreatorProps> = ({
                                                                     });
                                                                 }}
                                                             />
-                                                        </label>
+                                                        </div>
 
                                                         <label className="script-creator__field">
                                                             <span>Text Align</span>
@@ -5759,12 +6448,11 @@ const ScriptCreator: FC<ScriptCreatorProps> = ({
                                                                                 />
                                                                         </label>
 
-                                                                        <label className="script-creator__field">
-                                                                            <span>Class Name</span>
-                                                                            <CreatorSelect
-                                                                                value={state.className || ""}
-                                                                                options={cyclerStateClassNameSelectOptions}
-                                                                                searchable
+                                                                        <div className="script-creator__field">
+                                                                            <span>Class Names</span>
+                                                                            <ClassNameChips
+                                                                                value={typeof state.className === "string" ? state.className : ""}
+                                                                                groups={INPUT_CLASS_GROUPS}
                                                                                 onChange={(nextClassName) => {
                                                                                     updateCyclerStates((prevStates) => {
                                                                                         return prevStates.map((entry: any, index: number) => {
@@ -5786,7 +6474,7 @@ const ScriptCreator: FC<ScriptCreatorProps> = ({
                                                                                     });
                                                                                 }}
                                                                             />
-                                                                        </label>
+                                                                        </div>
 
                                                                         {behavior === "dialog" && (
                                                                             <>
@@ -5976,6 +6664,197 @@ const ScriptCreator: FC<ScriptCreatorProps> = ({
                                                                 }}
                                                             />
                                                         </label>
+
+                                                        <div className="script-creator__field">
+                                                            <span>Background</span>
+                                                            <CreatorSelect
+                                                                value={typeof selectedElement.background === "string" ? selectedElement.background : ""}
+                                                                options={IMAGE_BACKGROUND_OPTIONS}
+                                                                editable
+                                                                placeholder="(none) — or any CSS color, e.g. #c8ffd0"
+                                                                onChange={(nextValue) => {
+                                                                    const nextElement = { ...selectedElement };
+                                                                    if (nextValue.trim().length) {
+                                                                        nextElement.background = nextValue;
+                                                                    } else {
+                                                                        delete nextElement.background;
+                                                                    }
+                                                                    updateElement(nextElement);
+                                                                }}
+                                                            />
+                                                            <small className="script-creator__markdown-hint">
+                                                                Paints a color behind the image so blend modes mix with it instead of the dark terminal. Try "fg" with multiply or darken, monochrome on any color for a tint, or difference on #ffffff to invert.
+                                                            </small>
+                                                        </div>
+                                                    </>
+                                                )}
+
+                                                {selectedElement && typeof selectedElement === "object" && selectedElement.type === "table" && (
+                                                    <>
+                                                        <label className="script-creator__field">
+                                                            <span>Title</span>
+                                                            <input
+                                                                value={selectedElement.title || ""}
+                                                                placeholder="(no title bar)"
+                                                                onChange={(e) => {
+                                                                    const nextElement = { ...selectedElement, title: e.target.value };
+                                                                    if (!e.target.value.length) {
+                                                                        delete nextElement.title;
+                                                                    }
+                                                                    updateElement(nextElement);
+                                                                }}
+                                                            />
+                                                        </label>
+
+                                                        <div className="script-creator__field">
+                                                            <div className="script-creator__table-toolbar">
+                                                                <span>Table Data</span>
+                                                                <div className="script-creator__actions">
+                                                                    <button
+                                                                        type="button"
+                                                                        className={"script-creator__btn" + (tableEditorMode === "grid" ? " script-creator__btn--active" : "")}
+                                                                        title="Edit cells one by one"
+                                                                        onClick={() => setTableEditorMode("grid")}
+                                                                    >
+                                                                        [GRID]
+                                                                    </button>
+                                                                    <button
+                                                                        type="button"
+                                                                        className={"script-creator__btn" + (tableEditorMode === "text" ? " script-creator__btn--active" : "")}
+                                                                        title="Edit or paste the whole table as pipe-separated text"
+                                                                        onClick={() => setTableEditorMode("text")}
+                                                                    >
+                                                                        [TEXT]
+                                                                    </button>
+                                                                </div>
+                                                            </div>
+                                                            {tableEditorMode === "grid" && (
+                                                                <>
+                                                                    <TableGridEditor
+                                                                        element={selectedElement}
+                                                                        screenIds={schemaData.screenIds}
+                                                                        onChange={updateElement}
+                                                                    />
+                                                                    <small className="script-creator__markdown-hint">
+                                                                        Type in the cells. Enter moves down a row and adds a new row at the end. ◄ ► move a column, the LEFT/CENTER/RIGHT button sets its alignment, and × deletes it. OPENS SCREEN makes the row a link (selected with ↑↓ + Enter or a click in the terminal). Click COLOR to cycle the row color.
+                                                                    </small>
+                                                                </>
+                                                            )}
+                                                        </div>
+
+                                                        {tableEditorMode === "text" && (
+                                                            <label className="script-creator__field">
+                                                                <span>Pipe-Separated Text</span>
+                                                                <textarea
+                                                                    className="script-creator__table-data"
+                                                                    spellCheck={false}
+                                                                    wrap="off"
+                                                                    value={tableDataDraft}
+                                                                    onChange={(e) => {
+                                                                        const nextDraft = e.target.value;
+                                                                        setTableDataDraft(nextDraft);
+                                                                        updateElement({ ...selectedElement, ...parseTableData(nextDraft, selectedElement) });
+                                                                    }}
+                                                                />
+                                                                <small className="script-creator__markdown-hint">
+                                                                    First line = column headings. One row per line, cells separated by "|" ("\|" for a literal pipe). End a row with "&gt;&gt; screen-id" to open that screen when the row is selected. Row colors are kept by position; set them in [GRID].
+                                                                </small>
+                                                            </label>
+                                                        )}
+
+                                                        {tableEditorMode === "text" && Array.isArray(selectedElement.columns) && selectedElement.columns.length > 0 && (
+                                                            <div className="script-creator__table-columns">
+                                                                {selectedElement.columns.map((column: any, columnIndex: number) => (
+                                                                    <label key={"column-" + columnIndex} className="script-creator__field">
+                                                                        <span>Align: {getTableColumnLabel(column) || "COL " + (columnIndex + 1)}</span>
+                                                                        <CreatorSelect
+                                                                            value={column && typeof column === "object" && typeof column.align === "string" ? column.align : "left"}
+                                                                            options={TABLE_ALIGN_OPTIONS}
+                                                                            onChange={(nextAlign) => {
+                                                                                const nextColumns = selectedElement.columns.map((entry: any, index: number) => {
+                                                                                    if (index !== columnIndex) {
+                                                                                        return entry;
+                                                                                    }
+                                                                                    const base = entry && typeof entry === "object" ? { ...entry } : { label: getTableColumnLabel(entry) };
+                                                                                    if (nextAlign === "left") {
+                                                                                        delete base.align;
+                                                                                    } else {
+                                                                                        base.align = nextAlign;
+                                                                                    }
+                                                                                    return base;
+                                                                                });
+                                                                                updateElement({ ...selectedElement, columns: nextColumns });
+                                                                            }}
+                                                                        />
+                                                                    </label>
+                                                                ))}
+                                                            </div>
+                                                        )}
+
+                                                        <label className="script-creator__field">
+                                                            <span>Border</span>
+                                                            <CreatorSelect
+                                                                value={selectedElement.border || "single"}
+                                                                options={TABLE_BORDER_OPTIONS}
+                                                                onChange={(nextValue) => updateElement({ ...selectedElement, border: nextValue })}
+                                                            />
+                                                        </label>
+
+                                                        <label className="script-creator__field">
+                                                            <span>Sortable Columns</span>
+                                                            <CreatorSelect
+                                                                value={selectedElement.sortable ? "true" : "false"}
+                                                                options={BOOLEAN_OPTIONS}
+                                                                onChange={(nextValue) => updateElement({ ...selectedElement, sortable: nextValue === "true" })}
+                                                            />
+                                                        </label>
+
+                                                        <label className="script-creator__field">
+                                                            <span>Search Query Line</span>
+                                                            <CreatorSelect
+                                                                value={selectedElement.filter ? "true" : "false"}
+                                                                options={BOOLEAN_OPTIONS}
+                                                                onChange={(nextValue) => updateElement({ ...selectedElement, filter: nextValue === "true" })}
+                                                            />
+                                                        </label>
+
+                                                        <label className="script-creator__field">
+                                                            <span>Record Count Footer</span>
+                                                            <CreatorSelect
+                                                                value={selectedElement.footer === false ? "false" : "true"}
+                                                                options={BOOLEAN_OPTIONS}
+                                                                onChange={(nextValue) => {
+                                                                    const nextElement = { ...selectedElement };
+                                                                    if (nextValue === "true") {
+                                                                        delete nextElement.footer;
+                                                                    } else {
+                                                                        nextElement.footer = false;
+                                                                    }
+                                                                    updateElement(nextElement);
+                                                                }}
+                                                            />
+                                                        </label>
+
+                                                        <label className="script-creator__field">
+                                                            <span>Rows Per Page</span>
+                                                            <input
+                                                                type="number"
+                                                                step="1"
+                                                                min="0"
+                                                                placeholder="all"
+                                                                value={selectedElement.pageSize ?? ""}
+                                                                onChange={(e) => {
+                                                                    const parsed = Math.floor(Number(e.target.value));
+                                                                    const nextElement = { ...selectedElement };
+                                                                    if (!e.target.value.length || !Number.isFinite(parsed) || parsed <= 0) {
+                                                                        delete nextElement.pageSize;
+                                                                    } else {
+                                                                        nextElement.pageSize = parsed;
+                                                                    }
+                                                                    updateElement(nextElement);
+                                                                }}
+                                                            />
+                                                        </label>
                                                     </>
                                                 )}
 
@@ -6074,27 +6953,23 @@ const ScriptCreator: FC<ScriptCreatorProps> = ({
                                                     </>
                                                 )}
 
-                                                {selectedElement && typeof selectedElement === "object" && classNameOptions.length > 0 && (
-                                                    <label className="script-creator__field">
-                                                        <span>Class Name</span>
-                                                        <CreatorSelect
-                                                            value={selectedElement.className || ""}
-                                                            options={classNameSelectOptions}
-                                                            searchable
-                                                            onChange={(nextValue) => {
-                                                                if (!nextValue.length) {
-                                                                    const nextElement = { ...selectedElement };
+                                                {selectedElement && typeof selectedElement === "object" && classNameGroups.length > 0 && (
+                                                    <div className="script-creator__field">
+                                                        <span>Class Names</span>
+                                                        <ClassNameChips
+                                                            value={typeof selectedElement.className === "string" ? selectedElement.className : ""}
+                                                            groups={classNameGroups}
+                                                            onChange={(nextClassName) => {
+                                                                const nextElement = { ...selectedElement };
+                                                                if (nextClassName.length) {
+                                                                    nextElement.className = nextClassName;
+                                                                } else {
                                                                     delete nextElement.className;
-                                                                    updateElement(nextElement);
-                                                                    return;
                                                                 }
-                                                                updateElement({
-                                                                    ...selectedElement,
-                                                                    className: nextValue,
-                                                                });
+                                                                updateElement(nextElement);
                                                             }}
                                                         />
-                                                    </label>
+                                                    </div>
                                                 )}
 
                                                 {selectedElement && typeof selectedElement === "object" && (
@@ -6268,19 +7143,17 @@ const ScriptCreator: FC<ScriptCreatorProps> = ({
                                                     </small>
                                                 </label>
 
-                                                <label className="script-creator__field">
-                                                    <span>Class Name (Apply Style)</span>
-                                                    <CreatorSelect
+                                                <div className="script-creator__field">
+                                                    <span>Class Names</span>
+                                                    <ClassNameChips
                                                         value={selectedDialogTextClassName || ""}
-                                                        options={TEXT_LINE_STYLE_OPTIONS}
-                                                        fallbackLabel={selectedDialogTextClassName || "(none)"}
-                                                        searchable
+                                                        groups={TEXT_CLASS_GROUPS}
                                                         onChange={(nextClassName) => {
                                                             updateDialogTextClassName(nextClassName);
                                                             setRawElementError(null);
                                                         }}
                                                     />
-                                                </label>
+                                                </div>
                                             </>
                                         )}
 

@@ -1,4 +1,5 @@
 import { CSSProperties, ReactNode } from "react";
+import { toSafeLinkUrl } from "../lib/safeUrl";
 
 type InlineTokenType = "link" | "bold" | "underline" | "italic" | "strikethrough";
 
@@ -84,32 +85,9 @@ export const parseMarkdownHeading = (value: string): MarkdownHeadingMatch | null
     };
 };
 
-const sanitizeHref = (value: string): string | null => {
-    const href = value.trim();
-    if (!href.length) {
-        return null;
-    }
-
-    const schemeMatch = href.match(/^([a-zA-Z][a-zA-Z0-9+.-]*):/);
-    if (schemeMatch) {
-        const scheme = schemeMatch[1].toLowerCase();
-        if (scheme !== "http" && scheme !== "https" && scheme !== "mailto" && scheme !== "tel") {
-            return null;
-        }
-        return href;
-    }
-
-    if (
-        href.startsWith("#")
-        || href.startsWith("/")
-        || href.startsWith("./")
-        || href.startsWith("../")
-    ) {
-        return href;
-    }
-
-    return href;
-};
+// Only http(s)/mailto/tel (or relative) links are rendered; anything else,
+// including obfuscated "java\tscript:" URLs, falls back to plain text.
+const sanitizeHref = (value: string): string | null => toSafeLinkUrl(value);
 
 const isEscapedAt = (value: string, index: number): boolean => {
     let slashCount = 0;
@@ -123,9 +101,9 @@ const isEscapedAt = (value: string, index: number): boolean => {
     return slashCount % 2 === 1;
 };
 
-const findFirstUnescapedMatch = (value: string, regex: RegExp): RegExpExecArray | null => {
-    const flags = regex.flags.includes("g") ? regex.flags : `${regex.flags}g`;
-    const pattern = new RegExp(regex.source, flags);
+// `pattern` must be a global regex; it's reset here so it can be shared.
+const findFirstUnescapedMatch = (value: string, pattern: RegExp): RegExpExecArray | null => {
+    pattern.lastIndex = 0;
     let match = pattern.exec(value);
 
     while (match) {
@@ -138,19 +116,30 @@ const findFirstUnescapedMatch = (value: string, regex: RegExp): RegExpExecArray 
     return null;
 };
 
+// Compiled once. The link pattern excludes "[" from the label and bounds both
+// parts: the unbounded original backtracked quadratically on input like
+// "[[[[…", which let a script freeze the tab.
+const INLINE_PATTERNS: Array<{ kind: InlineTokenType; regex: RegExp }> = [
+    { kind: "link", regex: /\[([^[\]\n]{1,500})\]\(([^()\s]{1,2048})\)/g },
+    { kind: "bold", regex: /\*\*([^*\n]+)\*\*/g },
+    { kind: "underline", regex: /__([^_\n]+)__/g },
+    { kind: "underline", regex: /\+\+([^+\n]+)\+\+/g }, // legacy support
+    { kind: "strikethrough", regex: /~~([^~\n]+)~~/g },
+    { kind: "italic", regex: /\*([^*\n]+)\*/g },
+];
+
+// Inline parsing re-scans the remaining text once per token, so very long
+// lines are rendered as plain text rather than risk a multi-second stall.
+const MAX_INLINE_MARKDOWN_LENGTH = 5000;
+
 const findFirstInlineToken = (value: string): InlineTokenMatch | null => {
-    const patterns: Array<{ kind: InlineTokenType; regex: RegExp }> = [
-        { kind: "link", regex: /\[([^\]\n]+)\]\(([^)\n]+)\)/ },
-        { kind: "bold", regex: /\*\*([^*\n]+)\*\*/ },
-        { kind: "underline", regex: /__([^_\n]+)__/ },
-        { kind: "underline", regex: /\+\+([^+\n]+)\+\+/ }, // legacy support
-        { kind: "strikethrough", regex: /~~([^~\n]+)~~/ },
-        { kind: "italic", regex: /\*([^*\n]+)\*/ },
-    ];
+    if (value.length > MAX_INLINE_MARKDOWN_LENGTH) {
+        return null;
+    }
 
     let best: InlineTokenMatch | null = null;
 
-    patterns.forEach((pattern) => {
+    INLINE_PATTERNS.forEach((pattern) => {
         const match = findFirstUnescapedMatch(value, pattern.regex);
         if (!match || typeof match.index !== "number") {
             return;

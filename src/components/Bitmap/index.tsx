@@ -1,6 +1,60 @@
 import React, { Component, RefObject, ReactElement, CSSProperties, } from "react";
 import "./style.scss";
 
+// ---- backdrop -----------------------------------------------------------------
+// Blend-mode classes mix an image with whatever is behind it. On the dark
+// terminal background the darkening modes (multiply, darken, color-burn, ...)
+// leave the image nearly black, so an image can ask for its own backdrop:
+// `"background": "fg"` (or bg/alert/notice/emphasis/system for the theme's
+// colors, or any CSS color like "#d0ffd0") paints that color behind the image
+// and the blend mode mixes against it instead.
+
+const THEME_BACKDROPS: Record<string, string> = {
+    fg: "var(--theme-fg, var(--fg))",
+    bg: "var(--bg)",
+    alert: "var(--alert)",
+    notice: "var(--notice)",
+    emphasis: "var(--emphasis)",
+    system: "var(--system)",
+};
+
+export const resolveImageBackdrop = (value: unknown): string | undefined => {
+    if (typeof value !== "string") {
+        return undefined;
+    }
+    const trimmed = value.trim();
+    if (!trimmed.length || trimmed.length > 64) {
+        return undefined;
+    }
+    const themed = THEME_BACKDROPS[trimmed.toLowerCase()];
+    if (themed) {
+        return themed;
+    }
+    // only real colors: this ends up in a CSS custom property
+    if (typeof CSS !== "undefined" && typeof CSS.supports === "function" && CSS.supports("color", trimmed)) {
+        return trimmed;
+    }
+    return undefined;
+};
+
+// class + inline style for an `__image__` wrapper with an optional backdrop
+export const getImageWrapperProps = (
+    className: string | undefined,
+    background: unknown,
+    fillWidth?: boolean,
+): { className: string; style?: CSSProperties } => {
+    const backdrop = resolveImageBackdrop(background);
+    const css = [
+        "__image__",
+        backdrop ? "has-backdrop" : null,
+        backdrop && fillWidth ? "fill-width" : null,
+        className || null,
+    ].filter(Boolean).join(" ");
+    return backdrop
+        ? { className: css, style: { ["--image-backdrop" as any]: backdrop } }
+        : { className: css };
+};
+
 export interface BitmapProps {
     src: string;
     className?: string;
@@ -8,6 +62,7 @@ export interface BitmapProps {
     animated?: boolean;
     scale?: number;
     fillWidth?: boolean;
+    background?: string; // backdrop color behind the image (see resolveImageBackdrop)
     autocomplete?: boolean;
     onComplete: () => void; // event called on completion
 }
@@ -76,16 +131,16 @@ class Bitmap extends Component<BitmapProps, BitmapState> {
     }
 
     public render(): ReactElement {
-        const { className, src, alt } = this.props;
+        const { className, src, alt, background, fillWidth } = this.props;
         const { loading, resolvedSrc } = this.state;
-        const css = ["__image__", className ? className : null].join(" ").trim();
+        const wrapper = getImageWrapperProps(className, background, fillWidth);
         const animated = this._isAnimatedSource();
         const style = this._getMediaStyle();
         const mediaSrc = resolvedSrc || src;
 
         if (animated) {
             return (
-                <div className={css}>
+                <div className={wrapper.className} style={wrapper.style}>
                     {loading && <div className="progressbar" />}
                     {!loading && <img src={mediaSrc} alt={alt || ""} style={style} />}
                 </div>
@@ -93,7 +148,7 @@ class Bitmap extends Component<BitmapProps, BitmapState> {
         }
 
         return (
-            <div className={css}>
+            <div className={wrapper.className} style={wrapper.style}>
                 {loading && <div className="progressbar" />}
                 <canvas ref={this._canvasRef} style={style} />
             </div>
@@ -111,6 +166,18 @@ class Bitmap extends Component<BitmapProps, BitmapState> {
 
     public componentWillUnmount(): void {
         this._clearAnimationTimer();
+        this._detachImage(this.state?.image);
+        this._detachImage(this._animatedImage);
+        this._animatedImage = null;
+    }
+
+    private _animatedImage: HTMLImageElement | null = null;
+
+    private _detachImage(image: HTMLImageElement | null | undefined): void {
+        if (image) {
+            image.onload = null;
+            image.onerror = null;
+        }
     }
 
     private _isAnimatedSource(): boolean {
@@ -239,6 +306,7 @@ class Bitmap extends Component<BitmapProps, BitmapState> {
         }
 
         const image = new Image();
+        this._animatedImage = image;
         image.onload = () => {
             this.setState({
                 loading: false,

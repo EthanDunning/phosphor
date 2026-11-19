@@ -28,3 +28,6 @@ yarn-error.log*
 .codex
 .vscode/
 .claude/
+
+# local wrangler dev state
+.wrangler/

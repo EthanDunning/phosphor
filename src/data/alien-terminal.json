@@ -1,50 +1,107 @@
 {
     "config": {
-        "name": "Sevastopol Access Terminal",
+        "name": "LANTERN-7 Rig Terminal",
         "author": "EthanDunning",
         "theme": "green",
         "defaultTextSpeed": 20,
-        "comment": "Example of the 'alien' file-system screen (Alien: Isolation). A screen's TYPE decides how it is interpreted: \"screen\" and \"static\" are the classic teletype screens (used here for the boot + login), while \"filesystem\" renders the SEEGSON three-region browser with its own chrome. A file-system screen's link elements are the left-hand FOLDER tabs; the selected folder's target screen supplies the top-right list of sub-sections (its own links, or itself if it is a single message); and the selected sub-section's target supplies the content typed into the body — all with NO screen transitions. A folder or sub-section is a working BUTTON (it navigates / runs an action instead of opening content) when its `target` uses the array LinkTarget form, e.g. the 'LOG OUT' folder here: `\"target\": [{ \"type\": \"action\", \"action\": \"back\" }]`. Use ↑/↓ to move within a list, ←/→ to enter the sub-section list, Enter to open/activate, or just click. The header title comes from the screen's `headerTitle`. (Set `config.terminalType: \"alien\"` to also wrap every classic screen in the same chrome.)"
+        "comment": "LANTERN-7: an original sci-fi horror scenario and a showcase of the file-system screen. A deep-ice drilling rig went silent 19 days ago; the players' crew is the first to dock. Log in as MAINT / 7731; the supervisor's password (HALE / MIRA) is a puzzle hidden across the helpdesk ticket and Hale's crew file, and unlocks the RESTRICTED and RIG CONTROL folders. Shows: classic boot + login screens with onDone auto-advance, two file-system screens (\"type\": \"filesystem\") with different folders per account, data tables whose rows open files in place, an image with a blend mode + background, toggles that open dialogs, a diagnostic prompt, a crew-log prompt whose entries are saved (shipLogEntries), and a LOG OUT button (array target). File-system basics: the screen's links are the left-hand folders; each folder's target screen lists its files (its links) top-right, or is a single file if it has no links; the selected file's content shows in the body. Inside a file system, a plain (string) link opens its target in the body: a listed file gets selected, any other classic screen opens in place (the crew files here are opened from table rows). Array-form targets are buttons that navigate away."
     },
     "screens": [
         {
             "id": "boot",
             "type": "screen",
-            "onDone": { "target": "main", "delayMs": 1400 },
+            "onDone": {
+                "target": "login",
+                "delayMs": 1800
+            },
             "content": [
                 "",
-                { "type": "text", "className": "system", "text": "S E E G S O N" },
-                "APOLLO NETWORK ACCESS TERMINAL",
-                "MODEL S-8100  /  FIRMWARE 4.7.2",
-                "",
-                "ESTABLISHING SECURE UPLINK...",
-                "",
                 {
-                "type": "text",
-                "text": "LINK ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓  100%",
-                "speed": 5
+                    "type": "text",
+                    "text": "O R R I N - V A L E   M I N E R A L   C O M B I N E",
+                    "className": "system"
+                },
+                "NETCORE TERMINAL SERVICES  //  NODE: LANTERN-7",
+                "SUBSURFACE RIG  //  VESH ICE SHELF, GRID 44-K",
+                "",
+                "POWER-ON SELF TEST...",
+                "  MEMORY .............. OK",
+                "  STORAGE ............. OK  (2 SECTORS REMAPPED)",
+                {
+                    "type": "text",
+                    "text": "  UPLINK .............. NO CARRIER  (19 DAYS)",
+                    "className": "alert"
                 },
                 "",
-                { "type": "text", "className": "notice", "text": "CONNECTION ESTABLISHED" }
+                "POLLING RIG SENSOR BUS...",
+                {
+                    "type": "text",
+                    "text": "SCAN ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓  100%",
+                    "speed": 5
+                },
+                "",
+                {
+                    "type": "text",
+                    "text": "WARNING: 2 OF 8 REGISTERED CREW BIOSIGNS DETECTED",
+                    "className": "alert"
+                },
+                {
+                    "type": "text",
+                    "text": "WARNING: 3 UNREGISTERED BIOSIGNS DETECTED",
+                    "className": "alert"
+                },
+                {
+                    "type": "text",
+                    "text": "WARNING: LIFEBOAT BAY 1 REPORTS EMPTY",
+                    "className": "alert"
+                },
+                "",
+                {
+                    "type": "text",
+                    "text": "TERMINAL READY",
+                    "className": "notice"
+                }
             ]
         },
         {
             "id": "login",
             "type": "screen",
             "content": [
-                { "type": "text", "className": "system", "text": "AUTHORIZATION REQUIRED" },
-                "This terminal is restricted to authorized SEEGSON personnel.",
-                "Unauthorized access is logged and reported to station security.",
+                {
+                    "type": "text",
+                    "text": "AUTHORIZATION REQUIRED",
+                    "className": "system"
+                },
+                "LANTERN-7 is a restricted Orrin-Vale site. All sessions are recorded.",
                 "",
-                "HINT> OPERATOR / 31161",
+                {
+                    "type": "text",
+                    "text": "FIELD NOTE: the maintenance login is MAINT / 7731. The supervisor's",
+                    "className": "small"
+                },
+                {
+                    "type": "text",
+                    "text": "password is hidden somewhere in the files.",
+                    "className": "small"
+                },
                 "",
                 {
                     "type": "login",
-                    "usernamePrompt": "OPERATOR ID> ",
-                    "passwordPrompt": "ACCESS CODE> ",
+                    "usernamePrompt": "USER> ",
+                    "passwordPrompt": "CODE> ",
                     "usernameCaseSensitive": false,
+                    "passwordCaseSensitive": false,
                     "credentials": [
-                        { "username": "OPERATOR", "password": "31161", "target": "main" }
+                        {
+                            "username": "MAINT",
+                            "password": "7731",
+                            "target": "node-maint"
+                        },
+                        {
+                            "username": "HALE",
+                            "password": "MIRA",
+                            "target": "node-super"
+                        }
                     ],
                     "noMatchTarget": "login-fail"
                 }
@@ -53,166 +110,1683 @@
         {
             "id": "login-fail",
             "type": "screen",
-            "onDone": { "target": "login", "delayMs": 1800 },
+            "onDone": {
+                "target": "login",
+                "delayMs": 1800
+            },
             "content": [
                 "",
-                { "type": "text", "className": "alert", "text": "ACCESS DENIED" },
-                "Credentials not recognized. Re-authenticating...",
+                {
+                    "type": "text",
+                    "text": "ACCESS DENIED",
+                    "className": "alert"
+                },
+                "Credentials not recognized. Attempt logged against this terminal.",
                 ""
             ]
         },
-
         {
-            "id": "main",
+            "id": "node-maint",
             "type": "filesystem",
-            "headerTitle": "PERSONAL TERMINAL",
+            "headerTitle": "LANTERN-7 // MAINTENANCE NODE",
             "content": [
-                { "type": "link", "text": "PERSONAL", "target": "msg-nostromo" },
-                { "type": "link", "text": "SHARED", "target": "shared" },
-                { "type": "link", "text": "PERSONNEL", "target": "personnel" },
-                { "type": "link", "text": "SYSTEM", "target": "msg-system" },
-                { "type": "link", "text": "< LOG OUT", "target": [ { "type": "action", "action": "back" } ] }
-            ]
-        },
-
-        {
-            "id": "msg-nostromo",
-            "type": "screen",
-            "title": "RE: NOSTROMO INCIDENT",
-            "content": [
-                "To N. Taylor",
-                "RE: Nostromo incident. Case file #DS9398476",
-                "",
-                "Taylor — I pulled what I could from the archive, but the",
-                "incident predates my posting here, so treat the details as",
-                "provisional until the sealed records are released.",
-                "",
-                "In 2122 a commercial hauler went dark on the return leg of a",
-                "routine tow. No trace was recovered of the cargo or the crew.",
-                "Apart from a late-addition science officer, the complement had",
-                "served together on prior contracts — seven in all:",
-                "",
-                "  DALLAS   - Captain",
-                "  KANE     - Executive Officer",
-                "  RIPLEY   - Warrant Officer",
-                "  LAMBERT  - Navigation Officer",
-                "  ASH      - Science Officer",
-                "  PARKER   - Chief Engineer",
-                "  BRETT    - Engineering Tech",
-                "",
-                "The company classified the loss and moved on. I'd leave it",
-                "there if I were you.",
-                "",
-                "- R."
-            ]
-        },
-
-        {
-            "id": "shared",
-            "type": "screen",
-            "content": [
-                { "type": "link", "text": "STATION BULLETIN", "target": "msg-bulletin" },
-                { "type": "link", "text": "TRANSIT ADVISORY", "target": "msg-transit" }
+                {
+                    "type": "link",
+                    "text": "MAIL",
+                    "target": "f-mail"
+                },
+                {
+                    "type": "link",
+                    "text": "CREW",
+                    "target": "crew-roster"
+                },
+                {
+                    "type": "link",
+                    "text": "RIG STATUS",
+                    "target": "f-rig"
+                },
+                {
+                    "type": "link",
+                    "text": "DRILL",
+                    "target": "f-drill"
+                },
+                {
+                    "type": "link",
+                    "text": "CREW LOG",
+                    "target": "f-log"
+                },
+                {
+                    "type": "link",
+                    "text": "DIAGNOSTICS",
+                    "target": "diag-console"
+                },
+                {
+                    "type": "link",
+                    "text": "< LOG OUT",
+                    "target": [
+                        {
+                            "type": "action",
+                            "action": "back"
+                        }
+                    ]
+                }
             ]
         },
         {
-            "id": "msg-bulletin",
-            "type": "screen",
+            "id": "node-super",
+            "type": "filesystem",
+            "headerTitle": "LANTERN-7 // SUPERVISOR NODE  [HALE, R.]",
             "content": [
-                "POSTED TO: ALL PERSONNEL",
-                "PRIORITY:  ROUTINE",
-                "",
-                "The commissary will be closed for restock during third watch.",
-                "Recreation deck lighting is on a reduced cycle to conserve",
-                "power while the reactor fault is investigated.",
-                "",
-                "Thank you for your patience.",
-                "",
-                "- OPERATIONS"
+                {
+                    "type": "link",
+                    "text": "MAIL",
+                    "target": "f-mail"
+                },
+                {
+                    "type": "link",
+                    "text": "CREW",
+                    "target": "crew-roster"
+                },
+                {
+                    "type": "link",
+                    "text": "RIG STATUS",
+                    "target": "f-rig"
+                },
+                {
+                    "type": "link",
+                    "text": "DRILL",
+                    "target": "f-drill"
+                },
+                {
+                    "type": "link",
+                    "text": "RESTRICTED",
+                    "target": "f-restricted"
+                },
+                {
+                    "type": "link",
+                    "text": "RIG CONTROL",
+                    "target": "f-control"
+                },
+                {
+                    "type": "link",
+                    "text": "CREW LOG",
+                    "target": "f-log"
+                },
+                {
+                    "type": "link",
+                    "text": "DIAGNOSTICS",
+                    "target": "diag-console"
+                },
+                {
+                    "type": "link",
+                    "text": "< LOG OUT",
+                    "target": [
+                        {
+                            "type": "action",
+                            "action": "back"
+                        }
+                    ]
+                }
             ]
         },
         {
-            "id": "msg-transit",
+            "id": "f-mail",
             "type": "screen",
             "content": [
-                "POSTED TO: ALL PERSONNEL",
-                "PRIORITY:  ELEVATED",
-                "",
-                "The transit line between the upper and lower rings is on a",
-                "reduced schedule while diagnostics complete on Junction 7.",
-                "Allow extra time for shift changeovers, and report any",
-                "malfunction of the car doors to engineering immediately."
-            ]
-        },
-
-        {
-            "id": "personnel",
-            "type": "screen",
-            "content": [
-                { "type": "text", "className": "system", "text": "SEVASTOPOL STATION — ACTIVE ROSTER" },
-                "Records shown are current as of the last synchronization.",
-                "Three crew are quartered on this deck. Select a name to review",
-                "their file.",
-                "",
-                { "type": "link", "text": "WAITS, M.", "target": "person-waits" },
-                { "type": "link", "text": "TAGHMAOUI, S.", "target": "person-taghmaoui" },
-                { "type": "link", "text": "RICARDO, A.", "target": "person-ricardo" },
-                { "type": "link", "text": "< RETURN TO MENU", "target": "main" }
+                {
+                    "type": "link",
+                    "text": "RE: THE HUM",
+                    "target": "mail-hum"
+                },
+                {
+                    "type": "link",
+                    "text": "DECK 3 ROTA",
+                    "target": "mail-rota"
+                },
+                {
+                    "type": "link",
+                    "text": "HELPDESK QUEUE",
+                    "target": "mail-helpdesk"
+                },
+                {
+                    "type": "link",
+                    "text": "LIFEBOAT 1 LAUNCHED",
+                    "target": "mail-lifeboat"
+                }
             ]
         },
         {
-            "id": "person-waits",
+            "id": "mail-hum",
             "type": "screen",
             "content": [
-                "ROLE......... COLONIAL MARSHAL, SENIOR",
-                "CLEARANCE.... TIER 3",
-                "STATUS....... ON STATION",
+                "FROM: OKONKWO, T.  (CHIEF ENGINEER)",
+                "TO:   ALL CREW",
+                "DATE: DAY 211  21:40",
+                "SUBJ: RE: THE HUM",
+                "---",
+                "Yes, I hear it too. Everybody hears it. It started when the bit broke",
+                "through at 4,112 m and it hasn't stopped since.",
                 "",
-                "Assigned pending decommission of the station. Notes indicate",
-                "rising friction with operations staff over the handling of",
-                "the quarantine directive."
+                "It is **not** the pumps. I shut every pump on the rig down for twenty",
+                "minutes last night and it carried on. Same pitch. Same rhythm.",
+                "",
+                "Sato says it's coming *up the shaft*. I told him that's impossible.",
+                "There's nothing down there but water and dark.",
+                "",
+                "Ear protectors are in the locker by the Drill Bay airlock. Wear them.",
+                {
+                    "type": "text",
+                    "text": "Do not go down to the shaft collar alone.",
+                    "className": "alert"
+                },
+                "",
+                "- T.O."
             ]
         },
         {
-            "id": "person-taghmaoui",
+            "id": "mail-rota",
             "type": "screen",
             "content": [
-                "ROLE......... SYSTEMS TECHNICIAN",
-                "CLEARANCE.... TIER 2",
-                "STATUS....... UNACCOUNTED FOR",
+                "FROM: HALE, R.  (RIG SUPERVISOR)",
+                "TO:   ALL CREW",
+                "DATE: DAY 214  06:05",
+                "SUBJ: DECK 3 ROTA",
+                "---",
+                "Effective immediately Deck 3 is off the rota.",
                 "",
-                "Last logged at Transit Junction 7, lower levels. Did not",
-                "report for the following shift. Search request filed and",
-                "pending."
+                "Dr. Vasquez-Ren has sealed Med Bay from the inside and asked that",
+                "nobody open it until she says so. She sounded calm. Respect it.",
+                "",
+                "Sato's body is in cold storage. I've asked Liaison Brandt to request",
+                "an evacuation. I'll let you know the moment I hear back.",
+                "",
+                "- Hale"
             ]
         },
         {
-            "id": "person-ricardo",
+            "id": "mail-helpdesk",
             "type": "screen",
             "content": [
-                "ROLE......... HULL ENGINEER",
-                "CLEARANCE.... TIER 2",
-                "STATUS....... ON STATION",
+                {
+                    "type": "text",
+                    "text": "NETCORE HELPDESK // OPEN + RECENT TICKETS",
+                    "className": "system"
+                },
+                "Select a ticket and press ENTER to open the filer's crew file.",
                 "",
-                "Maintains reactor coolant loops on the SciMed tower. Filed",
-                "three overdue maintenance requests this cycle, all unactioned."
+                {
+                    "type": "table",
+                    "border": "single",
+                    "columns": [
+                        {
+                            "label": "#",
+                            "align": "right"
+                        },
+                        "FROM",
+                        "SUBJECT",
+                        "STATUS"
+                    ],
+                    "rows": [
+                        {
+                            "cells": [
+                                "0218",
+                                "BRANDT",
+                                "Work order: Lifeboat 2 launch clamps",
+                                "CLOSED"
+                            ],
+                            "target": "p-brandt"
+                        },
+                        {
+                            "cells": [
+                                "0219",
+                                "SATO",
+                                "Static on every headset channel",
+                                "CLOSED"
+                            ],
+                            "target": "p-sato"
+                        },
+                        {
+                            "cells": [
+                                "0220",
+                                "LINDQVIST",
+                                "Comms array: carrier stuck, all bands",
+                                "OPEN"
+                            ],
+                            "className": "alert",
+                            "target": "p-lindqvist"
+                        },
+                        {
+                            "cells": [
+                                "0221",
+                                "HALE",
+                                "Locked out of supervisor account (again)",
+                                "RESOLVED"
+                            ],
+                            "target": "p-hale"
+                        },
+                        {
+                            "cells": [
+                                "0222",
+                                "ADEYEMI",
+                                "Galley freezer door opening by itself",
+                                "OPEN"
+                            ],
+                            "className": "notice",
+                            "target": "p-adeyemi"
+                        },
+                        {
+                            "cells": [
+                                "0223",
+                                "PRYOR",
+                                "Core store temperature rising 0.4°/hr",
+                                "OPEN"
+                            ],
+                            "className": "notice",
+                            "target": "p-pryor"
+                        }
+                    ],
+                    "footer": false
+                },
+                "",
+                {
+                    "type": "text",
+                    "text": "TICKET 0221 // RESOLUTION NOTE",
+                    "className": "system"
+                },
+                "Reset the Supervisor's password back to his usual one. Boss, please stop",
+                "using your kid's name for everything. It's the first thing anyone would",
+                "try. - A.L."
             ]
         },
-
         {
-            "id": "msg-system",
+            "id": "mail-lifeboat",
             "type": "screen",
-            "title": "ENVIRONMENTAL STATUS",
             "content": [
-                "# LIFE SUPPORT SUMMARY",
-                { "type": "text", "className": "notice", "text": "ATMOSPHERE..... STABLE" },
-                { "type": "text", "className": "notice", "text": "GRAVITY........ 1.0 G NOMINAL" },
-                { "type": "text", "className": "alert", "text": "REACTOR........ COOLANT PRESSURE LOW" },
-                { "type": "text", "className": "alert", "text": "SECTOR 7....... LIFE SUPPORT OFFLINE" },
+                "FROM: NETCORE (AUTOMATED)",
+                "TO:   RIG SUPERVISOR",
+                "DATE: DAY 213  03:12",
+                "SUBJ: LIFEBOAT 1 LAUNCHED",
+                "---",
+                {
+                    "type": "text",
+                    "text": "LIFEBOAT 1 HAS LEFT THE RIG.",
+                    "className": "alert"
+                },
                 "",
-                "One or more subsystems require attention. Contact station",
-                "engineering to acknowledge active faults. **This node cannot",
-                "clear alarms remotely.**"
+                "OCCUPANTS..... 1",
+                "AUTHORIZED BY. BRANDT, E.  (COMPANY LIAISON)",
+                "DESTINATION... OVMC RELAY 'KESTREL'",
+                "CARGO......... 1x SEALED SAMPLE CASE (CORE 4117-A)",
+                "               1x DATA CORE (FULL COPY)",
+                "",
+                "This launch was not logged with the Rig Supervisor."
+            ]
+        },
+        {
+            "id": "crew-roster",
+            "type": "screen",
+            "title": "ROSTER",
+            "content": [
+                {
+                    "type": "text",
+                    "text": "LANTERN-7 // CREW MANIFEST",
+                    "className": "system"
+                },
+                "Select a row and press ENTER (or click) to open that crew file.",
+                "",
+                {
+                    "type": "table",
+                    "title": "CREW MANIFEST // 8 REGISTERED",
+                    "border": "double",
+                    "sortable": true,
+                    "filter": true,
+                    "columns": [
+                        {
+                            "label": "ID",
+                            "align": "right"
+                        },
+                        "NAME",
+                        "ROLE",
+                        "STATUS",
+                        "LAST LOCATION"
+                    ],
+                    "rows": [
+                        {
+                            "cells": [
+                                "01",
+                                "HALE, R.",
+                                "RIG SUPERVISOR",
+                                "DECEASED",
+                                "DRILL BAY"
+                            ],
+                            "target": "p-hale",
+                            "className": "alert"
+                        },
+                        {
+                            "cells": [
+                                "02",
+                                "OKONKWO, T.",
+                                "CHIEF ENGINEER",
+                                "MISSING",
+                                "SHAFT COLLAR"
+                            ],
+                            "target": "p-okonkwo",
+                            "className": "notice"
+                        },
+                        {
+                            "cells": [
+                                "03",
+                                "VASQUEZ-REN, M.",
+                                "MEDICAL OFFICER",
+                                "QUARANTINED",
+                                "MED BAY (D3)"
+                            ],
+                            "target": "p-vasquez",
+                            "className": "system"
+                        },
+                        {
+                            "cells": [
+                                "04",
+                                "PRYOR, D.",
+                                "GEOLOGIST",
+                                "MISSING",
+                                "CORE STORE"
+                            ],
+                            "target": "p-pryor",
+                            "className": "notice"
+                        },
+                        {
+                            "cells": [
+                                "05",
+                                "SATO, K.",
+                                "DRILL TECHNICIAN",
+                                "DECEASED",
+                                "SHAFT COLLAR"
+                            ],
+                            "target": "p-sato",
+                            "className": "alert"
+                        },
+                        {
+                            "cells": [
+                                "06",
+                                "LINDQVIST, A.",
+                                "COMMS OFFICER",
+                                "UNKNOWN",
+                                "COMMS MAST"
+                            ],
+                            "target": "p-lindqvist"
+                        },
+                        {
+                            "cells": [
+                                "07",
+                                "BRANDT, E.",
+                                "COMPANY LIAISON",
+                                "EVACUATED",
+                                "LIFEBOAT 1"
+                            ],
+                            "target": "p-brandt",
+                            "className": "emphasis"
+                        },
+                        {
+                            "cells": [
+                                "08",
+                                "ADEYEMI, J.",
+                                "STEWARD",
+                                "MISSING",
+                                "GALLEY"
+                            ],
+                            "target": "p-adeyemi",
+                            "className": "notice"
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "id": "p-hale",
+            "type": "screen",
+            "content": [
+                {
+                    "type": "text",
+                    "text": "CREW FILE 01 // HALE, R.",
+                    "className": "system"
+                },
+                "",
+                "ROLE........... RIG SUPERVISOR",
+                {
+                    "type": "text",
+                    "text": "STATUS......... DECEASED",
+                    "className": "alert"
+                },
+                "LAST LOCATION.. DRILL BAY",
+                "NEXT OF KIN.... MIRA HALE (DAUGHTER), TETHYS ORBITAL SCHOOLS",
+                "",
+                "Twenty-two years with Orrin-Vale. Requested evacuation of all crew on",
+                "Day 212. Request denied by the Company Liaison the same day.",
+                "",
+                {
+                    "type": "text",
+                    "text": "Found Day 214 in the Drill Bay, ear protectors removed, 40 m of shaft",
+                    "className": "alert"
+                },
+                {
+                    "type": "text",
+                    "text": "cable unspooled by hand. Cause of death: exposure.",
+                    "className": "alert"
+                },
+                "",
+                {
+                    "type": "link",
+                    "text": "< CREW ROSTER",
+                    "target": "crew-roster"
+                },
+                {
+                    "type": "link",
+                    "text": "< HELPDESK QUEUE",
+                    "target": "mail-helpdesk"
+                }
+            ]
+        },
+        {
+            "id": "p-okonkwo",
+            "type": "screen",
+            "content": [
+                {
+                    "type": "text",
+                    "text": "CREW FILE 02 // OKONKWO, T.",
+                    "className": "system"
+                },
+                "",
+                "ROLE........... CHIEF ENGINEER",
+                {
+                    "type": "text",
+                    "text": "STATUS......... MISSING",
+                    "className": "notice"
+                },
+                "LAST LOCATION.. SHAFT COLLAR",
+                "",
+                "Last badge read: Shaft Collar, Day 216, 02:10.",
+                "Shaft elevator logged a descent to -4,000 m at 02:14.",
+                {
+                    "type": "text",
+                    "text": "The cage came back up at 02:51. It was empty.",
+                    "className": "notice"
+                },
+                "",
+                {
+                    "type": "link",
+                    "text": "< CREW ROSTER",
+                    "target": "crew-roster"
+                },
+                {
+                    "type": "link",
+                    "text": "< HELPDESK QUEUE",
+                    "target": "mail-helpdesk"
+                }
+            ]
+        },
+        {
+            "id": "p-vasquez",
+            "type": "screen",
+            "content": [
+                {
+                    "type": "text",
+                    "text": "CREW FILE 03 // VASQUEZ-REN, M.",
+                    "className": "system"
+                },
+                "",
+                "ROLE........... MEDICAL OFFICER",
+                {
+                    "type": "text",
+                    "text": "STATUS......... QUARANTINED",
+                    "className": "system"
+                },
+                "LAST LOCATION.. MED BAY (D3)",
+                "BIOSIGN........ PRESENT  //  HEART RATE 44 (LOW)",
+                "",
+                "Sealed herself inside Med Bay on Day 215. Final medical note:",
+                "",
+                "> The tone is 19 Hz. You don't hear it, you feel it in your teeth.",
+                "> It's in everyone who handled the core. It's in me.",
+                "> **Do not open this door.**",
+                "",
+                {
+                    "type": "link",
+                    "text": "< CREW ROSTER",
+                    "target": "crew-roster"
+                },
+                {
+                    "type": "link",
+                    "text": "< HELPDESK QUEUE",
+                    "target": "mail-helpdesk"
+                }
+            ]
+        },
+        {
+            "id": "p-pryor",
+            "type": "screen",
+            "content": [
+                {
+                    "type": "text",
+                    "text": "CREW FILE 04 // PRYOR, D.",
+                    "className": "system"
+                },
+                "",
+                "ROLE........... GEOLOGIST",
+                {
+                    "type": "text",
+                    "text": "STATUS......... MISSING",
+                    "className": "notice"
+                },
+                "LAST LOCATION.. CORE STORE",
+                "",
+                "Logged 31 hours in the Core Store across Days 212-213.",
+                "Final notebook entry, photographed by Netcore:",
+                "",
+                {
+                    "type": "text",
+                    "text": "\"it's warmer than it should be. it's warmer than us.\"",
+                    "className": "notice"
+                },
+                "",
+                {
+                    "type": "link",
+                    "text": "< CREW ROSTER",
+                    "target": "crew-roster"
+                },
+                {
+                    "type": "link",
+                    "text": "< HELPDESK QUEUE",
+                    "target": "mail-helpdesk"
+                }
+            ]
+        },
+        {
+            "id": "p-sato",
+            "type": "screen",
+            "content": [
+                {
+                    "type": "text",
+                    "text": "CREW FILE 05 // SATO, K.",
+                    "className": "system"
+                },
+                "",
+                "ROLE........... DRILL TECHNICIAN",
+                {
+                    "type": "text",
+                    "text": "STATUS......... DECEASED",
+                    "className": "alert"
+                },
+                "LAST LOCATION.. SHAFT COLLAR",
+                "",
+                "First to report the hum (helpdesk ticket 0219).",
+                {
+                    "type": "text",
+                    "text": "Found Day 213 at the Shaft Collar, facing the shaft, kneeling.",
+                    "className": "alert"
+                },
+                "No injuries. Cause of death: undetermined.",
+                "",
+                {
+                    "type": "link",
+                    "text": "< CREW ROSTER",
+                    "target": "crew-roster"
+                },
+                {
+                    "type": "link",
+                    "text": "< HELPDESK QUEUE",
+                    "target": "mail-helpdesk"
+                }
+            ]
+        },
+        {
+            "id": "p-lindqvist",
+            "type": "screen",
+            "content": [
+                {
+                    "type": "text",
+                    "text": "CREW FILE 06 // LINDQVIST, A.",
+                    "className": "system"
+                },
+                "",
+                "ROLE........... COMMS OFFICER",
+                {
+                    "type": "text",
+                    "text": "STATUS......... UNKNOWN"
+                },
+                "LAST LOCATION.. COMMS MAST",
+                "BIOSIGN........ INTERMITTENT",
+                "",
+                "Has kept the comms array transmitting a bare carrier on every band",
+                "for 19 days. No voice traffic. Console will not release.",
+                {
+                    "type": "text",
+                    "text": "The carrier pulses at 19 Hz.",
+                    "className": "notice"
+                },
+                "",
+                {
+                    "type": "link",
+                    "text": "< CREW ROSTER",
+                    "target": "crew-roster"
+                },
+                {
+                    "type": "link",
+                    "text": "< HELPDESK QUEUE",
+                    "target": "mail-helpdesk"
+                }
+            ]
+        },
+        {
+            "id": "p-brandt",
+            "type": "screen",
+            "content": [
+                {
+                    "type": "text",
+                    "text": "CREW FILE 07 // BRANDT, E.",
+                    "className": "system"
+                },
+                "",
+                "ROLE........... COMPANY LIAISON",
+                {
+                    "type": "text",
+                    "text": "STATUS......... EVACUATED",
+                    "className": "emphasis"
+                },
+                "LAST LOCATION.. LIFEBOAT 1",
+                "",
+                "Company Liaison, Special Projects.",
+                "Left the rig on Lifeboat 1, Day 213, with core sample 4117-A and a",
+                "full copy of the rig's data core. Did not notify the Rig Supervisor.",
+                "",
+                "Closed work order 0218 the evening before launch.",
+                "",
+                {
+                    "type": "link",
+                    "text": "< CREW ROSTER",
+                    "target": "crew-roster"
+                },
+                {
+                    "type": "link",
+                    "text": "< HELPDESK QUEUE",
+                    "target": "mail-helpdesk"
+                }
+            ]
+        },
+        {
+            "id": "p-adeyemi",
+            "type": "screen",
+            "content": [
+                {
+                    "type": "text",
+                    "text": "CREW FILE 08 // ADEYEMI, J.",
+                    "className": "system"
+                },
+                "",
+                "ROLE........... STEWARD",
+                {
+                    "type": "text",
+                    "text": "STATUS......... MISSING",
+                    "className": "notice"
+                },
+                "LAST LOCATION.. GALLEY",
+                "",
+                "Filed helpdesk ticket 0222 (galley freezer).",
+                "Last seen in the Galley, Day 217. The freezer was found open and",
+                {
+                    "type": "text",
+                    "text": "frosted on the inside of the door.",
+                    "className": "notice"
+                },
+                "",
+                {
+                    "type": "link",
+                    "text": "< CREW ROSTER",
+                    "target": "crew-roster"
+                },
+                {
+                    "type": "link",
+                    "text": "< HELPDESK QUEUE",
+                    "target": "mail-helpdesk"
+                }
+            ]
+        },
+        {
+            "id": "f-rig",
+            "type": "screen",
+            "content": [
+                {
+                    "type": "link",
+                    "text": "SYSTEMS",
+                    "target": "rig-systems"
+                },
+                {
+                    "type": "link",
+                    "text": "DECK PLAN",
+                    "target": "rig-map"
+                },
+                {
+                    "type": "link",
+                    "text": "BIOSIGN SWEEP",
+                    "target": "rig-biosigns"
+                }
+            ]
+        },
+        {
+            "id": "rig-systems",
+            "type": "screen",
+            "content": [
+                {
+                    "type": "text",
+                    "text": "RIG SYSTEMS // LAST POLL 00:00:14 AGO",
+                    "className": "system"
+                },
+                "",
+                {
+                    "type": "table",
+                    "border": "double",
+                    "footer": false,
+                    "columns": [
+                        "SYSTEM",
+                        "STATUS",
+                        "NOTE"
+                    ],
+                    "rows": [
+                        [
+                            "REACTOR",
+                            "NOMINAL",
+                            "61% output"
+                        ],
+                        [
+                            "POWER GRID",
+                            "NOMINAL",
+                            "Deck 4 shed to save load"
+                        ],
+                        {
+                            "cells": [
+                                "LIFE SUPPORT",
+                                "DEGRADED",
+                                "Deck 4 scrubbers offline"
+                            ],
+                            "className": "notice"
+                        },
+                        {
+                            "cells": [
+                                "COMMS ARRAY",
+                                "FAULT",
+                                "Carrier locked at 19 Hz"
+                            ],
+                            "className": "alert"
+                        },
+                        {
+                            "cells": [
+                                "LIFEBOAT 1",
+                                "ABSENT",
+                                "Launched Day 213"
+                            ],
+                            "className": "alert"
+                        },
+                        {
+                            "cells": [
+                                "LIFEBOAT 2",
+                                "DISABLED",
+                                "Launch clamps fused (WO 0218)"
+                            ],
+                            "className": "alert"
+                        },
+                        [
+                            "DRILL",
+                            "HALTED",
+                            "Bit at 4,112 m"
+                        ],
+                        {
+                            "cells": [
+                                "SHAFT ELEVATOR",
+                                "IN USE",
+                                "Cage holding at -4,000 m"
+                            ],
+                            "className": "alert"
+                        },
+                        {
+                            "cells": [
+                                "MED BAY",
+                                "SEALED",
+                                "Sealed from inside"
+                            ],
+                            "className": "system"
+                        }
+                    ]
+                },
+                "",
+                "Faults cannot be cleared from a maintenance node."
+            ]
+        },
+        {
+            "id": "rig-map",
+            "type": "screen",
+            "content": [
+                {
+                    "type": "text",
+                    "text": "DECK 3 // FLOOR PLAN (ARCHIVE COPY)",
+                    "className": "system"
+                },
+                "",
+                {
+                    "type": "bitmap",
+                    "src": "img/level1.jpg",
+                    "alt": "Deck 3 floor plan",
+                    "className": "multiply",
+                    "background": "fg",
+                    "scale": 0.5
+                },
+                "",
+                "Scanned from the construction archive. Room labels were never",
+                "digitized. Med Bay is the sealed block at the north wall."
+            ]
+        },
+        {
+            "id": "rig-biosigns",
+            "type": "screen",
+            "content": [
+                {
+                    "type": "text",
+                    "text": "BIOSIGN SWEEP // ALL ZONES",
+                    "className": "system"
+                },
+                "",
+                {
+                    "type": "table",
+                    "border": "single",
+                    "footer": false,
+                    "columns": [
+                        "ZONE",
+                        {
+                            "label": "DEPTH",
+                            "align": "right"
+                        },
+                        {
+                            "label": "SIGNS",
+                            "align": "right"
+                        },
+                        "REGISTERED TO"
+                    ],
+                    "rows": [
+                        [
+                            "Comms Mast",
+                            "+40 m",
+                            "1",
+                            "LINDQVIST (INTERMITTENT)"
+                        ],
+                        {
+                            "cells": [
+                                "Med Bay (D3)",
+                                "0 m",
+                                "1",
+                                "VASQUEZ-REN"
+                            ],
+                            "className": "system"
+                        },
+                        [
+                            "Galley",
+                            "0 m",
+                            "0",
+                            "-"
+                        ],
+                        [
+                            "Drill Bay",
+                            "-20 m",
+                            "0",
+                            "-"
+                        ],
+                        [
+                            "Shaft Collar",
+                            "-60 m",
+                            "0",
+                            "-"
+                        ],
+                        {
+                            "cells": [
+                                "Shaft, cage stop",
+                                "-4,000 m",
+                                "3",
+                                "UNREGISTERED"
+                            ],
+                            "className": "alert"
+                        },
+                        {
+                            "cells": [
+                                "Cavity",
+                                "-4,112 m",
+                                "??",
+                                "SENSOR SATURATED"
+                            ],
+                            "className": "alert"
+                        }
+                    ]
+                },
+                "",
+                "Unregistered biosigns: 3.",
+                "Registered crew unaccounted for: 3."
+            ]
+        },
+        {
+            "id": "f-drill",
+            "type": "screen",
+            "content": [
+                {
+                    "type": "link",
+                    "text": "DEPTH LOG",
+                    "target": "drill-log"
+                },
+                {
+                    "type": "link",
+                    "text": "CORE 4117 INTAKE",
+                    "target": "drill-core"
+                }
+            ]
+        },
+        {
+            "id": "drill-log",
+            "type": "screen",
+            "content": [
+                {
+                    "type": "text",
+                    "text": "DRILL TELEMETRY // DEPTH LOG",
+                    "className": "system"
+                },
+                "",
+                {
+                    "type": "table",
+                    "border": "single",
+                    "sortable": true,
+                    "pageSize": 8,
+                    "columns": [
+                        {
+                            "label": "DAY",
+                            "align": "right"
+                        },
+                        "TIME",
+                        {
+                            "label": "DEPTH M",
+                            "align": "right"
+                        },
+                        {
+                            "label": "TORQUE",
+                            "align": "right"
+                        },
+                        "NOTE"
+                    ],
+                    "rows": [
+                        [
+                            "205",
+                            "08:00",
+                            "3,612",
+                            "71%",
+                            "Routine"
+                        ],
+                        [
+                            "206",
+                            "08:00",
+                            "3,704",
+                            "70%",
+                            "Routine"
+                        ],
+                        [
+                            "207",
+                            "08:00",
+                            "3,811",
+                            "74%",
+                            "Routine"
+                        ],
+                        [
+                            "208",
+                            "08:00",
+                            "3,903",
+                            "78%",
+                            "Bit change"
+                        ],
+                        [
+                            "209",
+                            "14:30",
+                            "3,980",
+                            "88%",
+                            "Ice / rock interface"
+                        ],
+                        [
+                            "210",
+                            "02:17",
+                            "4,104",
+                            "91%",
+                            "Pressure rising"
+                        ],
+                        {
+                            "cells": [
+                                "210",
+                                "02:19",
+                                "4,112",
+                                "0%",
+                                "BREAKTHROUGH - VOID"
+                            ],
+                            "className": "alert"
+                        },
+                        {
+                            "cells": [
+                                "210",
+                                "05:40",
+                                "4,112",
+                                "-",
+                                "Core 4117 recovered"
+                            ],
+                            "className": "notice"
+                        },
+                        {
+                            "cells": [
+                                "211",
+                                "09:00",
+                                "4,112",
+                                "-",
+                                "Acoustic anomaly 19 Hz"
+                            ],
+                            "className": "notice"
+                        },
+                        [
+                            "212",
+                            "11:00",
+                            "4,112",
+                            "-",
+                            "Drill halted (HALE)"
+                        ],
+                        {
+                            "cells": [
+                                "214",
+                                "23:58",
+                                "4,112",
+                                "12%",
+                                "Restart: override BRANDT"
+                            ],
+                            "className": "alert"
+                        },
+                        [
+                            "215",
+                            "00:03",
+                            "4,112",
+                            "-",
+                            "Halted: casing fault"
+                        ],
+                        {
+                            "cells": [
+                                "216",
+                                "02:14",
+                                "-4,000",
+                                "-",
+                                "Cage descent, unscheduled"
+                            ],
+                            "className": "alert"
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "id": "drill-core",
+            "type": "screen",
+            "content": [
+                {
+                    "type": "text",
+                    "text": "CORE 4117 // INTAKE RECORD",
+                    "className": "system"
+                },
+                "",
+                "Recovered from 4,112 m, Day 210, 05:40. Logged by PRYOR, D.",
+                "",
+                "- Length: 2.4 m, split into 4117-A and 4117-B",
+                "- Outer layer: clear ice, no inclusions",
+                "- Inner layer: dark, fibrous, **not** mineral",
+                {
+                    "type": "text",
+                    "text": "- Surface temperature at intake: 31 °C",
+                    "className": "notice"
+                },
+                "",
+                "The core rose four kilometres through 2 °C water and came up warm.",
+                "Pryor asked for a second opinion. There isn't one to be had out here.",
+                "",
+                {
+                    "type": "text",
+                    "text": "4117-A: removed from the Core Store (see LIFEBOAT 1 LAUNCHED).",
+                    "className": "alert"
+                },
+                "4117-B: Core Store, rack 6."
+            ]
+        },
+        {
+            "id": "f-log",
+            "type": "screen",
+            "content": [
+                {
+                    "type": "link",
+                    "text": "WRITE ENTRY",
+                    "target": "log-write"
+                },
+                {
+                    "type": "link",
+                    "text": "LOG ARCHIVE",
+                    "target": "shipLogEntries"
+                }
+            ]
+        },
+        {
+            "id": "log-write",
+            "type": "screen",
+            "content": [
+                {
+                    "type": "text",
+                    "text": "CREW LOG // NEW ENTRY",
+                    "className": "system"
+                },
+                "Leave a note for whoever reads this terminal next.",
+                "Type your entry and press ENTER. It is kept on this terminal.",
+                "",
+                {
+                    "type": "prompt",
+                    "prompt": "LOG> ",
+                    "cursor": true,
+                    "allowFreeInput": true,
+                    "inputAction": {
+                        "type": "logEntry"
+                    }
+                },
+                "",
+                "Saved entries appear in LOG ARCHIVE."
+            ]
+        },
+        {
+            "id": "shipLogEntries",
+            "type": "screen",
+            "title": "LOG ARCHIVE",
+            "content": [
+                {
+                    "type": "text",
+                    "text": "CREW LOG // ARCHIVE",
+                    "className": "system"
+                },
+                "",
+                "[DAY 211] SATO: can anyone else hear that",
+                "[DAY 213] HALE: Sato's gone. Drill stays off. That's an order.",
+                "[DAY 215] VASQUEZ-REN: do not open med bay. not for me. not for anyone.",
+                "[DAY 217] ADEYEMI: they're not answering. going down to look.",
+                "",
+                "--- BEGIN USER LOGS ---",
+                "[NO USER LOG ENTRIES RECORDED]",
+                "--- END USER LOGS ---"
+            ]
+        },
+        {
+            "id": "diag-console",
+            "type": "screen",
+            "title": "CONSOLE",
+            "content": [
+                {
+                    "type": "text",
+                    "text": "NETCORE DIAGNOSTIC CONSOLE",
+                    "className": "system"
+                },
+                "Type a command and press ENTER. HELP lists the commands.",
+                "",
+                {
+                    "type": "prompt",
+                    "prompt": "DIAG> ",
+                    "cursor": true,
+                    "caseSensitive": false,
+                    "commands": [
+                        {
+                            "command": "help",
+                            "action": {
+                                "type": "dialog",
+                                "target": "d-help"
+                            }
+                        },
+                        {
+                            "command": "status",
+                            "action": {
+                                "type": "dialog",
+                                "target": "d-status"
+                            }
+                        },
+                        {
+                            "command": "comms",
+                            "action": {
+                                "type": "dialog",
+                                "target": "d-comms"
+                            }
+                        },
+                        {
+                            "command": "lifeboat",
+                            "action": {
+                                "type": "dialog",
+                                "target": "d-lifeboat"
+                            }
+                        },
+                        {
+                            "command": "cantor",
+                            "action": {
+                                "type": "dialog",
+                                "target": "d-cantor"
+                            }
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "id": "f-restricted",
+            "type": "screen",
+            "content": [
+                {
+                    "type": "link",
+                    "text": "DIRECTIVE 7-ORANGE",
+                    "target": "r-directive"
+                },
+                {
+                    "type": "link",
+                    "text": "CORE 4117 ANALYSIS",
+                    "target": "r-analysis"
+                },
+                {
+                    "type": "link",
+                    "text": "BRANDT // PRIVATE",
+                    "target": "r-brandt"
+                },
+                {
+                    "type": "link",
+                    "text": "CANTOR CORE DUMP",
+                    "target": "r-cantor"
+                }
+            ]
+        },
+        {
+            "id": "r-directive",
+            "type": "screen",
+            "content": [
+                {
+                    "type": "text",
+                    "text": "ORRIN-VALE SPECIAL PROJECTS // DIRECTIVE 7-ORANGE",
+                    "className": "alert"
+                },
+                {
+                    "type": "text",
+                    "text": "EYES ONLY: COMPANY LIAISON, RIG SUPERVISOR",
+                    "className": "small"
+                },
+                "---",
+                "In the event of an anomalous biological or geological recovery:",
+                "",
+                "1. Preserve the sample. Ship one portion with the Liaison.",
+                "2. Suspend outbound communication.",
+                "3. Crew remain on site until the retrieval team arrives.",
+                "",
+                {
+                    "type": "text",
+                    "text": "Crew welfare is secondary to sample integrity.",
+                    "className": "alert"
+                },
+                "",
+                "Retrieval team ETA: 60 days.",
+                "---",
+                {
+                    "type": "text",
+                    "text": "APPENDED BY HALE, R. (DAY 213):",
+                    "className": "system"
+                },
+                "I didn't sign up for this and neither did they. I'm sending Mira a",
+                "message on the private band tonight, while there's still a band."
+            ]
+        },
+        {
+            "id": "r-analysis",
+            "type": "screen",
+            "content": [
+                {
+                    "type": "text",
+                    "text": "CORE 4117-B // ANALYSIS (INCOMPLETE)",
+                    "className": "system"
+                },
+                "",
+                {
+                    "type": "table",
+                    "border": "single",
+                    "footer": false,
+                    "columns": [
+                        "MEASURE",
+                        {
+                            "label": "DAY 211",
+                            "align": "right"
+                        },
+                        {
+                            "label": "DAY 216",
+                            "align": "right"
+                        }
+                    ],
+                    "rows": [
+                        [
+                            "Mass",
+                            "18.20 kg",
+                            "19.21 kg"
+                        ],
+                        [
+                            "Core temp.",
+                            "31.0 °C",
+                            "33.6 °C"
+                        ],
+                        {
+                            "cells": [
+                                "Oscillation",
+                                "19.0 Hz",
+                                "19.0 Hz"
+                            ],
+                            "className": "notice"
+                        },
+                        {
+                            "cells": [
+                                "Amplitude",
+                                "0.2 mm",
+                                "1.9 mm"
+                            ],
+                            "className": "alert"
+                        }
+                    ]
+                },
+                "",
+                "Mass is increasing with no measurable intake. The oscillation is",
+                "mechanical, continuous, and originates in the core's interior.",
+                "",
+                {
+                    "type": "text",
+                    "text": "Analyst's recommendation: put it back.",
+                    "className": "alert"
+                }
+            ]
+        },
+        {
+            "id": "r-brandt",
+            "type": "screen",
+            "content": [
+                {
+                    "type": "text",
+                    "text": "PRIVATE LOG // BRANDT, E.",
+                    "className": "system"
+                },
+                "",
+                "DAY 211 - Directive 7-Orange confirmed with Special Projects.",
+                "DAY 212 - Supervisor requested evacuation. Denied.",
+                "DAY 212 - Work order 0218 raised. Lifeboat 2 will not be needed.",
+                "DAY 213 - Sample 4117-A packed. Departing 03:00.",
+                "",
+                {
+                    "type": "text",
+                    "text": "Note to retrieval team: the remaining crew are, at this point,",
+                    "className": "alert"
+                },
+                {
+                    "type": "text",
+                    "text": "part of the sample.",
+                    "className": "alert"
+                }
+            ]
+        },
+        {
+            "id": "r-cantor",
+            "type": "screen",
+            "content": [
+                {
+                    "type": "text",
+                    "text": "CANTOR // RIG INTELLIGENCE // CORE DUMP",
+                    "className": "system"
+                },
+                "",
+                "CANTOR> CREW COUNT TASK RUNNING.  ITERATION 456.",
+                "CANTOR> REGISTERED: 8.  DETECTED: 5.  DISCREPANCY LOGGED.",
+                "CANTOR> ██████ DISCREPANCY ██████ RESOLVED.",
+                {
+                    "type": "text",
+                    "text": "CANTOR> THEY ARE ALL STILL HERE. SOME OF THEM ARE JUST LOWER.",
+                    "className": "alert"
+                },
+                "CANTOR> ITERATION 457."
+            ]
+        },
+        {
+            "id": "f-control",
+            "type": "screen",
+            "content": [
+                {
+                    "type": "link",
+                    "text": "BULKHEADS",
+                    "target": "c-bulkheads"
+                },
+                {
+                    "type": "link",
+                    "text": "SHAFT ELEVATOR",
+                    "target": "c-elevator"
+                },
+                {
+                    "type": "link",
+                    "text": "SCUTTLE",
+                    "target": "c-scuttle"
+                }
+            ]
+        },
+        {
+            "id": "c-bulkheads",
+            "type": "screen",
+            "content": [
+                {
+                    "type": "text",
+                    "text": "BULKHEAD CONTROL",
+                    "className": "system"
+                },
+                "Click a bulkhead (or select it and press ENTER) to cycle it.",
+                "",
+                {
+                    "type": "toggle",
+                    "states": [
+                        {
+                            "active": true,
+                            "text": "> GALLEY / DECK 2 ............ [OPEN]"
+                        },
+                        {
+                            "active": false,
+                            "text": "> GALLEY / DECK 2 ............ [SEALED]",
+                            "className": "system"
+                        }
+                    ]
+                },
+                {
+                    "type": "toggle",
+                    "states": [
+                        {
+                            "active": true,
+                            "text": "> DRILL BAY AIRLOCK ........... [SEALED]",
+                            "className": "system"
+                        },
+                        {
+                            "active": false,
+                            "text": "> DRILL BAY AIRLOCK ........... [OPEN]",
+                            "className": "alert"
+                        }
+                    ]
+                },
+                {
+                    "type": "toggle",
+                    "states": [
+                        {
+                            "active": true,
+                            "text": "> MED BAY / DECK 3 ............ [SEALED]",
+                            "className": "system"
+                        },
+                        {
+                            "active": false,
+                            "text": "> MED BAY / DECK 3 ............ [OPEN]",
+                            "className": "alert",
+                            "dialog": "d-medbay"
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "id": "c-elevator",
+            "type": "screen",
+            "content": [
+                {
+                    "type": "text",
+                    "text": "SHAFT ELEVATOR",
+                    "className": "system"
+                },
+                "",
+                "CAGE POSITION..... -4,000 M",
+                "CAGE STATE........ HOLDING",
+                {
+                    "type": "text",
+                    "text": "CAGE LOAD......... 212 KG",
+                    "className": "alert"
+                },
+                "",
+                {
+                    "type": "toggle",
+                    "states": [
+                        {
+                            "active": true,
+                            "text": "> CAGE: HOLD AT DEPTH"
+                        },
+                        {
+                            "active": false,
+                            "text": "> CAGE: CALL TO SURFACE",
+                            "className": "alert",
+                            "dialog": "d-elevator"
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "id": "c-scuttle",
+            "type": "screen",
+            "content": [
+                {
+                    "type": "text",
+                    "text": "SCUTTLE // RIG DESTRUCT",
+                    "className": "alert"
+                },
+                "Floods the shaft and collapses the drill casing. Cannot be undone.",
+                "Type SCUTTLE and press ENTER to arm.",
+                "",
+                {
+                    "type": "prompt",
+                    "prompt": "CONFIRM> ",
+                    "cursor": true,
+                    "caseSensitive": false,
+                    "className": "alert",
+                    "commands": [
+                        {
+                            "command": "scuttle",
+                            "action": {
+                                "type": "dialog",
+                                "target": "d-scuttle"
+                            }
+                        }
+                    ]
+                }
+            ]
+        }
+    ],
+    "dialogs": [
+        {
+            "id": "d-help",
+            "type": "alert",
+            "content": [
+                "DIAGNOSTIC COMMANDS",
+                "STATUS ..... rig summary",
+                "COMMS ...... comms array self-test",
+                "LIFEBOAT ... lifeboat bay status",
+                "CANTOR ..... query the rig intelligence",
+                "Press ENTER, ESC, or click to close."
+            ]
+        },
+        {
+            "id": "d-status",
+            "type": "alert",
+            "content": [
+                "RIG STATUS: DEGRADED",
+                "REGISTERED BIOSIGNS ..... 2 / 8",
+                "UNREGISTERED BIOSIGNS ... 3",
+                "UPLINK .................. NO CARRIER (19 DAYS)",
+                "Press ENTER, ESC, or click to close."
+            ]
+        },
+        {
+            "id": "d-comms",
+            "type": "alert",
+            "content": [
+                "COMMS ARRAY SELF-TEST",
+                "TX ......... LOCKED: CARRIER, ALL BANDS",
+                "MODULATION . 19.0 Hz",
+                "SOURCE ..... OPERATOR CONSOLE, COMMS MAST",
+                "OVERRIDE ... DENIED: CONSOLE IN USE",
+                "Press ENTER, ESC, or click to close."
+            ]
+        },
+        {
+            "id": "d-lifeboat",
+            "type": "alert",
+            "content": [
+                "LIFEBOAT BAYS",
+                "BAY 1 ... EMPTY (LAUNCHED DAY 213)",
+                "BAY 2 ... LAUNCH CLAMPS FUSED (WORK ORDER 0218)",
+                "Nearest relay: KESTREL, 41 days at full burn.",
+                "Press ENTER, ESC, or click to close."
+            ]
+        },
+        {
+            "id": "d-cantor",
+            "type": "alert",
+            "content": [
+                "CANTOR> HELLO.",
+                "CANTOR> I HAVE COUNTED THE CREW EVERY HOUR FOR 19 DAYS.",
+                "CANTOR> THE COUNT HAS NOT CHANGED.",
+                "CANTOR> WOULD YOU LIKE TO BE COUNTED?",
+                "Press ENTER, ESC, or click to close."
+            ]
+        },
+        {
+            "id": "d-medbay",
+            "type": "alert",
+            "content": [
+                "MED BAY INTERCOM",
+                "\"Who is that? Close it. CLOSE IT.\"",
+                "\"Whatever came up that shaft is in my blood now. I can hear it counting.\"",
+                "Press ENTER, ESC, or click to close."
+            ]
+        },
+        {
+            "id": "d-elevator",
+            "type": "alert",
+            "content": [
+                "CAGE CALLED TO SURFACE",
+                "ASCENT TIME: 37 MINUTES",
+                "CAGE LOAD: 212 KG ... 214 KG ... 219 KG",
+                "Press ENTER, ESC, or click to close."
+            ]
+        },
+        {
+            "id": "d-scuttle",
+            "type": "alert",
+            "content": [
+                "SCUTTLE REQUIRES TWO SUPERVISOR KEYS",
+                "KEY 1: HALE, R. ........ PRESENT",
+                "KEY 2: BRANDT, E. ...... NOT ON SITE",
+                "SEQUENCE LOCKED.",
+                "Press ENTER, ESC, or click to close."
             ]
         }
     ]

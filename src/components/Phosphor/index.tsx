@@ -1,4 +1,4 @@
-import React, { Component, ReactElement } from "react";
+import React, { Component, ReactElement, Suspense } from "react";
 
 // css
 import "./style.scss";
@@ -6,6 +6,8 @@ import "./alien.scss";
 
 // modules
 import { nanoid } from "nanoid";
+import { openExternalUrl } from "../../lib/safeUrl";
+import { isTerminalInputActive } from "../../lib/terminalInput";
 
 // components
 import Teletype from "../Teletype";
@@ -17,14 +19,14 @@ import LoginPrompt from "../LoginPrompt";
 import Toggle from "../Toggle";
 import List from "../List";
 import Dropdown from "../Dropdown";
+import DataTable from "../DataTable";
 import ReportComposer from "../ReportComposer";
-import MainframeGame from "../MainframeGame";
 import type { MainframePhase } from "../MainframeGame/shared";
 
 import Modal from "../Modal";
 import Scanlines from "../Scanlines";
 
-import transformerSfx from "../../assets/incr-ss-ark/transformer.wav";
+import transformerSfx from "../../assets/incr-ss-ark/transformer.mp3"; // 128k re-encode of transformer.wav (11.5 MB)
 import powerOnSfx from "../../assets/incr-ss-ark/sound effects/poweron.mp3";
 import powerOffSfx from "../../assets/incr-ss-ark/sound effects/poweroff.mp3";
 import charSingle01Sfx from "../../assets/incr-ss-ark/sound effects/ui_hacking_charsingle_01.wav";
@@ -45,6 +47,9 @@ import {
     TerminalScriptApi,
 } from "../../scripts/terminal";
 
+// the mainframe game is only used by one script, so it is loaded on demand
+const MainframeGame = React.lazy(() => import("../MainframeGame"));
+
 interface AppState {
     screens: Screen[];
     dialogs: any[];
@@ -63,6 +68,7 @@ interface AppState {
     alienSelectedIndex: number; // which folder/menu link is highlighted (left column)
     alienItemIndex: number; // which sub-section is highlighted (top-right list)
     alienColumn: "folders" | "items"; // which list the keyboard currently drives
+    alienOpenScreenId: string | null; // a screen a link opened in the body (not a listed file)
 }
 
 // Supported terminal interface skins. "classic" is the original Phosphor
@@ -109,6 +115,7 @@ enum ScreenDataType {
     MainframeGame,
     Href,
     Dropdown,
+    Table,
 }
 
 enum ScreenDataState {
@@ -253,6 +260,7 @@ class Phosphor extends Component<PhosphorProps, AppState> {
             alienSelectedIndex: 0,
             alienItemIndex: 0,
             alienColumn: "folders",
+            alienOpenScreenId: null,
         };
 
         this._changeScreen = this._changeScreen.bind(this);
@@ -264,6 +272,7 @@ class Phosphor extends Component<PhosphorProps, AppState> {
         this._handlePromptEnter = this._handlePromptEnter.bind(this);
         this._handleToggleClick = this._handleToggleClick.bind(this);
         this._handleLinkClick = this._handleLinkClick.bind(this);
+        this._handleTableLineDrawn = this._handleTableLineDrawn.bind(this);
         this._handleFirstInteraction = this._handleFirstInteraction.bind(this);
         this._handleGlobalKeyDown = this._handleGlobalKeyDown.bind(this);
         this._handleWheel = this._handleWheel.bind(this);
@@ -569,6 +578,12 @@ class Phosphor extends Component<PhosphorProps, AppState> {
             return;
         }
 
+        // When the open file has a prompt/login, Enter and Backspace belong to it
+        // (arrows still move between folders and files).
+        if ((e.key === "Enter" || e.key === "Backspace") && isTerminalInputActive()) {
+            return;
+        }
+
         const folderIndex = Math.max(0, Math.min(folders.length - 1, this.state.alienSelectedIndex));
         const items = this._getAlienItems(folders[folderIndex]);
         const itemIndex = Math.max(0, Math.min(items.length - 1, this.state.alienItemIndex));
@@ -821,6 +836,7 @@ class Phosphor extends Component<PhosphorProps, AppState> {
                         animated={element.animated}
                         scale={element.scale}
                         fillWidth={element.fillWidth}
+                        background={element.background}
                         autocomplete={true}
                         onComplete={() => undefined}
                     />
@@ -871,6 +887,9 @@ class Phosphor extends Component<PhosphorProps, AppState> {
             case ScreenDataType.Dropdown:
                 return <Dropdown key={key} className={className} states={element.states} onClick={this._handleToggleClick} />;
 
+            case ScreenDataType.Table:
+                return <DataTable key={key} {...this._getTableProps(element)} onRowSelect={this._handleLinkClick} />;
+
             default:
                 return null;
         }
@@ -885,7 +904,7 @@ class Phosphor extends Component<PhosphorProps, AppState> {
         }
 
         const clamped = Math.max(0, Math.min(folders.length - 1, index));
-        if (clamped === this.state.alienSelectedIndex && this.state.alienColumn === "folders") {
+        if (clamped === this.state.alienSelectedIndex && this.state.alienColumn === "folders" && !this.state.alienOpenScreenId) {
             return;
         }
 
@@ -896,7 +915,43 @@ class Phosphor extends Component<PhosphorProps, AppState> {
         this.setState({
             alienSelectedIndex: clamped,
             alienItemIndex: 0,
-            alienColumn: "folders",        });
+            alienColumn: "folders",
+            alienOpenScreenId: null,
+        });
+    }
+
+    // Inside a file-system screen, a plain (string) link opens its target as a
+    // file instead of leaving the browser: a screen that is one of the listed
+    // files gets selected; any other classic screen opens in the body (e.g. a
+    // roster table row -> that person's record). Returns false when the link
+    // should navigate normally (not in a file system, or the target is another
+    // file-system screen). Array-form link targets always navigate.
+    private _openAlienFile(targetId: string): boolean {
+        if (!this._isAlienFolderScreen()) {
+            return false;
+        }
+
+        const folders = this._getAlienFolders();
+        for (let folderIndex = 0; folderIndex < folders.length; folderIndex++) {
+            const items = this._getAlienItems(folders[folderIndex]);
+            const itemIndex = items.findIndex((item) => !!item.content && item.content.id === targetId);
+            if (itemIndex >= 0) {
+                this.setState({
+                    alienSelectedIndex: folderIndex,
+                    alienItemIndex: itemIndex,
+                    alienColumn: "items",
+                    alienOpenScreenId: null,
+                });
+                return true;
+            }
+        }
+
+        const screen = this._getScreen(targetId);
+        if (!screen || this._isFolderScreen(screen)) {
+            return false;
+        }
+        this.setState({ alienOpenScreenId: targetId });
+        return true;
     }
 
     // Select an item (top-right list). Re-types the body with that item's content.
@@ -909,7 +964,7 @@ class Phosphor extends Component<PhosphorProps, AppState> {
         }
 
         const clamped = Math.max(0, Math.min(items.length - 1, index));
-        if (clamped === this.state.alienItemIndex && this.state.alienColumn === "items") {
+        if (clamped === this.state.alienItemIndex && this.state.alienColumn === "items" && !this.state.alienOpenScreenId) {
             return;
         }
 
@@ -919,7 +974,9 @@ class Phosphor extends Component<PhosphorProps, AppState> {
 
         this.setState({
             alienItemIndex: clamped,
-            alienColumn: "items",        });
+            alienColumn: "items",
+            alienOpenScreenId: null,
+        });
     }
 
     // Move keyboard focus between the folder column and the item column.
@@ -1015,8 +1072,10 @@ class Phosphor extends Component<PhosphorProps, AppState> {
         const items = selectedFolder ? this._getAlienItems(selectedFolder) : [];
         const itemIndex = Math.max(0, Math.min(items.length - 1, this.state.alienItemIndex));
         const selectedItem = items[itemIndex] || null;
-        const bodyKey = selectedItem && selectedItem.content
-            ? `body:${selectedItem.content.id}`
+        const openScreen = this.state.alienOpenScreenId ? (this._getScreen(this.state.alienOpenScreenId) || null) : null;
+        const bodyScreen = openScreen || (selectedItem ? selectedItem.content : null);
+        const bodyKey = bodyScreen
+            ? `body:${bodyScreen.id}`
             : `empty:${folderIndex}:${itemIndex}`;
         const foldersFocused = this.state.alienColumn === "folders";
 
@@ -1066,7 +1125,7 @@ class Phosphor extends Component<PhosphorProps, AppState> {
                     </div>
 
                     <div className="phosphor-alien__detail-body" key={bodyKey}>
-                        {selectedItem ? this._renderAlienFileContent(selectedItem.content) : null}
+                        {this._renderAlienFileContent(bodyScreen)}
                     </div>
                 </div>
             </div>
@@ -1201,8 +1260,9 @@ class Phosphor extends Component<PhosphorProps, AppState> {
     }
 
     private _buildAudio(src: string, volume: number, loop = false): HTMLAudioElement {
-        const audio = new Audio(src);
-        audio.preload = "auto";
+        const audio = new Audio();
+        audio.preload = this._isSoundEnabled() ? "auto" : "none";
+        audio.src = src;
         audio.volume = volume;
         audio.loop = loop;
         return audio;
@@ -1598,7 +1658,9 @@ class Phosphor extends Component<PhosphorProps, AppState> {
             activeScreenId: activeScreen,
             alienSelectedIndex: 0,
             alienItemIndex: 0,
-            alienColumn: "folders",        }, () => {
+            alienColumn: "folders",
+            alienOpenScreenId: null,
+        }, () => {
             this._activateScreen();
             this._notifyScriptScreenChanged(activeScreen);
         });
@@ -1629,7 +1691,9 @@ class Phosphor extends Component<PhosphorProps, AppState> {
             skipTextAnimation: false,
             alienSelectedIndex: 0,
             alienItemIndex: 0,
-            alienColumn: "folders",        }, () => {
+            alienColumn: "folders",
+            alienOpenScreenId: null,
+        }, () => {
             this._notifyScriptScreenChanged(restoredScreen.id);
 
             if (restoredScreen.onDone && restoredScreen.onDone.target) {
@@ -2136,6 +2200,7 @@ class Phosphor extends Component<PhosphorProps, AppState> {
                     animated: !!element.animated,
                     scale,
                     fillWidth: !!element.fillWidth,
+                    background: typeof element.background === "string" ? element.background : undefined,
                     className: element.className,
                     state,
                     speed: element.speed,
@@ -2239,6 +2304,28 @@ class Phosphor extends Component<PhosphorProps, AppState> {
                     state,
                 };
 
+            case "table":
+            case "datatable":
+                return {
+                    id,
+                    type: ScreenDataType.Table,
+                    scriptId: element.scriptId,
+                    title: typeof element.title === "string" ? element.title : undefined,
+                    columns: Array.isArray(element.columns) ? element.columns : undefined,
+                    rows: Array.isArray(element.rows) ? element.rows : [],
+                    border: typeof element.border === "string" ? element.border.toLowerCase() : undefined,
+                    sortable: element.sortable === true,
+                    filter: element.filter === true,
+                    pageSize: typeof element.pageSize === "number" ? element.pageSize : undefined,
+                    sort: element.sort,
+                    emptyText: typeof element.emptyText === "string" ? element.emptyText : undefined,
+                    footer: element.footer !== false,
+                    className: element.className,
+                    state,
+                    speed: element.speed,
+                    onLoad,
+                };
+
             case "reportcomposer":
                 return {
                     id,
@@ -2278,6 +2365,43 @@ class Phosphor extends Component<PhosphorProps, AppState> {
             default:
                 return;
         }
+    }
+
+    private _getTableProps(element: any) {
+        return {
+            title: element.title,
+            columns: element.columns,
+            rows: element.rows,
+            border: element.border,
+            sortable: element.sortable,
+            filter: element.filter,
+            pageSize: element.pageSize,
+            sort: element.sort,
+            emptyText: element.emptyText,
+            footer: element.footer,
+            className: element.className,
+        };
+    }
+
+    // Arrow keys should drive the first interactive table straight away, unless
+    // something else on the screen already wants the keyboard (a prompt/login).
+    private _shouldAutoFocusTable(element: any): boolean {
+        const screen = this._getScreen(this.state.activeScreenId);
+        if (!screen || this.state.activeDialogId) {
+            return false;
+        }
+        const firstTable = screen.content.find((entry) => entry && entry.type === ScreenDataType.Table);
+        if (!firstTable || firstTable.id !== element.id) {
+            return false;
+        }
+        return !screen.content.some((entry) => entry
+            && (entry.type === ScreenDataType.Prompt || entry.type === ScreenDataType.Login));
+    }
+
+    // each printed table line gets the keystroke + carriage clatter
+    private _handleTableLineDrawn(): void {
+        this._handleTeletypeCharDrawn("#", 0);
+        this._handleTeletypeNewLine();
     }
 
     private _getCyclerText(states: any[]): string {
@@ -2425,6 +2549,21 @@ class Phosphor extends Component<PhosphorProps, AppState> {
             );
         }
 
+        // tables "print" line by line like a line printer
+        if (type === ScreenDataType.Table) {
+            return (
+                <DataTable
+                    key={key}
+                    {...this._getTableProps(element)}
+                    printing={true}
+                    speed={typeof element.speed === "number" ? element.speed : undefined}
+                    autocomplete={this.state.skipTextAnimation}
+                    onComplete={() => this._activateNextScreenData()}
+                    onLineDrawn={this._handleTableLineDrawn}
+                />
+            );
+        }
+
         if (type === ScreenDataType.Bitmap) {
             const handleRendered = () => this._activateNextScreenData();
             return (
@@ -2436,6 +2575,7 @@ class Phosphor extends Component<PhosphorProps, AppState> {
                     animated={element.animated}
                     scale={element.scale}
                     fillWidth={element.fillWidth}
+                    background={element.background}
                     onComplete={handleRendered}
                 />
             );
@@ -2513,6 +2653,7 @@ class Phosphor extends Component<PhosphorProps, AppState> {
                     animated={element.animated}
                     scale={element.scale}
                     fillWidth={element.fillWidth}
+                    background={element.background}
                     onComplete={onComplete}
                     autocomplete={true}
                 />
@@ -2594,6 +2735,17 @@ class Phosphor extends Component<PhosphorProps, AppState> {
             );
         }
 
+        if (element.type === ScreenDataType.Table) {
+            return (
+                <DataTable
+                    key={key}
+                    {...this._getTableProps(element)}
+                    autoFocus={this._shouldAutoFocusTable(element)}
+                    onRowSelect={this._handleLinkClick}
+                />
+            );
+        }
+
         if (element.type === ScreenDataType.ReportList) {
             const reports = this._getReportsForComposer(element.composerId).slice().reverse();
             const emptyText = typeof element.emptyText === "string" && element.emptyText.trim().length
@@ -2644,11 +2796,12 @@ class Phosphor extends Component<PhosphorProps, AppState> {
 
         if (element.type === ScreenDataType.MainframeGame) {
             return (
-                <MainframeGame
-                    key={key}
-                    className={className}
-                    onPhaseChange={this.props.onMainframePhaseChange}
-                />
+                <Suspense key={key} fallback={null}>
+                    <MainframeGame
+                        className={className}
+                        onPhaseChange={this.props.onMainframePhaseChange}
+                    />
+                </Suspense>
             );
         }
 
@@ -2685,7 +2838,9 @@ class Phosphor extends Component<PhosphorProps, AppState> {
             skipTextAnimation: false,
             alienSelectedIndex: 0,
             alienItemIndex: 0,
-            alienColumn: "folders",        }, () => {
+            alienColumn: "folders",
+            alienOpenScreenId: null,
+        }, () => {
             this._activateScreen();
             this._notifyScriptScreenChanged(targetScreen);
         });
@@ -2766,7 +2921,7 @@ class Phosphor extends Component<PhosphorProps, AppState> {
         if (content && (content.state !== state)) {
             content.state = state;
         }
-;   }
+    }
 
     private _unloadScreen(): void {
         // go through the current screen elements, setting
@@ -3381,9 +3536,11 @@ class Phosphor extends Component<PhosphorProps, AppState> {
     private _handleLinkClick(target: string | any[], shiftKey: boolean): void {
         void this._playCharEnter(true);
 
-        // if it's a string, it's a screen
+        // if it's a string, it's a screen (or a file of the open file system)
         if (typeof target === "string") {
-            this._changeScreen(target);
+            if (!this._openAlienFile(target)) {
+                this._changeScreen(target);
+            }
             return;
         }
 
@@ -3415,8 +3572,10 @@ class Phosphor extends Component<PhosphorProps, AppState> {
                 return;
             }
 
-            if (linkTarget.type === "href"){
-                window.open(linkTarget.target)
+            if (linkTarget.type === "href") {
+                // script data is untrusted: only http(s)/mailto/tel, and never hand
+                // the opened page a reference back to this window
+                openExternalUrl(linkTarget.target);
                 return;
             }
         }

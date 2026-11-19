@@ -61,6 +61,16 @@
                 },
                 {
                     "type": "link",
+                    "text": "> DATA TABLES",
+                    "target": "data-tables"
+                },
+                {
+                    "type": "link",
+                    "text": "> IMAGES + CLASS NAMES",
+                    "target": "images"
+                },
+                {
+                    "type": "link",
                     "text": "> PROMPT BEHAVIOR",
                     "target": "prompt-behavior"
                 },
@@ -383,6 +393,7 @@
                 "- Text Block / Alert / Notice / Emphasis / System -> { \"type\": \"text\", \"text\": \"...\" }",
                 "- Link Button -> { \"type\": \"link\", \"text\": \"...\", \"target\": \"screenId\" | [targets] }",
                 "- Bitmap/Image -> { \"type\": \"bitmap\" | \"image\", \"src\": \"...\" }",
+                "- Data Table -> { \"type\": \"table\", \"columns\": [...], \"rows\": [...] }",
                 "- Prompt Input -> { \"type\": \"prompt\", \"prompt\": \"...\", \"caseSensitive\": true|false, \"cursor\": true|false, \"commands\": [...] }",
                 "- Login Prompt -> { \"type\": \"login\", \"usernameCaseSensitive\": true|false, \"hideUsername\": true|false, \"passwordCaseSensitive\": true|false, \"hidePassword\": true|false, \"credentials\": [...], \"noMatchAction\": {...} }",
                 "- Toggle -> { \"type\": \"toggle\", \"states\": [...] }",
@@ -517,6 +528,7 @@
                     "className": "monochrome",
                     "scale": 0.45
                 },
+                { "type": "link", "text": "> MORE: ALL IMAGE CLASS NAMES", "target": "images" },
                 "",
                 {
                     "type": "text",
@@ -1067,6 +1079,7 @@
                 { "type": "link", "text": "OVERVIEW", "target": "fs-overview" },
                 { "type": "link", "text": "PERSONNEL", "target": "fs-personnel" },
                 { "type": "link", "text": "GALLERY", "target": "fs-gallery" },
+                { "type": "link", "text": "MANIFEST", "target": "fs-manifest" },
                 { "type": "link", "text": "‹ EXIT TO GUIDE", "target": [ { "type": "action", "action": "back" } ] }
             ]
         },
@@ -1137,6 +1150,775 @@
             ]
         },
         {
+            "id": "data-tables",
+            "type": "screen",
+            "content": [
+                {
+                    "type": "text",
+                    "className": "alert",
+                    "text": "SECTION: DATA TABLES"
+                },
+                "",
+                "A table element prints a box-drawn database grid, one line at a time.",
+                "Once printed it becomes a live record browser:",
+                "- UP/DOWN moves the cursor, ENTER opens the row's target",
+                "- 1-9 (or clicking a heading) sorts by that column; again to reverse",
+                "- / opens the QUERY line to filter rows, ESC clears it",
+                "- LEFT/RIGHT or PGUP/PGDN pages through long tables",
+                "",
+                {
+                    "type": "table",
+                    "title": "USCSS PERSEPHONE // CREW MANIFEST",
+                    "sortable": true,
+                    "filter": true,
+                    "pageSize": 5,
+                    "columns": [
+                        {
+                            "key": "id",
+                            "label": "ID",
+                            "align": "right"
+                        },
+                        {
+                            "key": "name",
+                            "label": "NAME"
+                        },
+                        {
+                            "key": "role",
+                            "label": "ROLE"
+                        },
+                        {
+                            "key": "deck",
+                            "label": "DECK",
+                            "align": "center"
+                        },
+                        {
+                            "key": "status",
+                            "label": "STATUS"
+                        }
+                    ],
+                    "rows": [
+                        [
+                            "001",
+                            "MORLEY, D.",
+                            "CAPTAIN",
+                            "A",
+                            "ACTIVE"
+                        ],
+                        {
+                            "cells": [
+                                "002",
+                                "CHEN, R.",
+                                "CHIEF ENGINEER",
+                                "C",
+                                "ACTIVE"
+                            ],
+                            "target": "crew-record-chen"
+                        },
+                        {
+                            "cells": [
+                                "003",
+                                "VOSS, K.",
+                                "MEDICAL OFFICER",
+                                "B",
+                                "MISSING"
+                            ],
+                            "target": "crew-record-voss",
+                            "className": "alert"
+                        },
+                        [
+                            "004",
+                            "OKAFOR, T.",
+                            "NAVIGATOR",
+                            "A",
+                            "ACTIVE"
+                        ],
+                        [
+                            "005",
+                            "LINDQVIST, M.",
+                            "SECURITY",
+                            "D",
+                            {
+                                "text": "ON LEAVE",
+                                "className": "notice"
+                            }
+                        ],
+                        [
+                            "006",
+                            "PRAKASH, A.",
+                            "TECHNICIAN",
+                            "C",
+                            "ACTIVE"
+                        ],
+                        {
+                            "cells": [
+                                "007",
+                                "DUVAL, S.",
+                                "SCIENCE",
+                                "B",
+                                "QUARANTINED"
+                            ],
+                            "className": "alert"
+                        },
+                        {
+                            "id": "008",
+                            "name": "BRANDT, H.",
+                            "role": "QUARTERMASTER",
+                            "deck": "D",
+                            "status": "ACTIVE"
+                        }
+                    ]
+                },
+                "",
+                "A read-only status table with the double border and no footer:",
+                {
+                    "type": "table",
+                    "border": "double",
+                    "footer": false,
+                    "columns": [
+                        "SUBSYSTEM",
+                        {
+                            "label": "LOAD",
+                            "align": "right"
+                        },
+                        "STATE"
+                    ],
+                    "rows": [
+                        [
+                            "REACTOR",
+                            "98%",
+                            {
+                                "text": "NOMINAL",
+                                "className": "notice"
+                            }
+                        ],
+                        [
+                            "LIFE SUPPORT",
+                            "64%",
+                            {
+                                "text": "DEGRADED",
+                                "className": "alert"
+                            }
+                        ],
+                        [
+                            "LONG-RANGE COMMS",
+                            "0%",
+                            "OFFLINE"
+                        ],
+                        [
+                            "NAV COMPUTER",
+                            "41%",
+                            {
+                                "text": "NOMINAL",
+                                "className": "notice"
+                            }
+                        ]
+                    ]
+                },
+                "",
+                "JSON shape:",
+                "{ \"type\": \"table\", \"title\": \"...\", \"columns\": [\"ID\", { \"label\": \"LOAD\", \"align\": \"right\" }],",
+                "  \"rows\": [[\"001\", \"MORLEY\"], { \"cells\": [...], \"target\": \"screenId\", \"className\": \"alert\" }],",
+                "  \"sortable\": true, \"filter\": true, \"pageSize\": 8, \"border\": \"single | double | ascii | none\" }",
+                "",
+                "Rows can also be objects keyed by column key, a cell can be { \"text\", \"className\" },",
+                "and a row target can be any link target (screen id or [targets] array).",
+                "",
+                {
+                    "type": "link",
+                    "text": "> NEXT: IMAGES",
+                    "target": "images"
+                },
+                {
+                    "type": "link",
+                    "text": "> TABLE OF CONTENTS",
+                    "target": "hub"
+                }
+            ]
+        },
+        {
+            "id": "images",
+            "type": "screen",
+            "content": [
+                {
+                    "type": "text",
+                    "className": "alert",
+                    "text": "SECTION: IMAGES"
+                },
+                "",
+                "A bitmap (or image) element draws a picture that resolves from big pixels to full detail.",
+                "Options:",
+                "- src / alt, scale (1 = natural size), fillWidth, animated (GIFs)",
+                "- align: \"left\" | \"center\" | \"right\"",
+                "- className: ONE blend mode, plus footer and/or script-hidden (separate with spaces)",
+                "- background: a color plate behind the image (fg, bg, alert, notice, emphasis, system, or any CSS color)",
+                "",
+                {
+                    "type": "text",
+                    "className": "system",
+                    "text": "[PLAIN]  { \"src\": \"img/Aphelion.png\", \"scale\": 0.35 }"
+                },
+                {
+                    "type": "bitmap",
+                    "src": "img/Aphelion.png",
+                    "alt": "Aphelion eye",
+                    "scale": 0.35
+                },
+                "",
+                {
+                    "type": "text",
+                    "className": "system",
+                    "text": "[ALIGN]  \"align\": \"center\""
+                },
+                {
+                    "type": "bitmap",
+                    "src": "img/Aphelion.png",
+                    "alt": "Aphelion eye",
+                    "scale": 0.25,
+                    "align": "center"
+                },
+                {
+                    "type": "text",
+                    "className": "system",
+                    "text": "[FOOTER]  \"className\": \"footer\"  (adds space above the image)"
+                },
+                {
+                    "type": "bitmap",
+                    "src": "img/Aphelion.png",
+                    "alt": "Aphelion eye",
+                    "scale": 0.25,
+                    "className": "footer"
+                },
+                "",
+                "Blend modes mix the image with what is behind it. Some look great on the dark",
+                "terminal; the darkening ones need a background color to show up.",
+                "",
+                {
+                    "type": "link",
+                    "text": "> BLEND MODES FOR THE DARK TERMINAL",
+                    "target": "images-blend"
+                },
+                {
+                    "type": "link",
+                    "text": "> DARKENING MODES + BACKGROUND",
+                    "target": "images-dark"
+                },
+                {
+                    "type": "link",
+                    "text": "> BACKGROUND COLORS + COMBINED CLASSES",
+                    "target": "images-backdrops"
+                },
+                {
+                    "type": "link",
+                    "text": "> TABLE OF CONTENTS",
+                    "target": "hub"
+                }
+            ]
+        },
+        {
+            "id": "images-blend",
+            "type": "screen",
+            "content": [
+                {
+                    "type": "text",
+                    "className": "alert",
+                    "text": "IMAGES: BLEND MODES FOR THE DARK TERMINAL"
+                },
+                "",
+                "These blend modes work straight on the terminal background.",
+                "",
+                {
+                    "type": "text",
+                    "className": "system",
+                    "text": "[NONE]"
+                },
+                {
+                    "type": "bitmap",
+                    "src": "img/Aphelion.png",
+                    "alt": "Aphelion eye",
+                    "scale": 0.35
+                },
+                {
+                    "type": "text",
+                    "className": "system",
+                    "text": "[monochrome]  grayscale, tinted by the background (same as luminosity)"
+                },
+                {
+                    "type": "bitmap",
+                    "src": "img/Aphelion.png",
+                    "alt": "Aphelion eye",
+                    "scale": 0.35,
+                    "className": "monochrome"
+                },
+                {
+                    "type": "text",
+                    "className": "system",
+                    "text": "[screen]  glowing; black areas vanish"
+                },
+                {
+                    "type": "bitmap",
+                    "src": "img/ypsilon-map.png",
+                    "alt": "Ypsilon 14 map",
+                    "scale": 0.3,
+                    "className": "screen"
+                },
+                {
+                    "type": "text",
+                    "className": "system",
+                    "text": "[lighten]  black areas take the background color"
+                },
+                {
+                    "type": "bitmap",
+                    "src": "img/ypsilon-map.png",
+                    "alt": "Ypsilon 14 map",
+                    "scale": 0.3,
+                    "className": "lighten"
+                },
+                {
+                    "type": "text",
+                    "className": "system",
+                    "text": "[color-dodge]  brighter, more saturated"
+                },
+                {
+                    "type": "bitmap",
+                    "src": "img/Aphelion.png",
+                    "alt": "Aphelion eye",
+                    "scale": 0.35,
+                    "className": "color-dodge"
+                },
+                {
+                    "type": "text",
+                    "className": "system",
+                    "text": "[difference]  inverted-looking colors"
+                },
+                {
+                    "type": "bitmap",
+                    "src": "img/Aphelion.png",
+                    "alt": "Aphelion eye",
+                    "scale": 0.35,
+                    "className": "difference"
+                },
+                {
+                    "type": "text",
+                    "className": "system",
+                    "text": "[exclusion]  a softer difference"
+                },
+                {
+                    "type": "bitmap",
+                    "src": "img/Aphelion.png",
+                    "alt": "Aphelion eye",
+                    "scale": 0.35,
+                    "className": "exclusion"
+                },
+                {
+                    "type": "text",
+                    "className": "system",
+                    "text": "[hard-light]  high contrast"
+                },
+                {
+                    "type": "bitmap",
+                    "src": "img/Aphelion.png",
+                    "alt": "Aphelion eye",
+                    "scale": 0.35,
+                    "className": "hard-light"
+                },
+                "",
+                {
+                    "type": "link",
+                    "text": "> NEXT: DARKENING MODES + BACKGROUND",
+                    "target": "images-dark"
+                },
+                {
+                    "type": "link",
+                    "text": "> BACK TO IMAGES",
+                    "target": "images"
+                },
+                {
+                    "type": "link",
+                    "text": "> TABLE OF CONTENTS",
+                    "target": "hub"
+                }
+            ]
+        },
+        {
+            "id": "images-dark",
+            "type": "screen",
+            "content": [
+                {
+                    "type": "text",
+                    "className": "alert",
+                    "text": "IMAGES: DARKENING MODES + BACKGROUND"
+                },
+                "",
+                "On their own these modes leave the image almost black:",
+                "",
+                {
+                    "type": "text",
+                    "className": "system",
+                    "text": "[multiply]  no background"
+                },
+                {
+                    "type": "bitmap",
+                    "src": "img/Aphelion.png",
+                    "alt": "Aphelion eye",
+                    "scale": 0.35,
+                    "className": "multiply"
+                },
+                "",
+                "Give the image a \"background\" and they mix with that color instead:",
+                "",
+                {
+                    "type": "text",
+                    "className": "system",
+                    "text": "[multiply]  background: fg"
+                },
+                {
+                    "type": "bitmap",
+                    "src": "img/Aphelion.png",
+                    "alt": "Aphelion eye",
+                    "scale": 0.35,
+                    "className": "multiply",
+                    "background": "fg"
+                },
+                {
+                    "type": "text",
+                    "className": "system",
+                    "text": "[darken]  background: fg"
+                },
+                {
+                    "type": "bitmap",
+                    "src": "img/Aphelion.png",
+                    "alt": "Aphelion eye",
+                    "scale": 0.35,
+                    "className": "darken",
+                    "background": "fg"
+                },
+                {
+                    "type": "text",
+                    "className": "system",
+                    "text": "[color-burn]  background: fg"
+                },
+                {
+                    "type": "bitmap",
+                    "src": "img/Aphelion.png",
+                    "alt": "Aphelion eye",
+                    "scale": 0.35,
+                    "className": "color-burn",
+                    "background": "fg"
+                },
+                {
+                    "type": "text",
+                    "className": "system",
+                    "text": "[overlay]  background: alert"
+                },
+                {
+                    "type": "bitmap",
+                    "src": "img/Aphelion.png",
+                    "alt": "Aphelion eye",
+                    "scale": 0.35,
+                    "className": "overlay",
+                    "background": "alert"
+                },
+                {
+                    "type": "text",
+                    "className": "system",
+                    "text": "[soft-light]  background: \"#404040\""
+                },
+                {
+                    "type": "bitmap",
+                    "src": "img/Aphelion.png",
+                    "alt": "Aphelion eye",
+                    "scale": 0.35,
+                    "className": "soft-light",
+                    "background": "#404040"
+                },
+                {
+                    "type": "text",
+                    "className": "system",
+                    "text": "[saturation]  background: notice"
+                },
+                {
+                    "type": "bitmap",
+                    "src": "img/Aphelion.png",
+                    "alt": "Aphelion eye",
+                    "scale": 0.35,
+                    "className": "saturation",
+                    "background": "notice"
+                },
+                "",
+                "hue and color keep the BACKGROUND's brightness, so on a flat plate the",
+                "picture flattens into a wash of its own colors:",
+                "",
+                {
+                    "type": "text",
+                    "className": "system",
+                    "text": "[color]  background: \"#404040\""
+                },
+                {
+                    "type": "bitmap",
+                    "src": "img/Aphelion.png",
+                    "alt": "Aphelion eye",
+                    "scale": 0.35,
+                    "className": "color",
+                    "background": "#404040"
+                },
+                "",
+                {
+                    "type": "link",
+                    "text": "> NEXT: BACKGROUND COLORS + COMBINED CLASSES",
+                    "target": "images-backdrops"
+                },
+                {
+                    "type": "link",
+                    "text": "> BACK TO IMAGES",
+                    "target": "images"
+                },
+                {
+                    "type": "link",
+                    "text": "> TABLE OF CONTENTS",
+                    "target": "hub"
+                }
+            ]
+        },
+        {
+            "id": "images-backdrops",
+            "type": "screen",
+            "content": [
+                {
+                    "type": "text",
+                    "className": "alert",
+                    "text": "IMAGES: BACKGROUND COLORS + COMBINED CLASSES"
+                },
+                "",
+                "\"background\" takes a theme color (fg, bg, alert, notice, emphasis, system)",
+                "or any CSS color such as \"#ffffff\" or \"rgb(255 180 0)\".",
+                "",
+                "monochrome + a background tints the picture in that color:",
+                "",
+                {
+                    "type": "text",
+                    "className": "system",
+                    "text": "[monochrome]  background: alert"
+                },
+                {
+                    "type": "bitmap",
+                    "src": "img/Aphelion.png",
+                    "alt": "Aphelion eye",
+                    "scale": 0.35,
+                    "className": "monochrome",
+                    "background": "alert"
+                },
+                {
+                    "type": "text",
+                    "className": "system",
+                    "text": "[monochrome]  background: notice"
+                },
+                {
+                    "type": "bitmap",
+                    "src": "img/Aphelion.png",
+                    "alt": "Aphelion eye",
+                    "scale": 0.35,
+                    "className": "monochrome",
+                    "background": "notice"
+                },
+                {
+                    "type": "text",
+                    "className": "system",
+                    "text": "[monochrome]  background: system"
+                },
+                {
+                    "type": "bitmap",
+                    "src": "img/Aphelion.png",
+                    "alt": "Aphelion eye",
+                    "scale": 0.35,
+                    "className": "monochrome",
+                    "background": "system"
+                },
+                "",
+                {
+                    "type": "text",
+                    "className": "system",
+                    "text": "[difference]  background: \"#ffffff\"  (inverts the colors)"
+                },
+                {
+                    "type": "bitmap",
+                    "src": "img/Aphelion.png",
+                    "alt": "Aphelion eye",
+                    "scale": 0.35,
+                    "className": "difference",
+                    "background": "#ffffff"
+                },
+                {
+                    "type": "text",
+                    "className": "system",
+                    "text": "[difference]  background: \"#ffffff\""
+                },
+                {
+                    "type": "bitmap",
+                    "src": "img/ypsilon-map.png",
+                    "alt": "Ypsilon 14 map",
+                    "scale": 0.3,
+                    "className": "difference",
+                    "background": "#ffffff"
+                },
+                "",
+                {
+                    "type": "text",
+                    "className": "system",
+                    "text": "[COMBINED]  className: \"monochrome footer\", background: emphasis, align: center"
+                },
+                {
+                    "type": "bitmap",
+                    "src": "img/Aphelion.png",
+                    "alt": "Aphelion eye",
+                    "scale": 0.35,
+                    "className": "monochrome footer",
+                    "background": "emphasis",
+                    "align": "center"
+                },
+                "",
+                "Dialogs have a bright background, so darkening modes work there without one:",
+                {
+                    "type": "link",
+                    "text": "> OPEN AN IMAGE IN A DIALOG",
+                    "target": [
+                        {
+                            "type": "dialog",
+                            "target": "imageDialog"
+                        }
+                    ]
+                },
+                "",
+                {
+                    "type": "link",
+                    "text": "> NEXT: PROMPT BEHAVIOR",
+                    "target": "prompt-behavior"
+                },
+                {
+                    "type": "link",
+                    "text": "> BACK TO IMAGES",
+                    "target": "images"
+                },
+                {
+                    "type": "link",
+                    "text": "> TABLE OF CONTENTS",
+                    "target": "hub"
+                }
+            ]
+        },
+        {
+            "id": "crew-record-chen",
+            "type": "screen",
+            "content": [
+                {
+                    "type": "text",
+                    "className": "system",
+                    "text": "RECORD 002 // CHEN, R."
+                },
+                "",
+                "ROLE......... CHIEF ENGINEER",
+                "DECK......... C",
+                "CLEARANCE.... LEVEL 3",
+                "",
+                "Last logged entry: \"Coolant loop B rerouted. Do not touch the red valve.\"",
+                "",
+                {
+                    "type": "link",
+                    "text": "> RETURN TO MANIFEST",
+                    "target": "data-tables"
+                }
+            ]
+        },
+        {
+            "id": "crew-record-voss",
+            "type": "screen",
+            "content": [
+                {
+                    "type": "text",
+                    "className": "alert",
+                    "text": "RECORD 003 // VOSS, K."
+                },
+                "",
+                "ROLE......... MEDICAL OFFICER",
+                "DECK......... B",
+                {
+                    "type": "text",
+                    "className": "alert",
+                    "text": "STATUS....... MISSING - LAST SEEN MEDBAY 02:14"
+                },
+                "",
+                "Biomonitor signal lost. Security sweep pending.",
+                "",
+                {
+                    "type": "link",
+                    "text": "> RETURN TO MANIFEST",
+                    "target": "data-tables"
+                }
+            ]
+        },
+        {
+            "id": "fs-manifest",
+            "type": "screen",
+            "title": "CARGO MANIFEST",
+            "content": [
+                {
+                    "type": "text",
+                    "className": "system",
+                    "text": "CARGO MANIFEST"
+                },
+                "Tables work inside file-system files too. Click the table, then use the keys.",
+                "",
+                {
+                    "type": "table",
+                    "sortable": true,
+                    "filter": true,
+                    "columns": [
+                        "CRATE",
+                        "CONTENTS",
+                        {
+                            "label": "QTY",
+                            "align": "right"
+                        },
+                        "BAY"
+                    ],
+                    "rows": [
+                        [
+                            "C-101",
+                            "RATIONS, SEALED",
+                            "240",
+                            "1"
+                        ],
+                        [
+                            "C-102",
+                            "WATER RECLAIMERS",
+                            "6",
+                            "1"
+                        ],
+                        [
+                            "C-215",
+                            "MINING CHARGES",
+                            "48",
+                            "3"
+                        ],
+                        [
+                            "C-216",
+                            {
+                                "text": "BIOHAZARD - UNLABELED",
+                                "className": "alert"
+                            },
+                            "1",
+                            "3"
+                        ],
+                        [
+                            "C-330",
+                            "SPARE COOLANT",
+                            "12",
+                            "2"
+                        ]
+                    ]
+                }
+            ]
+        },
+        {
             "id": "final-checklist",
             "type": "screen",
             "content": [
@@ -1174,6 +1956,22 @@
         }
     ],
     "dialogs": [
+        {
+            "id": "imageDialog",
+            "type": "alert",
+            "content": [
+                "IMAGE IN A DIALOG",
+                {
+                    "type": "bitmap",
+                    "src": "img/Aphelion.png",
+                    "alt": "Aphelion eye",
+                    "className": "multiply",
+                    "scale": 0.6
+                },
+                "className: \"multiply\" on the dialog's own bright background.",
+                "Press ENTER, ESC, or click to close."
+            ]
+        },
         {
             "id": "quickHelpDialog",
             "type": "alert",

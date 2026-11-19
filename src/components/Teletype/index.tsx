@@ -152,7 +152,13 @@ class Teletype extends Component<TeletypeProps, TeletypeState> {
             return;
         }
 
-        this._animate();
+        const typingChanged = prevState.char !== this.state.char
+            || prevState.active !== this.state.active
+            || prevState.paused !== this.state.paused
+            || prevProps.text !== this.props.text;
+        if (typingChanged || this._animateTimerId === null) {
+            this._animate();
+        }
     }
 
     public componentWillUnmount(): void {

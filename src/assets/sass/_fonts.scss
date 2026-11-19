@@ -1,11 +1,4 @@
-@font-face {
-    font-family: "Vga";
-    src: url("../fonts/vga.woff") format("woff"),
-        url("../fonts/vga.woff2") format("woff2"),
-        url("../fonts/vga.ttf") format("truetype");
-    font-weight: normal;
-    font-style: normal;
-}
+// @font-face lives in _font-face.scss (loaded once from src/index.tsx)
 
 // TODO: add theme mixins
 $font-family: "Vga", Menlo, Monaco, Consolas, "Courier New", monospace;

@@ -1,0 +1,13 @@
+// Loaded exactly once (from src/index.tsx). Keep @font-face out of _fonts.scss:
+// that partial is @use'd by every component stylesheet, which would emit one
+// copy of this rule per stylesheet.
+@font-face {
+    font-family: "Vga";
+    // woff2 first: smallest file that every supported browser can read
+    src: url("../fonts/vga.woff2") format("woff2"),
+        url("../fonts/vga.woff") format("woff"),
+        url("../fonts/vga.ttf") format("truetype");
+    font-weight: normal;
+    font-style: normal;
+    font-display: block; // the terminal grid is meaningless in a fallback font
+}

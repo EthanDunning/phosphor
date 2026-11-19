@@ -579,6 +579,239 @@ $creator-dark-control-bg: rgba($creator-dark-bg, 0.92);
         resize: none;
     }
 
+    // pipe-separated table data: keep rows on one line so columns stay readable
+    &__table-data {
+        height: 14em;
+        min-height: 6em;
+        resize: vertical;
+        white-space: pre;
+        overflow-x: auto;
+        tab-size: 4;
+    }
+
+    &__table-columns {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr));
+        gap: 0.2rem 0.4rem;
+    }
+
+    &__table-toolbar {
+        display: flex;
+        align-items: flex-end;
+        justify-content: space-between;
+        gap: 0.5rem;
+        margin-bottom: 0.2rem;
+    }
+
+    &__table-grid-editor {
+        display: flex;
+        flex-direction: column;
+        gap: 0.3rem;
+    }
+
+    // spreadsheet-style table editor; scrolls sideways when there are many columns
+    &__table-grid {
+        overflow-x: auto;
+        max-width: 100%;
+        @include creator-scrollbar;
+
+        table {
+            border-collapse: collapse;
+            font-size: 14pt;
+        }
+
+        th,
+        td {
+            border: 1px solid var(--fg);
+            padding: 0;
+            vertical-align: top;
+        }
+
+        th {
+            font-weight: normal;
+            text-align: left;
+        }
+
+        input {
+            box-sizing: border-box;
+            width: 100%;
+            min-width: 8em;
+            border: none;
+            outline: none;
+            padding: 0.1rem 0.3rem;
+            font-size: inherit;
+
+            &:focus {
+                background: var(--creator-selected-bg);
+                color: var(--creator-selected-fg);
+                -webkit-text-fill-color: var(--creator-selected-fg);
+            }
+        }
+
+        button {
+            border: none;
+            background: transparent;
+            color: var(--fg);
+            -webkit-text-fill-color: var(--fg);
+            font-family: $font-family;
+            font-size: 12pt;
+            line-height: 1.2;
+            padding: 0.05rem 0.3rem;
+            cursor: pointer;
+
+            &:hover:not(:disabled) {
+                background: var(--creator-selected-bg);
+                color: var(--creator-selected-fg);
+                -webkit-text-fill-color: var(--creator-selected-fg);
+            }
+
+            &:disabled {
+                opacity: 0.3;
+                cursor: default;
+            }
+        }
+    }
+
+    &__tg-heading {
+        text-transform: uppercase;
+        border-bottom: 1px dashed var(--fg) !important;
+    }
+
+    &__tg-tools {
+        display: flex;
+        justify-content: space-between;
+        white-space: nowrap;
+    }
+
+    &__tg-align {
+        flex: 1;
+    }
+
+    // row number + move/insert/delete buttons, kept at the left so they never scroll away
+    &__tg-rowhead {
+        white-space: nowrap;
+        vertical-align: middle !important;
+        padding: 0 0.2em !important;
+        font-size: 11pt;
+    }
+
+    th.script-creator__tg-rowhead {
+        vertical-align: bottom !important;
+        opacity: 0.85;
+    }
+
+    &__tg-rownum {
+        display: inline-block;
+        min-width: 1.8em;
+        margin-right: 0.2em;
+        text-align: right;
+        opacity: 0.7;
+    }
+
+    // per-row settings, set apart from the data columns
+    th.script-creator__tg-meta {
+        padding: 0.1rem 0.3rem;
+        font-size: 11pt;
+        white-space: nowrap;
+        vertical-align: bottom;
+        opacity: 0.85;
+    }
+
+    th.script-creator__tg-split,
+    td.script-creator__tg-split {
+        border-left-width: 3px;
+        border-left-style: double;
+    }
+
+    &__tg-target {
+        min-width: 11em !important;
+    }
+
+    &__tg-color {
+        width: 100%;
+        min-width: 6.5em;
+        text-align: left;
+        text-transform: uppercase;
+    }
+
+    &__tg-empty {
+        padding: 0.3rem 0.5rem !important;
+        opacity: 0.7;
+    }
+
+    // class names as removable chips
+    &__chips {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 0.75em;
+        padding-top: 0.45em;
+    }
+
+    &__chip {
+        position: relative;
+        border: 1px solid var(--fg);
+        background: var(--creator-control-bg);
+        color: var(--creator-fg);
+        font-family: $font-family;
+        font-size: 14pt;
+        line-height: 1.2;
+        padding: 0.15em 0.9em 0.1em 0.45em;
+        cursor: default;
+
+        &--custom {
+            border-style: dashed;
+            opacity: 0.8;
+        }
+    }
+
+    &__chip-remove {
+        position: absolute;
+        top: -0.55em;
+        right: -0.55em;
+        width: 1.3em;
+        height: 1.3em;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0;
+        border: 1px solid var(--fg);
+        border-radius: 50%;
+        background: var(--creator-bg);
+        color: var(--creator-fg);
+        -webkit-text-fill-color: var(--creator-fg);
+        font-family: $font-family;
+        font-size: 10pt;
+        line-height: 1;
+        cursor: pointer;
+
+        &:hover,
+        &:focus-visible {
+            background: var(--creator-selected-bg);
+            color: var(--creator-selected-fg);
+            -webkit-text-fill-color: var(--creator-selected-fg);
+        }
+    }
+
+    .script-creator-select.script-creator__chip-add {
+        width: auto;
+
+        .script-creator-select__menu {
+            right: auto;
+            width: max-content;
+            min-width: 100%;
+            max-width: min(640px, 80vw);
+        }
+
+        .script-creator-select__option:disabled {
+            opacity: 0.7;
+            cursor: default;
+            font-size: 11pt;
+            letter-spacing: 0.06em;
+            padding-top: 0.3rem;
+        }
+    }
+
     &__actions {
         display: flex;
         flex-wrap: wrap;

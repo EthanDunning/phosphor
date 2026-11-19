@@ -1,6 +1,9 @@
 @use "../../assets/sass/colors" as *;
 
 .__prompt__ {
+    // anchors the invisible keyboard input laid over the prompt
+    position: relative;
+
     &.cursor::after {
         content: "|";
         background-color: var(--theme-fg, var(--fg));

@@ -1,9 +1,10 @@
-import React, { FC, useEffect, useRef, useState, } from "react";
+import React, { FC, useEffect, useState, } from "react";
 
 // css
 import "./style.scss";
 
 import { registerTerminalInput } from "../../lib/terminalInput";
+import KeyboardProxy from "../KeyboardProxy";
 
 export interface PromptProps {
     prompt?: string;
@@ -37,7 +38,6 @@ const Prompt: FC<PromptProps> = (props) => {
         onEnter,
         onRendered,
     } = props;
-    const ref = useRef<HTMLSpanElement>(null);
     const css = [
         "__prompt__",
         disabled ? "disabled" : null,
@@ -63,9 +63,6 @@ const Prompt: FC<PromptProps> = (props) => {
 
         return target.isContentEditable;
     };
-
-    // events
-    const handleFocus = () => ref.current.focus();
 
     const handleCommand = () => {
         if (!onCommand) {
@@ -101,6 +98,11 @@ const Prompt: FC<PromptProps> = (props) => {
         }
     };
 
+    const handleEnter = () => {
+        onEnter && onEnter();
+        handleCommand();
+    };
+
     const handleKeyDown = (e: KeyboardEvent) => {
         if (isEditableTarget(e.target)) {
             return;
@@ -123,8 +125,7 @@ const Prompt: FC<PromptProps> = (props) => {
 
             case "enter":
                 e.preventDefault();
-                onEnter && onEnter();
-                handleCommand();
+                handleEnter();
                 break;
 
             default:
@@ -159,9 +160,17 @@ const Prompt: FC<PromptProps> = (props) => {
     });
 
     return (
-        <div className={css} onClick={handleFocus}>
+        <div className={css}>
             {prompt && <span className={"prompt"}>{prompt}</span>}
-            <span className={"input"} ref={ref}>{value}</span>
+            <span className={"input"}>{value}</span>
+            {/* lets phones open their keyboard: tap the prompt to type */}
+            <KeyboardProxy
+                value={value}
+                label={(prompt || PROMPT_DEFAULT).trim() || "command"}
+                disabled={disabled}
+                onChange={setValue}
+                onEnter={handleEnter}
+            />
         </div>
     );
 };

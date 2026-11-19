@@ -22,6 +22,7 @@ The original project loaded a single hardcoded JSON file (sample.json by default
 **New element types**
 - **`list`** — a multi-state cycling element similar to `toggle` but designed for ordered item selection.
 - **`dropdown`** — a multi-state element similar to `toggle`, but clicking it expands an inline list of all states so one can be picked directly instead of cycling through them.
+- **`table`** — a retro database grid drawn with DOS box-drawing characters that prints line-by-line like a line printer, then becomes an interactive record browser: arrow-key row cursor, `Enter` to open a row's target, `1`–`9` / header clicks to sort, `/` for a live `QUERY>` filter, and paging. Works in classic screens and inside `filesystem` files. See *Data tables* below.
 - **`reportcomposer`** — a freeform text input that saves entries to localStorage and renders them as links on a target screen.
 - **`href`** — a link type that opens an external URL in a new tab instead of navigating within the terminal.
 - **`loop`** — a property on any object element that repeats it N times, avoiding repetition in the JSON.
@@ -100,6 +101,34 @@ Give leaf/content screens a `title` to label them in the list. Navigate with the
 ```
 
 (A plain string `target` opens content; an array `target` is a button.) Screens **without** `layout: "folders"` (boot screens, login prompts, etc.) render with the normal teletype flow inside the same chrome. See `src/data/alien-terminal.json` for a complete, playable example.
+
+#### Data tables
+
+A `table` element renders a box-drawn record grid. Columns are strings or `{ "key", "label", "align": "left" | "center" | "right", "width" }`; rows are arrays of cells, `{ "cells": [...], "target", "className" }` objects (a `target` is any link target, so a row can open a screen or run an action), or objects keyed by column key. A cell can be a plain value or `{ "text", "className" }` for per-cell color.
+
+```json
+{
+  "type": "table",
+  "title": "CREW MANIFEST",
+  "columns": [{ "label": "ID", "align": "right" }, "NAME", "STATUS"],
+  "rows": [
+    ["001", "MORLEY, D.", "ACTIVE"],
+    { "cells": ["003", "VOSS, K.", "MISSING"], "target": "crew-voss", "className": "alert" }
+  ],
+  "sortable": true,
+  "filter": true,
+  "pageSize": 8,
+  "border": "single"
+}
+```
+
+Options: `border` (`single` ┌─┐, `double` ╔═╗, `ascii` +-+, `none`), `sortable`, `filter` (adds the `QUERY>` line), `pageSize` (fixed-height paged window), `sort` (`{ "column": key | label | index, "direction": "asc" | "desc" }`), `footer` (record count; default on), `emptyText`, and `speed` (ms per printed line). The sample script's **DATA TABLES** section is a live demo.
+
+In the Script Creator, add a **Data Table** element. **[GRID]** edits it like a spreadsheet: type in the cells, press Enter to move down (a new row is added at the end), use **[+ ROW]** / **[+ COLUMN]**, ◄ ► to move a column, the LEFT/CENTER/RIGHT button for alignment, and × to delete. Each row has an **OPENS SCREEN** box (makes the row a link) and a **COLOR** button. **[TEXT]** shows the same data as pipe-separated text (`a | b | c`, ending a row with `>> screen-id` to link it) for pasting in bulk.
+
+#### Class names
+
+`className` can hold several classes separated by spaces, e.g. `"alert small center"`. Colors (`alert`, `notice`, `emphasis`, `system`) are one per element; layout classes (`center`, `title`, `small`, `inline`, `script-hidden`) combine with anything. Images take one blend mode (`monochrome`, `screen`, `lighten`, `difference`, …) plus `footer` (space above) and `script-hidden`; use **Text Align** to center or right-align an image. On dark themes the darkening blend modes (`multiply`, `darken`, `color-burn`, and to a lesser degree `overlay` / `soft-light` / `saturation`) leave an image almost black, so give the image a `"background"`: a theme color (`fg`, `bg`, `alert`, `notice`, `emphasis`, `system`) or any CSS color, painted behind the image for the blend mode to mix with. `monochrome` + a background tints the image that color, and `difference` on `"#ffffff"` inverts it. `hue` and `color` take their brightness from the background, so on a solid plate they come out as a flat wash. Images in dialogs support the same classes and `background`. The sample script's **IMAGES + CLASS NAMES** section shows every combination. In the Script Creator each class is a chip: **+ ADD CLASS** adds one (a new color or blend mode replaces the old one) and the × on a chip removes it.
 
 To load your script without a build step, upload the JSON using the toolbar's `[ UPLOAD JSON ]` option. Any images or other assets you reference should be hosted externally (e.g. on Imgur, a CDN, or your own server) so they resolve correctly in the browser.
 

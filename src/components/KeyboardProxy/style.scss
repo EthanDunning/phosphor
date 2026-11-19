@@ -1,0 +1,22 @@
+// Invisible input stretched over a terminal text box (see index.tsx). The
+// owning element needs `position: relative`.
+.__keyboard-proxy__ {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    outline: none;
+    opacity: 0;
+    background: transparent;
+    color: transparent;
+    caret-color: transparent;
+    // 16px or larger stops iOS Safari zooming the page when the input is focused
+    font-size: 16px;
+    cursor: text;
+    -webkit-appearance: none;
+    appearance: none;
+    -webkit-tap-highlight-color: transparent;
+}

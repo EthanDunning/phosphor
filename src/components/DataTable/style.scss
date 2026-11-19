@@ -1,0 +1,144 @@
+@use "../../assets/sass/fonts" as *;
+
+// Retro database table. Everything is drawn with characters in the monospace
+// terminal font, so the grid must never wrap: wide tables scroll sideways.
+.__table__ {
+    display: block;
+    max-width: 100%;
+    overflow-x: auto;
+    overflow-y: hidden;
+    white-space: pre;
+    outline: none;
+    scrollbar-width: thin;
+    scrollbar-color: var(--theme-fg, var(--fg)) transparent;
+
+    &.is-interactive {
+        cursor: default;
+    }
+}
+
+.__table-grid {
+    display: inline-block;
+    min-width: max-content;
+}
+
+.__table-line {
+    display: block;
+
+    &.is-hidden {
+        visibility: hidden;
+    }
+}
+
+.__table-border {
+    opacity: 0.8;
+}
+
+.__table__.is-focused .__table-border {
+    opacity: 1;
+}
+
+.__table-dim {
+    opacity: 0.7;
+}
+
+// note: no letter-spacing anywhere in the table — it would break the character grid
+.__table__ {
+    letter-spacing: 0;
+}
+
+.__table-heading {
+    &.is-sortable {
+        cursor: pointer;
+    }
+
+    &.is-sortable:hover,
+    &.is-sorted {
+        text-decoration: underline;
+        text-underline-offset: 0.15em;
+    }
+}
+
+.__table-row.has-target {
+    cursor: pointer;
+}
+
+// inverse-video selection bar, like a DOS database browser
+.__table-row.is-selected .__table-rowbody {
+    color: var(--bg);
+    background: var(--theme-fg, var(--fg));
+    text-shadow: var(--bg-glow);
+    box-shadow: var(--theme-fg-glow, var(--fg-glow));
+
+    .__table-cell,
+    .__table-border {
+        color: inherit;
+        text-shadow: inherit;
+        opacity: 1;
+    }
+
+    &.alert {
+        background: var(--alert);
+        box-shadow: var(--alert-glow);
+    }
+
+    &.notice {
+        background: var(--notice);
+        box-shadow: var(--notice-glow);
+    }
+
+    &.system {
+        background: var(--system);
+        box-shadow: var(--system-glow);
+    }
+
+    &.emphasis {
+        background: var(--emphasis);
+        box-shadow: var(--emphasis-glow);
+    }
+}
+
+.__table-query-text {
+    cursor: text;
+}
+
+// anchors the invisible keyboard input laid over the QUERY line
+.__table-query {
+    position: relative;
+}
+
+.__table-caret {
+    animation: __table-caret-blink 1s steps(1, end) infinite;
+}
+
+.__table-pager {
+    cursor: pointer;
+
+    &:hover {
+        color: var(--bg);
+        background: var(--theme-fg, var(--fg));
+        text-shadow: var(--bg-glow);
+    }
+}
+
+.__table-hint {
+    font-size: $smallfontsize;
+    opacity: 0.65;
+    visibility: hidden;
+
+    &.is-visible {
+        visibility: visible;
+    }
+}
+
+@keyframes __table-caret-blink {
+    50% {
+        opacity: 0;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .__table-caret {
+        animation: none;
+    }
+}
