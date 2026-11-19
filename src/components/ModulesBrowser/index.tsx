@@ -10,12 +10,15 @@ import { createPortal } from "react-dom";
 import CreatorSelect, { CreatorSelectOption } from "../CreatorSelect";
 import AuthorPicker from "../AuthorPicker";
 import UsernameEditor from "../UsernameEditor";
+import UsernamePrompt from "../UsernamePrompt";
 import {
     AuthorRef,
     fetchModuleCoAuthors,
     fetchModuleCredits,
     formatCredits,
+    getUsernameSetup,
     removeMyselfAsCoAuthor,
+    sameAuthors,
     setModuleCoAuthors,
 } from "../../lib/authors";
 import {
@@ -347,9 +350,13 @@ const ModulesBrowser: FC = () => {
     const [editTitle, setEditTitle] = useState<string>("");
     const [editSummary, setEditSummary] = useState<string>("");
     const [editCoAuthors, setEditCoAuthors] = useState<AuthorRef[]>([]);
+    const [editCoAuthorsOriginal, setEditCoAuthorsOriginal] = useState<AuthorRef[]>([]);
+    const [editCoAuthorsLoaded, setEditCoAuthorsLoaded] = useState<boolean>(false);
     // module id -> [owner, ...co-authors] usernames ("By ..."); empty until loaded
     const [credits, setCredits] = useState<Record<string, AuthorRef[]>>({});
     const [creditsVersion, setCreditsVersion] = useState(0);
+    const [usernamePrompt, setUsernamePrompt] = useState<{ userId: string; defaultUsername: string } | null>(null);
+    const usernamePromptAskedForRef = useRef<string | null>(null);
 
     const soundEnabledRef = useRef(soundEnabled);
     useEffect(() => { soundEnabledRef.current = soundEnabled; }, [soundEnabled]);
@@ -476,6 +483,28 @@ const ModulesBrowser: FC = () => {
     }, [playFromPool]);
 
     const sessionUserId = session?.user?.id || null;
+
+    // first sign-in: ask (once per visit) to pick a username or keep the generated one
+    useEffect(() => {
+        if (!sessionUserId || usernamePromptAskedForRef.current === sessionUserId) {
+            if (!sessionUserId) {
+                setUsernamePrompt(null);
+            }
+            return;
+        }
+        usernamePromptAskedForRef.current = sessionUserId;
+        let cancelled = false;
+        getUsernameSetup(sessionUserId)
+            .then((setup) => {
+                if (!cancelled && setup && !setup.confirmed) {
+                    setUsernamePrompt({ userId: sessionUserId, defaultUsername: setup.username });
+                }
+            })
+            .catch((): void => undefined);
+        return () => {
+            cancelled = true;
+        };
+    }, [sessionUserId]);
     const sessionEmail = session?.user?.email || null;
     const isAdmin = !!sessionUserId && sessionRole === "admin";
     // Admins can manage any module as if they owned it; everyone else only
@@ -1419,9 +1448,16 @@ const ModulesBrowser: FC = () => {
         setEditSummary(module.summary || "");
         setEditingModuleId(module.id);
         setEditCoAuthors([]);
+        setEditCoAuthorsOriginal([]);
+        setEditCoAuthorsLoaded(false);
         fetchModuleCoAuthors(module.id)
-            .then((authors) => setEditCoAuthors(authors))
-            .catch(() => setEditCoAuthors([]));
+            .then((authors) => {
+                setEditCoAuthors(authors);
+                setEditCoAuthorsOriginal(authors);
+                setEditCoAuthorsLoaded(true);
+            })
+            // couldn't read them: leave co-authors alone on save
+            .catch(() => setEditCoAuthorsLoaded(false));
     };
 
     const handleCancelEdit = (): void => {
@@ -1453,8 +1489,10 @@ const ModulesBrowser: FC = () => {
                 summary: editSummary.trim(),
                 visibility: module.visibility,
             });
-            await setModuleCoAuthors(module.id, editCoAuthors);
-            setCreditsVersion((version) => version + 1);
+            if (editCoAuthorsLoaded && !sameAuthors(editCoAuthors, editCoAuthorsOriginal)) {
+                await setModuleCoAuthors(module.id, editCoAuthors);
+                setCreditsVersion((version) => version + 1);
+            }
             const personalState = await loadPersonalState(sessionUserId);
             await refreshCatalog(sessionUserId, personalState.subscribedIds, personalState.ownModules, personalState.role);
             setSelectedModuleId(updatedModule.id);
@@ -1745,6 +1783,19 @@ const ModulesBrowser: FC = () => {
 
     return (
         <section className={browserClassName}>
+            {usernamePrompt && usernamePrompt.userId === sessionUserId && (
+                <UsernamePrompt
+                    userId={usernamePrompt.userId}
+                    defaultUsername={usernamePrompt.defaultUsername}
+                    variant={isWebView ? "web" : "terminal"}
+                    onDone={(saved) => {
+                        setUsernamePrompt(null);
+                        if (saved) {
+                            setCreditsVersion((version) => version + 1);
+                        }
+                    }}
+                />
+            )}
             <header
                 ref={headerRef}
                 className={
@@ -2305,7 +2356,7 @@ const ModulesBrowser: FC = () => {
                                                         onChange={setEditCoAuthors}
                                                         excludeIds={[selectedModule.owner_id]}
                                                         plainLabels={isWebView}
-                                                        disabled={isBusy}
+                                                        disabled={isBusy || !editCoAuthorsLoaded}
                                                     />
                                                     <small className="modules-browser__hint">
                                                         Ask co-authors for their account ID (in their account menu). The uploader is always credited first; tagged people can remove themselves.

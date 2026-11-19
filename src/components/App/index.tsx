@@ -8,7 +8,8 @@ import Phosphor from "../Phosphor";
 import ModulesPanel from "../ModulesPanel";
 import FeedbackDialog from "../FeedbackDialog";
 import UsernameEditor from "../UsernameEditor";
-import { AuthorRef, setModuleCoAuthors } from "../../lib/authors";
+import UsernamePrompt from "../UsernamePrompt";
+import { AuthorRef, getUsernameSetup, setModuleCoAuthors } from "../../lib/authors";
 import { FeedbackKind, fetchMyFeedback, getUnreadResponseIds, submitFeedback } from "../../lib/feedback";
 
 // The Script Creator is large and most visitors never open it: load its code
@@ -186,6 +187,7 @@ interface AppState {
     feedbackOpen: boolean;
     adminOpen: boolean;
     supportDropdownOpen: boolean;
+    usernamePrompt: { userId: string; defaultUsername: string } | null;
     feedbackUnreadCount: number; // admin responses the user hasn't read yet
     previewMode: boolean;
     uploadError: string | null;
@@ -257,6 +259,7 @@ class App extends Component<any, AppState> {
             feedbackOpen: false,
             adminOpen: false,
             supportDropdownOpen: false,
+            usernamePrompt: null,
             feedbackUnreadCount: 0,
             previewMode: false,
             uploadError: null,
@@ -2146,6 +2149,25 @@ class App extends Component<any, AppState> {
         }
     }
 
+    // First sign-in (or any account that hasn't chosen yet): ask once per
+    // visit to pick a username or keep the generated one.
+    private _usernamePromptAskedFor: string | null = null;
+
+    private async _checkUsernameSetup(userId: string): Promise<void> {
+        if (this._usernamePromptAskedFor === userId) {
+            return;
+        }
+        this._usernamePromptAskedFor = userId;
+        try {
+            const setup = await getUsernameSetup(userId);
+            if (setup && !setup.confirmed && this._getSessionUserId() === userId) {
+                this.setState({ usernamePrompt: { userId, defaultUsername: setup.username } });
+            }
+        } catch {
+            // no prompt if the profile can't be read
+        }
+    }
+
     private _handleAdminOpen(): void {
         if (this.state.profileRole !== "admin") {
             return;
@@ -2222,6 +2244,7 @@ class App extends Component<any, AppState> {
         }
 
         void this._refreshFeedbackUnread(userId);
+        void this._checkUsernameSetup(userId);
 
         this.setState({
             modulesBusy: true,
@@ -2618,6 +2641,7 @@ class App extends Component<any, AppState> {
         payload: {
             title: string;
             summary: string;
+            coAuthors?: AuthorRef[];
         }
     ): Promise<boolean> {
         const userId = this._getSessionUserId();
@@ -2646,6 +2670,14 @@ class App extends Component<any, AppState> {
                 summary: payload.summary.trim(),
                 visibility: module.visibility,
             });
+            let creditNote = "";
+            if (payload.coAuthors) {
+                try {
+                    await setModuleCoAuthors(module.id, payload.coAuthors);
+                } catch (creditError: any) {
+                    creditNote = ` Co-authors weren't saved: ${creditError?.message || "unknown error"}`;
+                }
+            }
             const [myModules, subscribedModules] = await Promise.all([
                 listOwnModules(userId),
                 listSubscribedModules(userId),
@@ -2685,7 +2717,7 @@ class App extends Component<any, AppState> {
                     subscribedScriptsVisibilityById,
                     activeModule: refreshedActiveModule,
                     modulesBusy: false,
-                    modulesNotice: `Updated "${updatedModule.title}".`,
+                    modulesNotice: `Updated "${updatedModule.title}".${creditNote}`,
                     modulesError: null,
                 };
             });
@@ -3885,6 +3917,14 @@ class App extends Component<any, AppState> {
                     onDeleteModule={this._handleModuleDelete}
                     onToggleSubscribedScriptVisibility={this._handleToggleSubscribedScriptVisibility}
                 />
+
+                {this.state.usernamePrompt && this.state.usernamePrompt.userId === sessionUserId && (
+                    <UsernamePrompt
+                        userId={this.state.usernamePrompt.userId}
+                        defaultUsername={this.state.usernamePrompt.defaultUsername}
+                        onDone={() => this.setState({ usernamePrompt: null })}
+                    />
+                )}
 
                 <FeedbackDialog
                     open={this.state.feedbackOpen}

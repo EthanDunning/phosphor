@@ -1,7 +1,7 @@
 import React, { FC, useEffect, useMemo, useState } from "react";
 import CreatorSelect, { CreatorSelectOption } from "../CreatorSelect";
 import AuthorPicker from "../AuthorPicker";
-import { AuthorRef, fetchModuleCoAuthors } from "../../lib/authors";
+import { AuthorRef, fetchModuleCoAuthors, sameAuthors } from "../../lib/authors";
 import { isModuleLinkShareable, MAX_MODULE_SUMMARY_LENGTH, MAX_MODULE_TITLE_LENGTH } from "../../lib/modules";
 import type { ModuleRecord, ModuleVisibility } from "../../lib/modules";
 import "./style.scss";
@@ -35,12 +35,13 @@ interface ModulesPanelProps {
         title: string;
         summary: string;
         visibility: ModuleVisibility;
-        coAuthors: AuthorRef[];
+        coAuthors?: AuthorRef[];
     }) => Promise<boolean> | void;
     onCopyShareLink: (module: ModuleRecord) => void;
     onUpdateModuleDetails: (module: ModuleRecord, payload: {
         title: string;
         summary: string;
+        coAuthors?: AuthorRef[];
     }) => Promise<boolean> | void;
     onSetModuleVisibility: (module: ModuleRecord, nextVisibility: ModuleVisibility) => Promise<boolean> | void;
     onDeleteModule: (module: ModuleRecord) => Promise<boolean> | void;
@@ -104,6 +105,11 @@ const ModulesPanel: FC<ModulesPanelProps> = ({
     const [editingModuleId, setEditingModuleId] = useState<string | null>(null);
     const [editTitle, setEditTitle] = useState<string>("");
     const [editSummary, setEditSummary] = useState<string>("");
+    const [editCoAuthors, setEditCoAuthors] = useState<AuthorRef[]>([]);
+    const [editCoAuthorsLoaded, setEditCoAuthorsLoaded] = useState<boolean>(false);
+    const [editCoAuthorsOriginal, setEditCoAuthorsOriginal] = useState<AuthorRef[]>([]);
+    const [coAuthorsOriginal, setCoAuthorsOriginal] = useState<AuthorRef[]>([]);
+    const [coAuthorsLoaded, setCoAuthorsLoaded] = useState<boolean>(true);
 
     const currentScriptName = useMemo(() => {
         const configName = currentScript?.config?.name;
@@ -177,12 +183,21 @@ const ModulesPanel: FC<ModulesPanelProps> = ({
     useEffect(() => {
         if (!open || !activeModuleIsOwned || !activeModule) {
             setCoAuthors([]);
+            setCoAuthorsOriginal([]);
+            setCoAuthorsLoaded(true);
             return;
         }
         let cancelled = false;
+        setCoAuthorsLoaded(false);
         fetchModuleCoAuthors(activeModule.id)
-            .then((authors) => { if (!cancelled) setCoAuthors(authors); })
-            .catch(() => { if (!cancelled) setCoAuthors([]); });
+            .then((authors) => {
+                if (!cancelled) {
+                    setCoAuthors(authors);
+                    setCoAuthorsOriginal(authors);
+                    setCoAuthorsLoaded(true);
+                }
+            })
+            .catch(() => { if (!cancelled) setCoAuthorsLoaded(false); });
         return () => { cancelled = true; };
     }, [open, activeModuleIsOwned, activeModule?.id]);
 
@@ -254,6 +269,17 @@ const ModulesPanel: FC<ModulesPanelProps> = ({
         setEditingModuleId(module.id);
         setEditTitle(module.title);
         setEditSummary(module.summary || "");
+        setEditCoAuthors([]);
+        setEditCoAuthorsLoaded(false);
+        setEditCoAuthorsOriginal([]);
+        fetchModuleCoAuthors(module.id)
+            .then((authors) => {
+                setEditCoAuthors(authors);
+                setEditCoAuthorsOriginal(authors);
+                setEditCoAuthorsLoaded(true);
+            })
+            // couldn't read them: leave co-authors alone on save
+            .catch(() => setEditCoAuthorsLoaded(false));
     };
 
     const handleCancelEdit = (): void => {
@@ -271,6 +297,7 @@ const ModulesPanel: FC<ModulesPanelProps> = ({
         const updated = await Promise.resolve(onUpdateModuleDetails(module, {
             title: nextTitle,
             summary: editSummary.trim(),
+            coAuthors: editCoAuthorsLoaded && !sameAuthors(editCoAuthors, editCoAuthorsOriginal) ? editCoAuthors : undefined,
         }));
         if (updated === false) {
             return;
@@ -457,7 +484,7 @@ const ModulesPanel: FC<ModulesPanelProps> = ({
                                         value={coAuthors}
                                         onChange={setCoAuthors}
                                         excludeIds={sessionUserId ? [sessionUserId] : []}
-                                        disabled={!sessionUserId || busy || !supabaseReady}
+                                        disabled={!sessionUserId || busy || !supabaseReady || !coAuthorsLoaded}
                                     />
                                     <small className="modules-panel__muted">
                                         Credit other creators by their account ID (they can copy it from their account menu). You're always credited first.
@@ -472,7 +499,7 @@ const ModulesPanel: FC<ModulesPanelProps> = ({
                                             title: title.trim(),
                                             summary: summary.trim(),
                                             visibility,
-                                            coAuthors,
+                                            coAuthors: coAuthorsLoaded && !sameAuthors(coAuthors, coAuthorsOriginal) ? coAuthors : undefined,
                                         })}
                                     >
                                         {activeModuleIsOwned ? "Save Changes" : "Create Module"}
@@ -551,6 +578,22 @@ const ModulesPanel: FC<ModulesPanelProps> = ({
                                                                         placeholder="Short summary for the module listing"
                                                                     />
                                                                 </label>
+
+                                                                <div className="modules-panel__field">
+                                                                    <span>Co-authors</span>
+                                                                    <AuthorPicker
+                                                                        value={editCoAuthors}
+                                                                        onChange={setEditCoAuthors}
+                                                                        excludeIds={[module.owner_id]}
+                                                                        disabled={busy || !editCoAuthorsLoaded}
+                                                                    />
+                                                                    {!editCoAuthorsLoaded && (
+                                                                        <small className="modules-panel__muted">Loading co-authors...</small>
+                                                                    )}
+                                                                    <small className="modules-panel__muted">
+                                                                        Credit other creators by their account ID (they can copy it from their account menu). You're always credited first.
+                                                                    </small>
+                                                                </div>
 
                                                                 <div className="modules-panel__actions">
                                                                     <button

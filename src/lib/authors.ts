@@ -84,16 +84,57 @@ export const updateUsername = async (userId: string, raw: string): Promise<strin
         throw new Error(problem);
     }
     const client = requireSupabase();
-    const { data, error } = await client
+    let { data, error } = await client
         .from("profiles")
-        .update({ username: name })
+        .update({ username: name, username_confirmed: true })
         .eq("id", userId)
         .select("username")
         .single();
+    // database without the username_confirmed column yet: save the name alone
+    if (error && isMissingSchema(error)) {
+        ({ data, error } = await client
+            .from("profiles")
+            .update({ username: name })
+            .eq("id", userId)
+            .select("username")
+            .single());
+    }
     if (error) {
         throw toAuthorError(error);
     }
     return (data as any).username;
+};
+
+// ---- first sign-in: "choose a username or keep the generated one" ----
+
+export interface UsernameSetup {
+    username: string;
+    confirmed: boolean;
+}
+
+// null when usernames aren't set up in the database yet (then: no prompt)
+export const getUsernameSetup = async (userId: string): Promise<UsernameSetup | null> => {
+    const { data, error } = await requireSupabase()
+        .from("profiles")
+        .select("username, username_confirmed")
+        .eq("id", userId)
+        .maybeSingle();
+    if (error) {
+        if (isMissingSchema(error)) {
+            return null;
+        }
+        throw toAuthorError(error);
+    }
+    const row = data as any;
+    return row && row.username ? { username: row.username, confirmed: row.username_confirmed === true } : null;
+};
+
+// Keep the current (generated) username and stop asking.
+export const keepUsername = async (userId: string): Promise<void> => {
+    const { error } = await requireSupabase().from("profiles").update({ username_confirmed: true }).eq("id", userId);
+    if (error) {
+        throw toAuthorError(error);
+    }
 };
 
 // Co-authors are added by their FULL account id (shown in their own account
@@ -226,6 +267,10 @@ export const setModuleCoAuthors = async (moduleId: string, authors: AuthorRef[])
         .select("user_id")
         .eq("module_id", moduleId);
     if (readError) {
+        // nothing to credit and co-authors aren't set up yet: nothing to do
+        if (!authors.length && isMissingSchema(readError)) {
+            return;
+        }
         throw toAuthorError(readError);
     }
 
@@ -247,6 +292,11 @@ export const setModuleCoAuthors = async (moduleId: string, authors: AuthorRef[])
             throw toAuthorError(error);
         }
     }
+};
+
+// Same people in the same order?
+export const sameAuthors = (a: AuthorRef[], b: AuthorRef[]): boolean => {
+    return a.length === b.length && a.every((author, index) => author.id === b[index].id);
 };
 
 // A tagged co-author taking their own name off a module.

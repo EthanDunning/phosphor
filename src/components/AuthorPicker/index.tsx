@@ -58,7 +58,7 @@ const AuthorPicker: FC<AuthorPickerProps> = ({ value, onChange, excludeIds = [],
             {value.length > 0 && (
                 <div className="author-picker__chips">
                     {value.map((author) => (
-                        <span key={author.id} className="author-picker__chip">
+                        <div key={author.id} className="author-picker__chip">
                             {author.username}
                             <button
                                 type="button"
@@ -70,7 +70,7 @@ const AuthorPicker: FC<AuthorPickerProps> = ({ value, onChange, excludeIds = [],
                             >
                                 ×
                             </button>
-                        </span>
+                        </div>
                     ))}
                 </div>
             )}

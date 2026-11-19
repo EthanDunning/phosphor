@@ -56,7 +56,10 @@ begin
         if n <> 1 then
             raise exception 'Short id % matches % accounts (expected 1). Nothing was changed.', r.short_id, n;
         end if;
-        update public.profiles set username = r.new_username where id::text like r.short_id || '%';
+        -- they chose these names themselves, so skip the "pick a username" popup
+        update public.profiles
+        set username = r.new_username, username_confirmed = true
+        where id::text like r.short_id || '%';
     end loop;
 end;
 $$;

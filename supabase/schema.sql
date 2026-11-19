@@ -881,6 +881,10 @@ alter table public.profiles
 
 create unique index if not exists profiles_username_lower_key on public.profiles (lower(username));
 
+-- false until the person has chosen a username or kept the generated one; the
+-- app asks them once (a popup after signing in) while this is false
+alter table public.profiles add column if not exists username_confirmed boolean not null default false;
+
 -- ---------------------------------------------------------------------------
 -- Module co-authors: people the owner credits on a module ("By A & B"). The
 -- owner (or an admin) adds and removes them; anyone tagged can remove
